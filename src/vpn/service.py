@@ -1,3 +1,5 @@
+from collections.abc import Callable
+
 from src.ipam.base import IPAMProvider
 from src.vpn.addressing import TunnelAddressing, build_tunnel_addressing
 
@@ -20,6 +22,23 @@ class VPNAddressingService:
             prefix_id=prefix["id"],
             prefix=prefix["prefix"],
         )
+
+    def allocate_with_rollback(
+        self,
+        description: str,
+        operation: Callable[[TunnelAddressing], None],
+    ) -> TunnelAddressing:
+        """Allocate addressing and release it if the next operation fails."""
+
+        tunnel = self.allocate_tunnel(description)
+
+        try:
+            operation(tunnel)
+        except Exception:
+            self.release_tunnel(tunnel.prefix_id)
+            raise
+
+        return tunnel
 
     def release_tunnel(self, prefix_id: str) -> None:
         """Release the prefix associated with a VPN tunnel."""
