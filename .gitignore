@@ -23,3 +23,6 @@ Thumbs.db
 # Generated backups
 backups/*
 !backups/.gitkeep
+# Allow environment templates
+!.env.example
+!**/.env.example
