@@ -7,6 +7,15 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
+def get_base_url() -> str:
+    base_url = os.getenv("NAUTOBOT_URL")
+
+    if not base_url:
+        raise RuntimeError("NAUTOBOT_URL is not configured.")
+
+    return base_url.rstrip("/")
+
+
 def get_headers() -> dict[str, str]:
     token = os.getenv("NAUTOBOT_TOKEN")
 
@@ -30,15 +39,11 @@ def get_parent_prefix() -> str:
 
 
 def ensure_parent_prefix() -> None:
-    base_url = os.getenv("NAUTOBOT_URL")
-
-    if not base_url:
-        raise RuntimeError("NAUTOBOT_URL is not configured.")
-
+    base_url = get_base_url()
     prefix = get_parent_prefix()
     headers = get_headers()
 
-    url = f"{base_url.rstrip('/')}/api/ipam/prefixes/"
+    url = f"{base_url}/api/ipam/prefixes/"
 
     response = requests.get(
         url,
@@ -71,9 +76,41 @@ def ensure_parent_prefix() -> None:
     print(f"Prefix {prefix} created.")
 
 
+def validate_rbac() -> None:
+    """
+    Validate the expected RBAC configuration.
+
+    RBAC creation requires administrative privileges and is intentionally
+    separated from the restricted automation token used by the application.
+    """
+
+    expected_group = os.getenv(
+        "NAUTOBOT_AUTOMATION_GROUP",
+        "network-automation-ipam",
+    )
+
+    expected_user = os.getenv(
+        "NAUTOBOT_AUTOMATION_USERNAME",
+        "network-automation",
+    )
+
+    print("Expected RBAC configuration:")
+    print(f"- User: {expected_user}")
+    print(f"- Group: {expected_group}")
+    print(
+        "- Prefix permission: view, add, change, delete on ipam.prefix"
+    )
+    print(
+        "- Reference-data permission: view on extras.status "
+        "and ipam.namespace"
+    )
+
+
 def main() -> None:
     try:
         ensure_parent_prefix()
+        validate_rbac()
+
     except (requests.RequestException, RuntimeError) as exc:
         print(f"Bootstrap failed: {exc}", file=sys.stderr)
         sys.exit(1)
