@@ -1,0 +1,218 @@
+config system global
+    set hostname "{{ hostname }}"
+end
+
+config system interface
+    edit "port4"
+        set alias "{{ name }}_LAN"
+        set ip {{ lan_gateway }} 255.255.255.0
+    next
+
+    edit "LO-MGMT"
+        set type loopback
+        set ip {{ loopback_ip }} 255.255.255.255
+        set allowaccess ping http https ssh snmp
+    next
+end
+
+config firewall address
+    edit "BRANCH-LAN"
+        set subnet {{ lan_network }} 255.255.255.0
+    next
+
+    edit "DC-LAN"
+        set subnet 10.255.255.0 255.255.255.0
+    next
+
+    edit "DC-SERVER-1"
+        set subnet 10.255.255.1 255.255.255.255
+    next
+end
+
+config vpn ipsec phase1-interface
+    edit "VPN-PA-DC"
+        set interface "port2"
+        set remote-gw {{ dc_wan1_ip }}
+        set psksecret "{{ psk }}"
+    next
+
+    edit "VPN2-PA-DC"
+        set interface "port3"
+        set remote-gw {{ dc_wan2_ip }}
+        set psksecret "{{ psk }}"
+    next
+end
+
+config system interface
+    edit "VPN-PA-DC"
+        set ip {{ vpn1_branch_ip }} 255.255.255.255
+        set remote-ip {{ vpn1_dc_ip }} 255.255.255.252
+    next
+
+    edit "VPN2-PA-DC"
+        set ip {{ vpn2_branch_ip }} 255.255.255.255
+        set remote-ip {{ vpn2_dc_ip }} 255.255.255.252
+    next
+end
+
+config router route-map
+    edit "RM-OUT-VPN1"
+        config rule
+            edit 1
+                set set-community "65001:11"
+            next
+        end
+    next
+
+    edit "RM-OUT-VPN1-PREF"
+        config rule
+            edit 1
+                set set-community "65001:1"
+            next
+        end
+    next
+
+    edit "RM-OUT-VPN2"
+        config rule
+            edit 1
+                set set-community "65001:11"
+            next
+        end
+    next
+
+    edit "RM-OUT-VPN2-PREF"
+        config rule
+            edit 1
+                set set-community "65001:2"
+            next
+        end
+    next
+end
+
+config router bgp
+    set as 65001
+    set router-id {{ lan_gateway }}
+
+    config neighbor
+        edit "{{ vpn1_dc_ip }}"
+            set remote-as 65001
+            set route-map-out "RM-OUT-VPN1"
+            set route-map-out-preferable "RM-OUT-VPN1-PREF"
+        next
+
+        edit "{{ vpn2_dc_ip }}"
+            set remote-as 65001
+            set route-map-out "RM-OUT-VPN2"
+            set route-map-out-preferable "RM-OUT-VPN2-PREF"
+        next
+    end
+
+    config network
+        edit 1
+            set prefix {{ lan_network }} 255.255.255.0
+        next
+
+        edit 2
+            set prefix {{ loopback_ip }} 255.255.255.255
+        next
+    end
+end
+
+config system sdwan
+    set status enable
+
+    config zone
+        edit "VPN-DC"
+        next
+    end
+
+    config members
+        edit 1
+            set interface "VPN-PA-DC"
+            set zone "VPN-DC"
+        next
+
+        edit 2
+            set interface "VPN2-PA-DC"
+            set zone "VPN-DC"
+        next
+    end
+
+    config health-check
+        edit "SLA_DC"
+            set server "10.255.255.1"
+            set interval 1000
+            set probe-timeout 250
+            set failtime 2
+            set recoverytime 10
+            set members 1 2
+
+            config sla
+                edit 1
+                    set latency-threshold 100
+                    set jitter-threshold 20
+                    set packetloss-threshold 5
+                next
+            end
+        next
+    end
+
+    config neighbor
+        edit "{{ vpn1_dc_ip }}"
+            set member 1
+            set health-check "SLA_DC"
+            set sla-id 1
+        next
+
+        edit "{{ vpn2_dc_ip }}"
+            set member 2
+            set health-check "SLA_DC"
+            set sla-id 1
+        next
+    end
+
+    config service
+        edit 1
+            set name "TO-DC"
+            set mode sla
+            set minimum-sla-meet-members 1
+            set dst "all"
+            set src "all"
+
+            config sla
+                edit "SLA_DC"
+                    set id 1
+                next
+            end
+
+            set priority-members 1 2
+            set tie-break cfg-order
+        next
+    end
+end
+
+config firewall policy
+    edit 1
+        set name "BRANCH-LAN-to-VPN-DC"
+        set srcintf "port4"
+        set dstintf "VPN-DC"
+        set action accept
+        set srcaddr "BRANCH-LAN"
+        set dstaddr "DC-SERVER-1"
+        set schedule "always"
+        set service "SERVICES-DC"
+        set logtraffic all
+    next
+
+    edit 2
+        set name "VPN-DC-to-BRANCH-LAN"
+        set srcintf "VPN-DC"
+        set dstintf "port4"
+        set action accept
+        set srcaddr "DC-LAN"
+        set dstaddr "BRANCH-LAN"
+        set schedule "always"
+        set service "SERVICES-MGMT"
+        set logtraffic all
+    next
+end
