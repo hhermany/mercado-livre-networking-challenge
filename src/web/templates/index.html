@@ -64,6 +64,11 @@ header p {
     font-size: 19px;
 }
 
+.card h3 {
+    margin: 0 0 12px;
+    font-size: 15px;
+}
+
 .field {
     display: flex;
     flex-direction: column;
@@ -92,58 +97,6 @@ select:focus {
     border-color: var(--primary);
 }
 
-.vlan-editor {
-    display: grid;
-    gap: 10px;
-    max-width: 650px;
-}
-
-.vlan-row {
-    display: grid;
-    grid-template-columns: 180px 1fr;
-    gap: 12px;
-}
-
-.port-grid {
-    display: grid;
-    grid-template-columns:
-        minmax(180px, 1.15fr)
-        minmax(210px, 1.35fr)
-        minmax(130px, 0.75fr)
-        minmax(130px, 0.75fr)
-        minmax(190px, 1fr);
-    gap: 12px;
-    align-items: end;
-}
-
-.options-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 24px;
-    margin-top: 18px;
-}
-
-.checkbox {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.checkbox input {
-    width: auto;
-    margin: 0;
-}
-
-.checkbox label {
-    cursor: pointer;
-}
-
-.help {
-    margin-top: 12px;
-    font-size: 12px;
-    color: var(--muted);
-}
-
 .actions {
     margin-top: 18px;
 }
@@ -162,6 +115,30 @@ button:hover {
     filter: brightness(0.94);
 }
 
+.help {
+    margin-top: 10px;
+    color: var(--muted);
+    font-size: 12px;
+}
+
+.vlan-editor {
+    display: grid;
+    gap: 10px;
+    max-width: 650px;
+}
+
+.vlan-row {
+    display: grid;
+    grid-template-columns: 180px 1fr;
+    gap: 12px;
+}
+
+.subsection {
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+}
+
 .table-wrap {
     overflow-x: auto;
 }
@@ -178,7 +155,6 @@ th {
     color: #47525d;
     font-size: 12px;
     text-transform: uppercase;
-    letter-spacing: 0.03em;
 }
 
 th,
@@ -200,15 +176,88 @@ tbody tr:hover {
     font-weight: 600;
 }
 
-.subsection {
-    margin-top: 20px;
-    padding-top: 16px;
-    border-top: 1px solid var(--border);
+.interface-selector {
+    display: grid;
+    grid-template-columns:
+        repeat(auto-fit, minmax(245px, 1fr));
+    gap: 8px;
 }
 
-.subsection h3 {
-    margin: 0 0 10px;
-    font-size: 15px;
+.interface-option {
+    display: grid;
+    grid-template-columns: auto 60px 1fr;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 10px;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    cursor: pointer;
+}
+
+.interface-option:hover {
+    background: #f8fafb;
+}
+
+.interface-option input {
+    width: auto;
+    margin: 0;
+}
+
+.interface-name {
+    font-weight: 600;
+}
+
+.interface-meta {
+    color: var(--muted);
+    font-size: 12px;
+}
+
+.range-grid {
+    display: grid;
+    grid-template-columns:
+        repeat(2, minmax(180px, 280px));
+    gap: 12px;
+}
+
+.port-grid {
+    display: grid;
+    grid-template-columns:
+        minmax(210px, 1.4fr)
+        minmax(130px, 0.8fr)
+        minmax(130px, 0.8fr)
+        minmax(190px, 1fr);
+    gap: 12px;
+    align-items: end;
+}
+
+.options-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 24px;
+    margin-top: 16px;
+}
+
+.checkbox {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.checkbox input {
+    width: auto;
+    margin: 0;
+}
+
+.selection-summary {
+    margin-top: 14px;
+    padding: 12px 14px;
+    border-radius: 7px;
+    background: #f2f4f6;
+}
+
+.selection-summary strong {
+    display: block;
+    margin-bottom: 4px;
 }
 
 pre {
@@ -230,19 +279,6 @@ pre {
     margin-bottom: 18px;
 }
 
-.result-success h3 {
-    margin: 0 0 10px;
-}
-
-.result-success ul {
-    margin: 8px 0 12px;
-}
-
-.backup {
-    font-size: 12px;
-    color: var(--muted);
-}
-
 .error {
     background: var(--error-bg);
     border: 1px solid var(--error-border);
@@ -257,74 +293,16 @@ pre {
     padding: 14px 16px;
 }
 
-
-.batch-title {
-    margin: 0 0 12px;
-    font-size: 15px;
-}
-
-.batch-interface-list {
-    display: grid;
-    grid-template-columns:
-        repeat(auto-fit, minmax(250px, 1fr));
-    gap: 8px;
-}
-
-.batch-interface-item {
-    display: grid;
-    grid-template-columns: auto 60px 1fr;
-    align-items: center;
-    gap: 8px;
-    padding: 9px 10px;
-    border: 1px solid var(--border);
-    border-radius: 7px;
-    cursor: pointer;
-}
-
-.batch-interface-item:hover {
-    background: #f8fafb;
-}
-
-.batch-interface-item input {
-    width: auto;
-    margin: 0;
-}
-
-.batch-interface-name {
-    font-weight: 600;
-}
-
-.batch-interface-meta {
+.backup {
     color: var(--muted);
     font-size: 12px;
 }
 
-.range-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(180px, 280px));
-    gap: 12px;
+.interface-result {
+    margin-top: 12px;
 }
 
-.selection-summary {
-    margin: 12px 0;
-    padding: 12px;
-    background: #f2f4f6;
-    border-radius: 7px;
-}
-
-.desired-box {
-    margin: 12px 0;
-    padding: 12px 14px;
-    border: 1px solid var(--border);
-    border-radius: 7px;
-    background: #f8fafb;
-}
-
-.desired-box ul {
-    margin: 8px 0 0;
-}
-
-@media (max-width: 950px) {
+@media (max-width: 900px) {
     .port-grid {
         grid-template-columns: repeat(2, 1fr);
     }
@@ -336,13 +314,9 @@ pre {
     }
 
     .vlan-row,
+    .range-grid,
     .port-grid {
         grid-template-columns: 1fr;
-    }
-
-    .options-row {
-        flex-direction: column;
-        gap: 12px;
     }
 }
 </style>
@@ -356,6 +330,7 @@ pre {
     <p>Configuração e validação operacional do equipamento.</p>
 </header>
 
+
 {% if error %}
 <div class="error">
     <strong>ERRO</strong><br>
@@ -363,97 +338,94 @@ pre {
 </div>
 {% endif %}
 
-<form method="post" action="/apply">
 
 <div class="card">
     <h2>Hostname</h2>
 
-    <div class="field">
-        <label for="hostname">Novo hostname</label>
-        <input
-            id="hostname"
-            name="hostname"
-            placeholder="Ex.: SW-ACCESS-01"
-        >
-    </div>
+    <form method="post" action="/apply-hostname">
+
+        <div class="field">
+            <label for="hostname">
+                Novo hostname
+            </label>
+
+            <input
+                id="hostname"
+                name="hostname"
+                placeholder="Ex.: SW-ACCESS-01"
+            >
+        </div>
+
+        <div class="actions">
+            <button type="submit">
+                Aplicar Hostname
+            </button>
+        </div>
+
+    </form>
 </div>
 
 
 <div class="card">
     <h2>VLANs</h2>
 
-    <div class="vlan-editor">
+    <form method="post" action="/apply-vlans">
 
-        <div class="vlan-row">
-            <div class="field">
-                <label for="vlan1_id">VLAN ID</label>
-                <input
-                    id="vlan1_id"
-                    name="vlan1_id"
-                    placeholder="Ex.: 10"
-                >
-            </div>
+        <div class="vlan-editor">
 
-            <div class="field">
-                <label for="vlan1_name">Nome</label>
-                <input
-                    id="vlan1_name"
-                    name="vlan1_name"
-                    placeholder="Ex.: VLAN_DADOS"
-                >
+            {% for row in ("1", "2", "3") %}
+            <div class="vlan-row">
+
+                <div class="field">
+                    <label for="vlan{{ row }}_id">VLAN ID</label>
+
+                    <input
+                        id="vlan{{ row }}_id"
+                        name="vlan{{ row }}_id"
+                        {% if row == "1" %}
+                        placeholder="Ex.: 10"
+                        {% endif %}
+                    >
+                </div>
+
+                <div class="field">
+                    <label for="vlan{{ row }}_name">
+                        Nome
+                    </label>
+
+                    <input
+                        id="vlan{{ row }}_name"
+                        name="vlan{{ row }}_name"
+                        {% if row == "1" %}
+                        placeholder="Ex.: VLAN_DADOS"
+                        {% endif %}
+                    >
+                </div>
+
             </div>
+            {% endfor %}
+
         </div>
 
-        <div class="vlan-row">
-            <div class="field">
-                <label for="vlan2_id">VLAN ID</label>
-                <input
-                    id="vlan2_id"
-                    name="vlan2_id"
-                >
-            </div>
-
-            <div class="field">
-                <label for="vlan2_name">Nome</label>
-                <input
-                    id="vlan2_name"
-                    name="vlan2_name"
-                >
-            </div>
+        <div class="actions">
+            <button type="submit">
+                Aplicar VLANs
+            </button>
         </div>
 
-        <div class="vlan-row">
-            <div class="field">
-                <label for="vlan3_id">VLAN ID</label>
-                <input
-                    id="vlan3_id"
-                    name="vlan3_id"
-                >
-            </div>
-
-            <div class="field">
-                <label for="vlan3_name">Nome</label>
-                <input
-                    id="vlan3_name"
-                    name="vlan3_name"
-                >
-            </div>
-        </div>
-
-    </div>
+    </form>
 
     <div class="subsection">
         <h3>VLANs atuais</h3>
 
         {% if vlan_state %}
         <pre>{{ vlan_state }}</pre>
+
         {% elif inventory_error %}
         <div class="warning">
             Não foi possível consultar as VLANs:
             {{ inventory_error }}
         </div>
-        {% else %}
-        <p>Nenhuma informação de VLAN disponível.</p>
         {% endif %}
     </div>
 </div>
@@ -469,8 +441,8 @@ pre {
     </div>
 
     {% elif interfaces %}
-
     <div class="table-wrap">
+
         <table>
             <thead>
             <tr>
@@ -508,171 +480,41 @@ pre {
             {% endfor %}
             </tbody>
         </table>
-    </div>
 
-    {% else %}
-    <p>Nenhuma interface encontrada.</p>
+    </div>
     {% endif %}
 </div>
 
 
 <div class="card">
-    <h2>Configuração de Porta</h2>
+    <h2>Configuração de Portas</h2>
 
-    <div class="port-grid">
+    <form
+        id="ports-form"
+        method="post"
+        action="/apply-ports"
+    >
 
-        <div class="field">
-            <label for="interface">Interface</label>
+        <h3>Selecione as interfaces</h3>
 
-            <select
-                id="interface"
-                name="interface"
-            >
-                <option value="">
-                    Nenhuma interface
-                </option>
-
-                {% for item in interfaces %}
-                <option value="{{ item.name }}">
-                    {{ item.name }}
-                    — {{ item.status_label }}
-                    — {{ item.mode_label }}
-                    {% if item.description %}
-                    — {{ item.description }}
-                    {% endif %}
-                </option>
-                {% endfor %}
-            </select>
-        </div>
-
-        <div class="field">
-            <label for="description">Description</label>
-
-            <input
-                id="description"
-                name="description"
-                maxlength="80"
-                placeholder="Ex.: HOST DE TESTES"
-            >
-        </div>
-
-        <div class="field">
-            <label for="access_vlan">Access VLAN</label>
-
-            <input
-                id="access_vlan"
-                name="access_vlan"
-                placeholder="Ex.: 10"
-            >
-        </div>
-
-        <div class="field">
-            <label for="voice_vlan">Voice VLAN</label>
-
-            <input
-                id="voice_vlan"
-                name="voice_vlan"
-                placeholder="Ex.: 20"
-            >
-        </div>
-
-        <div class="field">
-            <label for="admin_state">
-                Estado administrativo
-            </label>
-
-            <select
-                id="admin_state"
-                name="admin_state"
-            >
-                <option value="">
-                    Não alterar
-                </option>
-
-                <option value="up">
-                    Admin Up (no shutdown)
-                </option>
-
-                <option value="down">
-                    Admin Down (shutdown)
-                </option>
-            </select>
-        </div>
-
-    </div>
-
-    <div class="options-row">
-
-        <div class="checkbox">
-            <input
-                type="checkbox"
-                id="remove_description"
-                name="remove_description"
-            >
-
-            <label for="remove_description">
-                Remover Description configurada
-            </label>
-        </div>
-
-        <div class="checkbox">
-            <input
-                type="checkbox"
-                id="remove_voice_vlan"
-                name="remove_voice_vlan"
-            >
-
-            <label for="remove_voice_vlan">
-                Remover Voice VLAN configurada
-            </label>
-        </div>
-
-    </div>
-
-    <div class="help">
-        Campos vazios significam não alterar.
-        Remoções precisam ser selecionadas explicitamente.
-    </div>
-
-    <div class="actions">
-        <button type="submit">
-            Aplicar Configuração
-        </button>
-    </div>
-</div>
-
-</form>
-
-
-
-<div class="card">
-    <h2>Configuração de Portas em Lote</h2>
-
-    <form method="post" action="/batch-preview">
-
-        <h3 class="batch-title">
-            1. Selecione as interfaces
-        </h3>
-
-        <div class="batch-interface-list">
+        <div class="interface-selector">
 
             {% for item in interfaces %}
-            <label class="batch-interface-item">
+            <label class="interface-option">
 
                 <input
                     type="checkbox"
-                    name="batch_interfaces"
+                    class="interface-checkbox"
+                    name="interfaces"
                     value="{{ item.name }}"
-                    {% if batch_preview and item.name in batch_preview.form.selected_names %}
-                    checked
-                    {% endif %}
+                    data-index="{{ loop.index0 }}"
                 >
 
-                <span class="batch-interface-name">
+                <span class="interface-name">
                     {{ item.name }}
                 </span>
 
-                <span class="batch-interface-meta">
+                <span class="interface-meta">
                     {{ item.status_label }}
                     · {{ item.mode_label }}
 
@@ -693,13 +535,13 @@ pre {
             <div class="range-grid">
 
                 <div class="field">
-                    <label for="batch_start_interface">
+                    <label for="range_start">
                         Interface inicial
                     </label>
 
                     <select
-                        id="batch_start_interface"
-                        name="batch_start_interface"
+                        id="range_start"
+                        name="range_start"
                     >
                         <option value="">
                             Nenhuma
@@ -708,26 +550,22 @@ pre {
                         {% for item in interfaces %}
                         <option
                             value="{{ item.name }}"
-                            {% if batch_preview and batch_preview.form.start_interface == item.name %}
-                            selected
-                            {% endif %}
+                            data-index="{{ loop.index0 }}"
                         >
                             {{ item.name }}
-                            — {{ item.status_label }}
-                            — {{ item.mode_label }}
                         </option>
                         {% endfor %}
                     </select>
                 </div>
 
                 <div class="field">
-                    <label for="batch_end_interface">
+                    <label for="range_end">
                         Interface final
                     </label>
 
                     <select
-                        id="batch_end_interface"
-                        name="batch_end_interface"
+                        id="range_end"
+                        name="range_end"
                     >
                         <option value="">
                             Nenhuma
@@ -736,13 +574,9 @@ pre {
                         {% for item in interfaces %}
                         <option
                             value="{{ item.name }}"
-                            {% if batch_preview and batch_preview.form.end_interface == item.name %}
-                            selected
-                            {% endif %}
+                            data-index="{{ loop.index0 }}"
                         >
                             {{ item.name }}
-                            — {{ item.status_label }}
-                            — {{ item.mode_label }}
                         </option>
                         {% endfor %}
                     </select>
@@ -751,86 +585,87 @@ pre {
             </div>
 
             <div class="help">
-                Você pode usar somente checkboxes, somente um range
-                ou combinar os dois. Interfaces repetidas são
-                automaticamente eliminadas.
+                Você pode selecionar portas individualmente,
+                usar somente um range ou combinar os dois.
+                Duplicatas são eliminadas automaticamente.
+            </div>
+
+
+            <div
+                id="selection-summary"
+                class="selection-summary"
+            >
+                <strong>
+                    Interfaces selecionadas: 0
+                </strong>
+
+                <span id="selection-list">
+                    Nenhuma
+                </span>
             </div>
         </div>
 
 
         <div class="subsection">
-            <h3>2. Configuração desejada</h3>
+            <h3>Configuração desejada</h3>
 
             <div class="port-grid">
 
                 <div class="field">
-                    <label for="batch_description">
+                    <label for="description">
                         Description
                     </label>
 
                     <input
-                        id="batch_description"
-                        name="batch_description"
+                        id="description"
+                        name="description"
                         maxlength="80"
-                        placeholder="Ex.: TELEFONIA ANDAR 2"
-                        value="{% if batch_preview and batch_preview.form.description %}{{ batch_preview.form.description }}{% endif %}"
+                        placeholder="Ex.: HOST DE TESTES"
                     >
                 </div>
 
                 <div class="field">
-                    <label for="batch_access_vlan">
+                    <label for="access_vlan">
                         Access VLAN
                     </label>
 
                     <input
-                        id="batch_access_vlan"
-                        name="batch_access_vlan"
+                        id="access_vlan"
+                        name="access_vlan"
                         placeholder="Ex.: 10"
-                        value="{% if batch_preview and batch_preview.form.access_vlan is not none %}{{ batch_preview.form.access_vlan }}{% endif %}"
                     >
                 </div>
 
                 <div class="field">
-                    <label for="batch_voice_vlan">
+                    <label for="voice_vlan">
                         Voice VLAN
                     </label>
 
                     <input
-                        id="batch_voice_vlan"
-                        name="batch_voice_vlan"
+                        id="voice_vlan"
+                        name="voice_vlan"
                         placeholder="Ex.: 20"
-                        value="{% if batch_preview and batch_preview.form.voice_vlan is not none %}{{ batch_preview.form.voice_vlan }}{% endif %}"
                     >
                 </div>
 
                 <div class="field">
-                    <label for="batch_admin_state">
+                    <label for="admin_state">
                         Estado administrativo
                     </label>
 
                     <select
-                        id="batch_admin_state"
-                        name="batch_admin_state"
+                        id="admin_state"
+                        name="admin_state"
                     >
                         <option value="">
                             Não alterar
                         </option>
 
-                        <option
-                            value="up"
-                            {% if batch_preview and batch_preview.form.admin_state == "up" %}
-                            selected
-                            {% endif %}
-                        >
+                        <option value="up">
                             Admin Up
                         </option>
 
-                        <option
-                            value="down"
-                            {% if batch_preview and batch_preview.form.admin_state == "down" %}
-                            selected
-                            {% endif %}
-                        >
+                        <option value="down">
                             Admin Down
                         </option>
                     </select>
@@ -844,14 +679,11 @@ pre {
                 <div class="checkbox">
                     <input
                         type="checkbox"
-                        id="batch_remove_description"
-                        name="batch_remove_description"
-                        {% if batch_preview and batch_preview.form.remove_description %}
-                        checked
-                        {% endif %}
+                        id="remove_description"
+                        name="remove_description"
                     >
 
-                    <label for="batch_remove_description">
+                    <label for="remove_description">
                         Remover Description
                     </label>
                 </div>
@@ -859,14 +691,11 @@ pre {
                 <div class="checkbox">
                     <input
                         type="checkbox"
-                        id="batch_remove_voice_vlan"
-                        name="batch_remove_voice_vlan"
-                        {% if batch_preview and batch_preview.form.remove_voice_vlan %}
-                        checked
-                        {% endif %}
+                        id="remove_voice_vlan"
+                        name="remove_voice_vlan"
                     >
 
-                    <label for="batch_remove_voice_vlan">
+                    <label for="remove_voice_vlan">
                         Remover Voice VLAN
                     </label>
                 </div>
@@ -876,118 +705,17 @@ pre {
             <div class="help">
                 Campos vazios significam não alterar aquele parâmetro.
             </div>
+
         </div>
 
 
         <div class="actions">
             <button type="submit">
-                Visualizar Alterações
+                Aplicar Configuração de Portas
             </button>
         </div>
 
     </form>
-
-
-    {% if batch_preview %}
-
-    <div class="subsection">
-
-        <h3>Preview: {{ batch_preview.count }} interface{% if batch_preview.count != 1 %}s{% endif %}</h3>
-
-        <div class="selection-summary">
-            <strong>Interfaces selecionadas:</strong>
-            {{ batch_preview.names | join(", ") }}
-        </div>
-
-
-        {% if batch_preview.desired_changes %}
-
-        <div class="desired-box">
-            <strong>Configuração que será aplicada:</strong>
-
-            <ul>
-                {% for change in batch_preview.desired_changes %}
-                <li>{{ change }}</li>
-                {% endfor %}
-            </ul>
-        </div>
-
-        {% else %}
-
-        <div class="warning">
-            Nenhuma alteração de configuração foi informada.
-            O preview mostra somente as interfaces selecionadas.
-        </div>
-
-        {% endif %}
-
-
-        {% if batch_preview.has_warnings %}
-        <div class="warning">
-            Existem interfaces selecionadas que exigem atenção
-            antes da configuração em lote.
-        </div>
-        {% endif %}
-
-
-        <div class="table-wrap">
-            <table>
-
-                <thead>
-                <tr>
-                    <th>Interface</th>
-                    <th>Descrição atual</th>
-                    <th>Estado</th>
-                    <th>VLAN / Modo</th>
-                    <th>Alertas</th>
-                </tr>
-                </thead>
-
-                <tbody>
-
-                {% for item in batch_preview.interfaces %}
-                <tr>
-
-                    <td>
-                        <strong>{{ item.name }}</strong>
-                    </td>
-
-                    <td>
-                        {{ item.description or '-' }}
-                    </td>
-
-                    <td>
-                        {{ item.status_label }}
-                    </td>
-
-                    <td>
-                        {{ item.mode_label }}
-                    </td>
-
-                    <td>
-                        {% if item.warnings %}
-
-                            {% for warning in item.warnings %}
-                            <div>{{ warning }}</div>
-                            {% endfor %}
-
-                        {% else %}
-                        -
-                        {% endif %}
-                    </td>
-
-                </tr>
-                {% endfor %}
-
-                </tbody>
-
-            </table>
-        </div>
-
-    </div>
-
-    {% endif %}
-
 </div>
 
 
@@ -995,6 +723,70 @@ pre {
 <div class="card">
     <h2>Informações da Interface</h2>
     <pre>{{ result.interface_summary }}</pre>
+</div>
+{% endif %}
+
+
+{% if result and result.interface_results %}
+<div class="card">
+    <h2>Informações das Interfaces</h2>
+
+    {% for interface, info in result.interface_results.items() %}
+    <div class="interface-result">
+
+        <strong>
+            {{ interface }}
+            —
+            {{ "OK" if info.success else "DIVERGÊNCIA" }}
+        </strong>
+
+        {% if info.summary %}
+        <pre>{{ info.summary }}</pre>
+        {% endif %}
+
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+
+{% if batch_preview %}
+<div class="card">
+    <h2>Preview de Seleção</h2>
+
+    <h3>Preview: {{ batch_preview.count }} interface{% if batch_preview.count != 1 %}s{% endif %}</h3>
+
+    <div class="selection-summary">
+        <strong>Interfaces selecionadas:</strong>
+        <span>{{ batch_preview.names | join(", ") }}</span>
+    </div>
+
+    {% if batch_preview.desired_changes %}
+    <div class="subsection">
+        <h3>Configuração que será aplicada</h3>
+
+        <ul>
+            {% for change in batch_preview.desired_changes %}
+            <li>{{ change }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    {% if batch_preview.has_warnings %}
+    <div class="subsection">
+        <h3>Alertas</h3>
+
+        {% for item in batch_preview.interfaces %}
+            {% for warning in item.warnings %}
+            <div>
+                <strong>{{ item.name }}</strong>:
+                {{ warning }}
+            </div>
+            {% endfor %}
+        {% endfor %}
+    </div>
+    {% endif %}
 </div>
 {% endif %}
 
@@ -1031,46 +823,159 @@ pre {
 
 
 <script>
-const removeDescription = document.getElementById(
-    "remove_description"
+const interfaceCheckboxes = Array.from(
+    document.querySelectorAll(
+        ".interface-checkbox"
+    )
 );
 
-const descriptionInput = document.getElementById(
-    "description"
+const rangeStart = document.getElementById(
+    "range_start"
 );
+
+const rangeEnd = document.getElementById(
+    "range_end"
+);
+
+const selectionList = document.getElementById(
+    "selection-list"
+);
+
+const selectionSummary = document.getElementById(
+    "selection-summary"
+);
+
+const interfaceNames = interfaceCheckboxes.map(
+    checkbox => checkbox.value
+);
+
+
+function selectedInterfaces() {
+    const indexes = new Set();
+
+    interfaceCheckboxes.forEach(
+        (checkbox, index) => {
+            if (checkbox.checked) {
+                indexes.add(index);
+            }
+        }
+    );
+
+    if (
+        rangeStart.value
+        && rangeEnd.value
+    ) {
+        const start = interfaceNames.indexOf(
+            rangeStart.value
+        );
+
+        const end = interfaceNames.indexOf(
+            rangeEnd.value
+        );
+
+        if (
+            start >= 0
+            && end >= 0
+            && start <= end
+        ) {
+            for (
+                let index = start;
+                index <= end;
+                index += 1
+            ) {
+                indexes.add(index);
+            }
+        }
+    }
+
+    return Array.from(indexes)
+        .sort((a, b) => a - b)
+        .map(index => interfaceNames[index]);
+}
+
+
+function updateSelection() {
+    const selected = selectedInterfaces();
+
+    selectionSummary.querySelector(
+        "strong"
+    ).textContent =
+        `Interfaces selecionadas: ${selected.length}`;
+
+    selectionList.textContent =
+        selected.length
+            ? selected.join(", ")
+            : "Nenhuma";
+}
+
+
+interfaceCheckboxes.forEach(
+    checkbox => {
+        checkbox.addEventListener(
+            "change",
+            updateSelection
+        );
+    }
+);
+
+rangeStart.addEventListener(
+    "change",
+    updateSelection
+);
+
+rangeEnd.addEventListener(
+    "change",
+    updateSelection
+);
+
+
+const removeDescription =
+    document.getElementById(
+        "remove_description"
+    );
+
+const descriptionInput =
+    document.getElementById(
+        "description"
+    );
 
 removeDescription.addEventListener(
     "change",
     function () {
+        descriptionInput.disabled =
+            this.checked;
+
         if (this.checked) {
             descriptionInput.value = "";
-            descriptionInput.disabled = true;
-        } else {
-            descriptionInput.disabled = false;
         }
     }
 );
 
 
-const removeVoice = document.getElementById(
-    "remove_voice_vlan"
-);
+const removeVoice =
+    document.getElementById(
+        "remove_voice_vlan"
+    );
 
-const voiceInput = document.getElementById(
-    "voice_vlan"
-);
+const voiceInput =
+    document.getElementById(
+        "voice_vlan"
+    );
 
 removeVoice.addEventListener(
     "change",
     function () {
+        voiceInput.disabled =
+            this.checked;
+
         if (this.checked) {
             voiceInput.value = "";
-            voiceInput.disabled = true;
-        } else {
-            voiceInput.disabled = false;
         }
     }
 );
+
+
+updateSelection();
 </script>
 
 </body>

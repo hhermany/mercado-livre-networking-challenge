@@ -155,6 +155,118 @@ class CiscoSwitch:
             "vlan_state": vlan_state,
         }
 
+    def configure_interfaces(
+        self,
+        interfaces,
+        access_vlan=None,
+        voice_vlan=None,
+        remove_voice_vlan=False,
+        description=None,
+        remove_description=False,
+        admin_state=None,
+    ):
+        has_switchport_config = (
+            access_vlan is not None
+            or voice_vlan is not None
+            or remove_voice_vlan
+        )
+
+        commands = []
+
+        for interface in interfaces:
+            commands.append(
+                f"interface {interface}"
+            )
+
+            if has_switchport_config:
+                commands.append(
+                    "switchport mode access"
+                )
+
+                if access_vlan is not None:
+                    commands.append(
+                        f"switchport access vlan {access_vlan}"
+                    )
+
+                if voice_vlan is not None:
+                    commands.append(
+                        f"switchport voice vlan {voice_vlan}"
+                    )
+
+                if remove_voice_vlan:
+                    commands.append(
+                        "no switchport voice vlan"
+                    )
+
+            if description is not None:
+                commands.append(
+                    f"description {description}"
+                )
+
+            if remove_description:
+                commands.append(
+                    "no description"
+                )
+
+            if admin_state == "up":
+                commands.append(
+                    "no shutdown"
+                )
+
+            if admin_state == "down":
+                commands.append(
+                    "shutdown"
+                )
+
+        validation = {}
+
+        with self._connect() as conn:
+            if self.device["secret"]:
+                conn.enable()
+
+            output = conn.send_config_set(
+                commands
+            )
+
+            conn.save_config()
+
+            for interface in interfaces:
+                interface_outputs = []
+
+                if has_switchport_config:
+                    interface_outputs.append(
+                        conn.send_command(
+                            f"show interfaces {interface} switchport"
+                        )
+                    )
+
+                interface_outputs.append(
+                    conn.send_command(
+                        f"show interfaces {interface}"
+                    )
+                )
+
+                running_interface = conn.send_command(
+                    f"show running-config interface {interface}"
+                )
+
+                validation[interface] = {
+                    "interface_state": "\n\n".join(
+                        interface_outputs
+                    ),
+                    "running_config": running_interface,
+                }
+
+            running_config = conn.send_command(
+                "show running-config"
+            )
+
+        return (
+            output,
+            validation,
+            running_config,
+        )
+
     def configure(
         self,
         hostname=None,

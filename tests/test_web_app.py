@@ -681,10 +681,10 @@ def test_index_shows_batch_configuration(monkeypatch):
     response = client.get("/")
 
     assert response.status_code == 200
-    assert b"Configura\xc3\xa7\xc3\xa3o de Portas em Lote" in response.data
+    assert b"Configura\xc3\xa7\xc3\xa3o de Portas" in response.data
     assert b"Interface inicial" in response.data
     assert b"Interface final" in response.data
-    assert b"Visualizar Altera\xc3\xa7\xc3\xb5es" in response.data
+    assert b"Aplicar Configura\xc3\xa7\xc3\xa3o de Portas" in response.data
 
 
 def test_batch_preview_shows_selected_interfaces(monkeypatch):
@@ -861,3 +861,192 @@ def test_batch_preview_shows_remove_options(monkeypatch):
     assert b"Remover Description" in response.data
     assert b"Remover Voice VLAN" in response.data
     assert b"Admin Down" in response.data
+
+
+def test_hostname_has_independent_apply(monkeypatch):
+    configure_test_environment(monkeypatch)
+
+    captured = {}
+
+    def fake_provision_switch(**kwargs):
+        captured.update(kwargs)
+        result = build_result()
+        result["changes"] = [
+            "Hostname: SW-NOVO"
+        ]
+        return result
+
+    monkeypatch.setattr(
+        web_app,
+        "provision_switch",
+        fake_provision_switch,
+    )
+
+    client = web_app.app.test_client()
+
+    response = client.post(
+        "/apply-hostname",
+        data={
+            "hostname": "SW-NOVO",
+        },
+    )
+
+    assert response.status_code == 200
+    assert captured["hostname"] == "SW-NOVO"
+
+
+def test_vlans_have_independent_apply(monkeypatch):
+    configure_test_environment(monkeypatch)
+
+    captured = {}
+
+    def fake_provision_switch(**kwargs):
+        captured.update(kwargs)
+        return build_result()
+
+    monkeypatch.setattr(
+        web_app,
+        "provision_switch",
+        fake_provision_switch,
+    )
+
+    client = web_app.app.test_client()
+
+    response = client.post(
+        "/apply-vlans",
+        data={
+            "vlan1_id": "50",
+            "vlan1_name": "SEGURANCA",
+        },
+    )
+
+    assert response.status_code == 200
+    assert captured["vlans"] == [
+        (50, "SEGURANCA"),
+    ]
+
+
+def test_ports_apply_multiple_interfaces(monkeypatch):
+    configure_test_environment(monkeypatch)
+
+    captured = {}
+
+    def fake_batch(**kwargs):
+        captured.update(kwargs)
+
+        return {
+            "success": True,
+            "missing": [],
+            "changes": [
+                "Gi0/0: Access VLAN 50",
+                "Gi1/0/2: Access VLAN 50",
+            ],
+            "backup": "backups/test.cfg",
+            "interface_results": {},
+            "interfaces": kwargs[
+                "interfaces"
+            ],
+        }
+
+    monkeypatch.setattr(
+        web_app,
+        "provision_interfaces_batch",
+        fake_batch,
+    )
+
+    client = web_app.app.test_client()
+
+    response = client.post(
+        "/apply-ports",
+        data={
+            "interfaces": [
+                "Gi0/0",
+                "Gi1/0/2",
+            ],
+            "access_vlan": "50",
+        },
+    )
+
+    assert response.status_code == 200
+
+    assert captured["interfaces"] == [
+        "Gi0/0",
+        "Gi1/0/2",
+    ]
+
+    assert captured["access_vlan"] == 50
+
+
+def test_ports_apply_combines_range_and_checkboxes(monkeypatch):
+    configure_test_environment(monkeypatch)
+
+    captured = {}
+
+    def fake_batch(**kwargs):
+        captured.update(kwargs)
+
+        return {
+            "success": True,
+            "missing": [],
+            "changes": [],
+            "backup": "backups/test.cfg",
+            "interface_results": {},
+            "interfaces": kwargs[
+                "interfaces"
+            ],
+        }
+
+    monkeypatch.setattr(
+        web_app,
+        "provision_interfaces_batch",
+        fake_batch,
+    )
+
+    client = web_app.app.test_client()
+
+    response = client.post(
+        "/apply-ports",
+        data={
+            "interfaces": [
+                "Gi1/0/2",
+            ],
+            "range_start": "Gi0/0",
+            "range_end": "Gi1/0/1",
+            "description": "LOTE",
+        },
+    )
+
+    assert response.status_code == 200
+
+    assert captured["interfaces"] == [
+        "Gi0/0",
+        "Gi1/0/1",
+        "Gi1/0/2",
+    ]
+
+
+def test_index_has_one_port_configuration_area(
+    monkeypatch,
+):
+    configure_test_environment(
+        monkeypatch
+    )
+
+    client = web_app.app.test_client()
+    response = client.get("/")
+
+    html = response.data.decode()
+
+    assert html.count(
+        "<h2>Configuração de Portas</h2>"
+    ) == 1
+
+    assert (
+        "Visualizar Alterações"
+        not in html
+    )
+
+    assert (
+        "Aplicar Configuração de Portas"
+        in html
+    )
