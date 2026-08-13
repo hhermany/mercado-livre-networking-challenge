@@ -2,60 +2,662 @@
 <html lang="pt-br">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Networking Challenge</title>
+
 <style>
-body { font-family: Arial; max-width: 900px; margin: 40px auto; }
-input { padding: 8px; margin: 5px; }
-button { padding: 10px 20px; }
-.ok { background: #e7f7e7; padding: 15px; }
-.err { background: #ffe7e7; padding: 15px; }
-pre { background: #eee; padding: 15px; overflow: auto; }
+:root {
+    --bg: #f4f6f8;
+    --card: #ffffff;
+    --border: #dfe3e8;
+    --text: #17202a;
+    --muted: #68737d;
+    --primary: #1769aa;
+    --success-bg: #eaf7ee;
+    --success-border: #9bd3aa;
+    --error-bg: #fdecec;
+    --error-border: #e5a5a5;
+    --warning-bg: #fff6df;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: Inter, Arial, Helvetica, sans-serif;
+}
+
+.container {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 28px 24px 60px;
+}
+
+header {
+    margin-bottom: 22px;
+}
+
+header h1 {
+    margin: 0;
+    font-size: 28px;
+}
+
+header p {
+    margin: 7px 0 0;
+    color: var(--muted);
+}
+
+.card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 18px;
+}
+
+.card h2 {
+    margin: 0 0 16px;
+    font-size: 19px;
+}
+
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #3f4a54;
+}
+
+input,
+select {
+    width: 100%;
+    padding: 10px 11px;
+    border: 1px solid #cbd2d9;
+    border-radius: 6px;
+    background: white;
+    font-size: 14px;
+}
+
+input:focus,
+select:focus {
+    outline: 2px solid #b7d8f3;
+    border-color: var(--primary);
+}
+
+.vlan-editor {
+    display: grid;
+    gap: 10px;
+    max-width: 650px;
+}
+
+.vlan-row {
+    display: grid;
+    grid-template-columns: 180px 1fr;
+    gap: 12px;
+}
+
+.port-grid {
+    display: grid;
+    grid-template-columns:
+        minmax(180px, 1.15fr)
+        minmax(210px, 1.35fr)
+        minmax(130px, 0.75fr)
+        minmax(130px, 0.75fr)
+        minmax(190px, 1fr);
+    gap: 12px;
+    align-items: end;
+}
+
+.options-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 24px;
+    margin-top: 18px;
+}
+
+.checkbox {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.checkbox input {
+    width: auto;
+    margin: 0;
+}
+
+.checkbox label {
+    cursor: pointer;
+}
+
+.help {
+    margin-top: 12px;
+    font-size: 12px;
+    color: var(--muted);
+}
+
+.actions {
+    margin-top: 18px;
+}
+
+button {
+    border: 0;
+    border-radius: 7px;
+    padding: 11px 18px;
+    background: var(--primary);
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+button:hover {
+    filter: brightness(0.94);
+}
+
+.table-wrap {
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+th {
+    text-align: left;
+    background: #f2f4f6;
+    color: #47525d;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+th,
+td {
+    padding: 11px 12px;
+    border-bottom: 1px solid var(--border);
+}
+
+tbody tr:hover {
+    background: #f8fafb;
+}
+
+.status-up {
+    font-weight: 600;
+}
+
+.status-down {
+    color: #9b2c2c;
+    font-weight: 600;
+}
+
+.subsection {
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+}
+
+.subsection h3 {
+    margin: 0 0 10px;
+    font-size: 15px;
+}
+
+pre {
+    margin: 0;
+    padding: 14px;
+    background: #1f2933;
+    color: #eef2f5;
+    border-radius: 7px;
+    overflow: auto;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.result-success {
+    background: var(--success-bg);
+    border: 1px solid var(--success-border);
+    border-radius: 8px;
+    padding: 17px 20px;
+    margin-bottom: 18px;
+}
+
+.result-success h3 {
+    margin: 0 0 10px;
+}
+
+.result-success ul {
+    margin: 8px 0 12px;
+}
+
+.backup {
+    font-size: 12px;
+    color: var(--muted);
+}
+
+.error {
+    background: var(--error-bg);
+    border: 1px solid var(--error-border);
+    border-radius: 8px;
+    padding: 15px 18px;
+    margin-bottom: 18px;
+}
+
+.warning {
+    background: var(--warning-bg);
+    border-radius: 8px;
+    padding: 14px 16px;
+}
+
+@media (max-width: 950px) {
+    .port-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 700px) {
+    .container {
+        padding: 20px 12px;
+    }
+
+    .vlan-row,
+    .port-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .options-row {
+        flex-direction: column;
+        gap: 12px;
+    }
+}
 </style>
 </head>
+
 <body>
+<div class="container">
 
-<h1>Automação de Switch Cisco</h1>
-
-<form method="post" action="/apply">
-<h3>Hostname</h3>
-<input name="hostname" placeholder="Hostname">
-
-<h3>VLANs</h3>
-
-<input name="vlan1_id" placeholder="VLAN ID">
-<input name="vlan1_name" placeholder="Nome da VLAN"><br>
-
-<input name="vlan2_id" placeholder="VLAN ID">
-<input name="vlan2_name" placeholder="Nome da VLAN"><br>
-
-<input name="vlan3_id" placeholder="VLAN ID">
-<input name="vlan3_name" placeholder="Nome da VLAN"><br><br>
-
-<button type="submit">Aplicar Configuração</button>
-</form>
+<header>
+    <h1>Automação de Switch Cisco</h1>
+    <p>Configuração e validação operacional do equipamento.</p>
+</header>
 
 {% if error %}
-<div class="err">
-<h3>ERRO</h3>
-{{ error }}
+<div class="error">
+    <strong>ERRO</strong><br>
+    {{ error }}
 </div>
 {% endif %}
+
+<form method="post" action="/apply">
+
+<div class="card">
+    <h2>Hostname</h2>
+
+    <div class="field">
+        <label for="hostname">Novo hostname</label>
+        <input
+            id="hostname"
+            name="hostname"
+            placeholder="Ex.: SW-ACCESS-01"
+        >
+    </div>
+</div>
+
+
+<div class="card">
+    <h2>VLANs</h2>
+
+    <div class="vlan-editor">
+
+        <div class="vlan-row">
+            <div class="field">
+                <label for="vlan1_id">VLAN ID</label>
+                <input
+                    id="vlan1_id"
+                    name="vlan1_id"
+                    placeholder="Ex.: 10"
+                >
+            </div>
+
+            <div class="field">
+                <label for="vlan1_name">Nome</label>
+                <input
+                    id="vlan1_name"
+                    name="vlan1_name"
+                    placeholder="Ex.: VLAN_DADOS"
+                >
+            </div>
+        </div>
+
+        <div class="vlan-row">
+            <div class="field">
+                <label for="vlan2_id">VLAN ID</label>
+                <input
+                    id="vlan2_id"
+                    name="vlan2_id"
+                >
+            </div>
+
+            <div class="field">
+                <label for="vlan2_name">Nome</label>
+                <input
+                    id="vlan2_name"
+                    name="vlan2_name"
+                >
+            </div>
+        </div>
+
+        <div class="vlan-row">
+            <div class="field">
+                <label for="vlan3_id">VLAN ID</label>
+                <input
+                    id="vlan3_id"
+                    name="vlan3_id"
+                >
+            </div>
+
+            <div class="field">
+                <label for="vlan3_name">Nome</label>
+                <input
+                    id="vlan3_name"
+                    name="vlan3_name"
+                >
+            </div>
+        </div>
+
+    </div>
+
+    <div class="subsection">
+        <h3>VLANs atuais</h3>
+
+        {% if vlan_state %}
+        <pre>{{ vlan_state }}</pre>
+        {% elif inventory_error %}
+        <div class="warning">
+            Não foi possível consultar as VLANs:
+            {{ inventory_error }}
+        </div>
+        {% else %}
+        <p>Nenhuma informação de VLAN disponível.</p>
+        {% endif %}
+    </div>
+</div>
+
+
+<div class="card">
+    <h2>Interfaces do Equipamento</h2>
+
+    {% if inventory_error %}
+    <div class="warning">
+        Não foi possível consultar as interfaces:
+        {{ inventory_error }}
+    </div>
+
+    {% elif interfaces %}
+
+    <div class="table-wrap">
+        <table>
+            <thead>
+            <tr>
+                <th>Interface</th>
+                <th>Descrição</th>
+                <th>Estado</th>
+                <th>VLAN / Modo</th>
+            </tr>
+            </thead>
+
+            <tbody>
+            {% for item in interfaces %}
+            <tr>
+                <td>
+                    <strong>{{ item.name }}</strong>
+                </td>
+
+                <td>
+                    {{ item.description or '-' }}
+                </td>
+
+                <td class="{{
+                    'status-up'
+                    if item.status == 'connected'
+                    else 'status-down'
+                }}">
+                    {{ item.status_label }}
+                    <small>({{ item.status }})</small>
+                </td>
+
+                <td>
+                    {{ item.mode_label }}
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% else %}
+    <p>Nenhuma interface encontrada.</p>
+    {% endif %}
+</div>
+
+
+<div class="card">
+    <h2>Configuração de Porta</h2>
+
+    <div class="port-grid">
+
+        <div class="field">
+            <label for="interface">Interface</label>
+
+            <select
+                id="interface"
+                name="interface"
+            >
+                <option value="">
+                    Nenhuma interface
+                </option>
+
+                {% for item in interfaces %}
+                <option value="{{ item.name }}">
+                    {{ item.name }}
+                    — {{ item.status_label }}
+                    — {{ item.mode_label }}
+                    {% if item.description %}
+                    — {{ item.description }}
+                    {% endif %}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="field">
+            <label for="description">Description</label>
+
+            <input
+                id="description"
+                name="description"
+                maxlength="80"
+                placeholder="Ex.: HOST DE TESTES"
+            >
+        </div>
+
+        <div class="field">
+            <label for="access_vlan">Access VLAN</label>
+
+            <input
+                id="access_vlan"
+                name="access_vlan"
+                placeholder="Ex.: 10"
+            >
+        </div>
+
+        <div class="field">
+            <label for="voice_vlan">Voice VLAN</label>
+
+            <input
+                id="voice_vlan"
+                name="voice_vlan"
+                placeholder="Ex.: 20"
+            >
+        </div>
+
+        <div class="field">
+            <label for="admin_state">
+                Estado administrativo
+            </label>
+
+            <select
+                id="admin_state"
+                name="admin_state"
+            >
+                <option value="">
+                    Não alterar
+                </option>
+
+                <option value="up">
+                    Admin Up (no shutdown)
+                </option>
+
+                <option value="down">
+                    Admin Down (shutdown)
+                </option>
+            </select>
+        </div>
+
+    </div>
+
+    <div class="options-row">
+
+        <div class="checkbox">
+            <input
+                type="checkbox"
+                id="remove_description"
+                name="remove_description"
+            >
+
+            <label for="remove_description">
+                Remover Description configurada
+            </label>
+        </div>
+
+        <div class="checkbox">
+            <input
+                type="checkbox"
+                id="remove_voice_vlan"
+                name="remove_voice_vlan"
+            >
+
+            <label for="remove_voice_vlan">
+                Remover Voice VLAN configurada
+            </label>
+        </div>
+
+    </div>
+
+    <div class="help">
+        Campos vazios significam não alterar.
+        Remoções precisam ser selecionadas explicitamente.
+    </div>
+
+    <div class="actions">
+        <button type="submit">
+            Aplicar Configuração
+        </button>
+    </div>
+</div>
+
+</form>
+
+
+{% if result and result.interface_summary %}
+<div class="card">
+    <h2>Informações da Interface</h2>
+    <pre>{{ result.interface_summary }}</pre>
+</div>
+{% endif %}
+
 
 {% if result %}
-<div class="{{ 'ok' if result.success else 'err' }}">
-<h3>{{ 'SUCESSO' if result.success else 'ALERTA' }}</h3>
 
-<p>Backup: {{ result.backup }}</p>
+{% if result.success %}
+<div class="result-success">
+    <h3>SUCESSO</h3>
 
-{% if result.missing %}
-<p>Divergências: {{ result.missing }}</p>
+    <strong>Alterações realizadas:</strong>
+
+    <ul>
+        {% for change in result.changes %}
+        <li>{{ change }}</li>
+        {% endfor %}
+    </ul>
+
+    <div class="backup">
+        Backup: {{ result.backup }}
+    </div>
+</div>
+
 {% else %}
-<p>Configuração aplicada, salva e validada no switch.</p>
-{% endif %}
-
-<pre>{{ result.vlan_state }}</pre>
+<div class="error">
+    <strong>ALERTA</strong>
+    <p>Divergências: {{ result.missing }}</p>
 </div>
 {% endif %}
+
+{% endif %}
+
+</div>
+
+
+<script>
+const removeDescription = document.getElementById(
+    "remove_description"
+);
+
+const descriptionInput = document.getElementById(
+    "description"
+);
+
+removeDescription.addEventListener(
+    "change",
+    function () {
+        if (this.checked) {
+            descriptionInput.value = "";
+            descriptionInput.disabled = true;
+        } else {
+            descriptionInput.disabled = false;
+        }
+    }
+);
+
+
+const removeVoice = document.getElementById(
+    "remove_voice_vlan"
+);
+
+const voiceInput = document.getElementById(
+    "voice_vlan"
+);
+
+removeVoice.addEventListener(
+    "change",
+    function () {
+        if (this.checked) {
+            voiceInput.value = "";
+            voiceInput.disabled = true;
+        } else {
+            voiceInput.disabled = false;
+        }
+    }
+);
+</script>
 
 </body>
 </html>
