@@ -1,7 +1,7 @@
 import os
 
 from dotenv import load_dotenv
-from flask import Flask, render_template, request
+from flask import Flask, redirect, render_template, request, url_for
 
 from src.switch.service import provision_switch
 
@@ -20,6 +20,12 @@ def index():
 
 
 @app.post("/")
+def stale_root_post():
+    # Compatibilidade com formulario antigo/cacheado.
+    # Nunca executa configuracao pela raiz.
+    return redirect(url_for("index"))
+
+
 @app.post("/apply")
 def apply_configuration():
     try:
