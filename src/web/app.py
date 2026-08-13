@@ -19,6 +19,7 @@ def index():
     )
 
 
+@app.post("/")
 @app.post("/apply")
 def apply_configuration():
     try:
