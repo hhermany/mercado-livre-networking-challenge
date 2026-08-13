@@ -1,3 +1,5 @@
+import re
+
 from src.switch.cisco import (
     CiscoSwitch,
     save_backup,
@@ -19,6 +21,313 @@ def get_switch_interfaces(
     )
 
     return switch.list_interfaces()
+
+
+def _interface_counter(interface_state, counter_name):
+    pattern = (
+        rf"(?<![A-Za-z0-9_])"
+        rf"(\d+)\s+{re.escape(counter_name)}\b"
+    )
+
+    match = re.search(
+        pattern,
+        interface_state,
+        re.IGNORECASE,
+    )
+
+    if not match:
+        return 0
+
+    return int(match.group(1))
+
+
+def _nonzero_counters(interface_state, counter_names):
+    counters = {}
+
+    for counter_name in counter_names:
+        value = _interface_counter(
+            interface_state,
+            counter_name,
+        )
+
+        if value > 0:
+            counters[counter_name] = value
+
+    return counters
+
+
+def _format_counters(counters):
+    return ", ".join(
+        f"{name}: {value}"
+        for name, value in counters.items()
+    )
+
+
+def classify_interface_health(interface_state):
+    if not interface_state:
+        return {
+            "level": "neutral",
+            "label": "Sem dados operacionais",
+            "issues": [],
+        }
+
+    issues = []
+
+    # Cisco: lost carrier / no carrier direcionam primeiro
+    # para cabo e conexão física nas duas extremidades.
+    carrier_counters = _nonzero_counters(
+        interface_state,
+        (
+            "lost carrier",
+            "no carrier",
+        ),
+    )
+
+    if carrier_counters:
+        issues.append(
+            {
+                "level": "danger",
+                "category": "physical",
+                "title": (
+                    "Possível problema físico ou de cabeamento"
+                ),
+                "detail": (
+                    f"{_format_counters(carrier_counters)}. "
+                    "Foi detectada perda de carrier. "
+                    "Verifique o cabo, conectores, a porta física "
+                    "e a conexão no equipamento remoto."
+                ),
+            }
+        )
+
+    # Cisco: CRC/frame/runts podem ser problema físico,
+    # NIC/porta, ruído ou incompatibilidade de duplex.
+    physical_duplex_counters = _nonzero_counters(
+        interface_state,
+        (
+            "CRC",
+            "frame",
+            "runts",
+        ),
+    )
+
+    if physical_duplex_counters:
+        issues.append(
+            {
+                "level": "warning",
+                "category": "physical-duplex",
+                "title": (
+                    "Indício de problema físico ou de duplex"
+                ),
+                "detail": (
+                    f"{_format_counters(physical_duplex_counters)}. "
+                    "Avalie cabeamento, porta/NIC, ruído "
+                    "e negociação de speed/duplex."
+                ),
+            }
+        )
+
+    # Giants são tratados separadamente porque a documentação
+    # Cisco aponta principalmente para o dispositivo/NIC remoto.
+    giant_counters = _nonzero_counters(
+        interface_state,
+        (
+            "giants",
+        ),
+    )
+
+    if giant_counters:
+        issues.append(
+            {
+                "level": "warning",
+                "category": "endpoint",
+                "title": (
+                    "Frames inválidos de tamanho excessivo"
+                ),
+                "detail": (
+                    f"{_format_counters(giant_counters)}. "
+                    "Avalie principalmente o dispositivo/NIC "
+                    "conectado e a configuração da interface."
+                ),
+            }
+        )
+
+    late_collision_counters = _nonzero_counters(
+        interface_state,
+        (
+            "late collision",
+        ),
+    )
+
+    if late_collision_counters:
+        issues.append(
+            {
+                "level": "warning",
+                "category": "duplex",
+                "title": (
+                    "Possível problema de duplex ou meio físico"
+                ),
+                "detail": (
+                    f"{_format_counters(late_collision_counters)}. "
+                    "Verifique speed/duplex e o segmento físico."
+                ),
+            }
+        )
+
+    collisions = _nonzero_counters(
+        interface_state,
+        (
+            "collisions",
+        ),
+    )
+
+    full_duplex = bool(
+        re.search(
+            r"\bfull[- ]duplex\b",
+            interface_state,
+            re.IGNORECASE,
+        )
+    )
+
+    if collisions and full_duplex:
+        issues.append(
+            {
+                "level": "warning",
+                "category": "duplex",
+                "title": (
+                    "Colisões detectadas em full-duplex"
+                ),
+                "detail": (
+                    f"{_format_counters(collisions)}. "
+                    "Colisões não são esperadas em uma "
+                    "interface operando em full-duplex; "
+                    "verifique a negociação com o equipamento remoto."
+                ),
+            }
+        )
+
+    # Problemas de recepção/capacidade.
+    receive_resource_counters = _nonzero_counters(
+        interface_state,
+        (
+            "overrun",
+            "ignored",
+            "throttles",
+        ),
+    )
+
+    if receive_resource_counters:
+        issues.append(
+            {
+                "level": "warning",
+                "category": "resources",
+                "title": (
+                    "Atenção a capacidade de recepção"
+                ),
+                "detail": (
+                    f"{_format_counters(receive_resource_counters)}. "
+                    "Os contadores indicam pressão de buffers, "
+                    "rajadas ou excesso de tráfego/processamento."
+                ),
+            }
+        )
+
+    # Problemas de saída/buffer/congestionamento.
+    transmit_resource_counters = _nonzero_counters(
+        interface_state,
+        (
+            "output errors",
+            "underruns",
+            "output buffer failures",
+        ),
+    )
+
+    if transmit_resource_counters:
+        issues.append(
+            {
+                "level": "warning",
+                "category": "congestion",
+                "title": (
+                    "Possível congestionamento ou pressão de buffers"
+                ),
+                "detail": (
+                    f"{_format_counters(transmit_resource_counters)}. "
+                    "Avalie utilização, velocidade da interface "
+                    "e capacidade das filas/buffers."
+                ),
+            }
+        )
+
+    # Input errors é agregado. Só gera mensagem própria quando
+    # existe erro de entrada sem um dos contadores específicos
+    # que já explicamos acima.
+    input_errors = _interface_counter(
+        interface_state,
+        "input errors",
+    )
+
+    specific_input = {
+        **physical_duplex_counters,
+        **giant_counters,
+        **receive_resource_counters,
+    }
+
+    if input_errors > 0 and not specific_input:
+        issues.append(
+            {
+                "level": "warning",
+                "category": "input",
+                "title": "Erros de entrada detectados",
+                "detail": (
+                    f"input errors: {input_errors}. "
+                    "O contador é agregado; investigue os "
+                    "contadores detalhados e o comportamento "
+                    "da interface."
+                ),
+            }
+        )
+
+    admin_down = (
+        "administratively down"
+        in interface_state.lower()
+    )
+
+    operational_up = bool(
+        re.search(
+            r"\bis up,\s+line protocol is up\b",
+            interface_state,
+            re.IGNORECASE,
+        )
+    )
+
+    if any(
+        issue["level"] == "danger"
+        for issue in issues
+    ):
+        level = "danger"
+        label = "Alerta físico/cabeamento"
+
+    elif issues:
+        level = "warning"
+        label = "Atenção necessária"
+
+    elif admin_down:
+        level = "neutral"
+        label = "Administrativamente desativada"
+
+    elif operational_up:
+        level = "healthy"
+        label = "Porta funcional"
+
+    else:
+        level = "neutral"
+        label = "Link indisponível"
+
+    return {
+        "level": level,
+        "label": label,
+        "issues": issues,
+    }
 
 
 def summarize_interface_state(interface_state):
@@ -476,6 +785,9 @@ def provision_interfaces_batch(
             "summary": summarize_interface_state(
                 state
             ),
+            "health": classify_interface_health(
+                state
+            ),
         }
 
         if description is not None:
@@ -518,10 +830,32 @@ def provision_interfaces_batch(
         running_config,
     )
 
+    change_groups = []
+
+    for interface in interfaces:
+        interface_changes = []
+
+        prefix = f"{interface}: "
+
+        for change in changes:
+            if change.startswith(prefix):
+                interface_changes.append(
+                    change[len(prefix):]
+                )
+
+        if interface_changes:
+            change_groups.append(
+                {
+                    "interface": interface,
+                    "changes": interface_changes,
+                }
+            )
+
     return {
         "success": not missing,
         "missing": missing,
         "changes": changes,
+        "change_groups": change_groups,
         "backup": str(backup),
         "configuration_output": output,
         "interface_results": interface_results,

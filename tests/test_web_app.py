@@ -1050,3 +1050,217 @@ def test_index_has_one_port_configuration_area(
         "Aplicar Configuração de Portas"
         in html
     )
+
+
+def test_batch_success_groups_changes_by_interface(
+    monkeypatch,
+):
+    configure_test_environment(
+        monkeypatch
+    )
+
+    def fake_batch(**kwargs):
+        return {
+            "success": True,
+            "missing": [],
+            "changes": [
+                "Gi0/0: Description removida",
+                "Gi0/0: Admin Down",
+                "Gi1/0/1: Description removida",
+                "Gi1/0/1: Admin Down",
+            ],
+            "change_groups": [
+                {
+                    "interface": "Gi0/0",
+                    "changes": [
+                        "Description removida",
+                        "Admin Down",
+                    ],
+                },
+                {
+                    "interface": "Gi1/0/1",
+                    "changes": [
+                        "Description removida",
+                        "Admin Down",
+                    ],
+                },
+            ],
+            "backup": "backups/test.cfg",
+            "interface_results": {},
+            "interfaces": kwargs["interfaces"],
+        }
+
+    monkeypatch.setattr(
+        web_app,
+        "provision_interfaces_batch",
+        fake_batch,
+    )
+
+    client = web_app.app.test_client()
+
+    response = client.post(
+        "/apply-ports",
+        data={
+            "interfaces": [
+                "Gi0/0",
+                "Gi1/0/1",
+            ],
+            "remove_description": "on",
+            "admin_state": "down",
+        },
+    )
+
+    html = response.data.decode()
+
+    assert response.status_code == 200
+    assert "Gi0/0" in html
+    assert "Gi1/0/1" in html
+    assert "Description removida" in html
+    assert "Admin Down" in html
+    assert html.count("Description removida") == 2
+
+
+def test_interface_health_uses_descriptive_status_not_ok_badge(
+    monkeypatch,
+):
+    configure_test_environment(
+        monkeypatch
+    )
+
+    def fake_batch(**kwargs):
+        return {
+            "success": True,
+            "missing": [],
+            "changes": [
+                "Gi0/0: Admin Up",
+            ],
+            "change_groups": [
+                {
+                    "interface": "Gi0/0",
+                    "changes": [
+                        "Admin Up",
+                    ],
+                },
+            ],
+            "backup": "backups/test.cfg",
+            "interfaces": [
+                "Gi0/0",
+            ],
+            "interface_results": {
+                "Gi0/0": {
+                    "success": True,
+                    "missing": [],
+                    "summary": (
+                        "GigabitEthernet0/0 is up, "
+                        "line protocol is up"
+                    ),
+                    "health": {
+                        "level": "healthy",
+                        "label": "Porta funcional",
+                        "issues": [],
+                    },
+                },
+            },
+        }
+
+    monkeypatch.setattr(
+        web_app,
+        "provision_interfaces_batch",
+        fake_batch,
+    )
+
+    client = web_app.app.test_client()
+
+    response = client.post(
+        "/apply-ports",
+        data={
+            "interfaces": [
+                "Gi0/0",
+            ],
+            "admin_state": "up",
+        },
+    )
+
+    html = response.data.decode()
+
+    assert response.status_code == 200
+    assert "Porta funcional" in html
+    assert ">OK<" not in html
+
+
+def test_interface_health_displays_physical_alert(
+    monkeypatch,
+):
+    configure_test_environment(
+        monkeypatch
+    )
+
+    def fake_batch(**kwargs):
+        return {
+            "success": True,
+            "missing": [],
+            "changes": [
+                "Gi0/0: Admin Up",
+            ],
+            "change_groups": [],
+            "backup": "backups/test.cfg",
+            "interfaces": [
+                "Gi0/0",
+            ],
+            "interface_results": {
+                "Gi0/0": {
+                    "success": True,
+                    "missing": [],
+                    "summary": (
+                        "2 lost carrier, "
+                        "1 no carrier"
+                    ),
+                    "health": {
+                        "level": "danger",
+                        "label": (
+                            "Alerta físico/cabeamento"
+                        ),
+                        "issues": [
+                            {
+                                "level": "danger",
+                                "category": "physical",
+                                "title": (
+                                    "Possível problema físico "
+                                    "ou de cabeamento"
+                                ),
+                                "detail": (
+                                    "lost carrier: 2, "
+                                    "no carrier: 1."
+                                ),
+                            },
+                        ],
+                    },
+                },
+            },
+        }
+
+    monkeypatch.setattr(
+        web_app,
+        "provision_interfaces_batch",
+        fake_batch,
+    )
+
+    client = web_app.app.test_client()
+
+    response = client.post(
+        "/apply-ports",
+        data={
+            "interfaces": [
+                "Gi0/0",
+            ],
+            "admin_state": "up",
+        },
+    )
+
+    html = response.data.decode()
+
+    assert "Alerta físico/cabeamento" in html
+    assert (
+        "Possível problema físico ou de cabeamento"
+        in html
+    )

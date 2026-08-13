@@ -300,6 +300,140 @@ pre {
 
 .interface-result {
     margin-top: 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.interface-result-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 11px 14px;
+    background: #f2f4f6;
+}
+
+.interface-result-header strong {
+    font-size: 14px;
+}
+
+.health-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.health-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex: 0 0 auto;
+}
+
+.health-healthy {
+    color: #237a3b;
+}
+
+.health-healthy .health-dot {
+    background: #2f9e44;
+}
+
+.health-warning {
+    color: #8a5a00;
+}
+
+.health-warning .health-dot {
+    background: #d89000;
+}
+
+.health-danger {
+    color: #a12622;
+}
+
+.health-danger .health-dot {
+    background: #c9362f;
+}
+
+.health-neutral {
+    color: var(--muted);
+}
+
+.health-neutral .health-dot {
+    background: #7c8791;
+}
+
+.health-findings {
+    padding: 12px 14px;
+    background: #ffffff;
+}
+
+.health-finding {
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    border-left: 4px solid var(--border);
+    background: #f8fafb;
+}
+
+.health-finding:last-child {
+    margin-bottom: 0;
+}
+
+.health-finding-warning {
+    border-left-color: #d89000;
+    background: #fff9e9;
+}
+
+.health-finding-danger {
+    border-left-color: #c9362f;
+    background: #fff0ef;
+}
+
+.health-finding strong {
+    display: block;
+    margin-bottom: 4px;
+}
+
+.health-finding-detail {
+    color: #4e5963;
+    font-size: 12px;
+}
+
+.interface-operational-info {
+    padding: 0;
+}
+
+.interface-operational-info pre {
+    border-radius: 0;
+}
+
+.change-group {
+    margin-top: 12px;
+    padding: 12px 14px;
+    background: rgba(255, 255, 255, 0.55);
+    border: 1px solid var(--success-border);
+    border-radius: 7px;
+}
+
+.change-group:first-of-type {
+    margin-top: 10px;
+}
+
+.change-group-title {
+    margin-bottom: 7px;
+    font-weight: 700;
+}
+
+.change-group ul {
+    margin: 0;
+    padding-left: 20px;
+}
+
+.change-group li {
+    margin: 3px 0;
 }
 
 @media (max-width: 900px) {
@@ -530,7 +664,7 @@ pre {
 
 
         <div class="subsection">
-            <h3>Range contínuo opcional</h3>
+            <h3>Range Contínuo de Portas</h3>
 
             <div class="range-grid">
 
@@ -585,9 +719,9 @@ pre {
             </div>
 
             <div class="help">
-                Você pode selecionar portas individualmente,
-                usar somente um range ou combinar os dois.
-                Duplicatas são eliminadas automaticamente.
+                Selecione um intervalo de interfaces ou combine-o
+                com portas escolhidas individualmente.
+                Interfaces repetidas são consideradas apenas uma vez.
             </div>
 
 
@@ -731,17 +865,57 @@ pre {
 <div class="card">
     <h2>Informações das Interfaces</h2>
 
+    <div class="help">
+        Validação operacional coletada após a configuração de cada porta.
+    </div>
+
     {% for interface, info in result.interface_results.items() %}
     <div class="interface-result">
 
-        <strong>
-            {{ interface }}
-            —
-            {{ "OK" if info.success else "DIVERGÊNCIA" }}
-        </strong>
+        <div class="interface-result-header">
+            <strong>{{ interface }}</strong>
+
+            {% if info.health is defined %}
+            <span class="health-indicator health-{{ info.health.level }}">
+                <span class="health-dot"></span>
+                {{ info.health.label }}
+            </span>
+
+            {% elif not info.success %}
+            <span class="health-indicator health-danger">
+                <span class="health-dot"></span>
+                Divergência
+            </span>
+            {% endif %}
+        </div>
+
+        {% if info.health is defined and info.health.issues %}
+        <div class="health-findings">
+
+            {% for issue in info.health.issues %}
+            <div class="health-finding health-finding-{{ issue.level }}">
+                <strong>{{ issue.title }}</strong>
+
+                <div class="health-finding-detail">
+                    {{ issue.detail }}
+                </div>
+            </div>
+            {% endfor %}
+
+        </div>
+        {% endif %}
 
         {% if info.summary %}
-        <pre>{{ info.summary }}</pre>
+        <div class="interface-operational-info">
+            <pre>{{ info.summary }}</pre>
+        </div>
+        {% endif %}
+
+        {% if info.missing %}
+        <div class="warning">
+            <strong>Divergências da configuração:</strong>
+            {{ info.missing | join(", ") }}
+        </div>
         {% endif %}
 
     </div>
@@ -799,11 +973,31 @@ pre {
 
     <strong>Alterações realizadas:</strong>
 
-    <ul>
-        {% for change in result.changes %}
-        <li>{{ change }}</li>
+    {% if result.change_groups is defined and result.change_groups %}
+
+        {% for group in result.change_groups %}
+        <div class="change-group">
+            <div class="change-group-title">
+                {{ group.interface }}
+            </div>
+
+            <ul>
+                {% for change in group.changes %}
+                <li>{{ change }}</li>
+                {% endfor %}
+            </ul>
+        </div>
         {% endfor %}
-    </ul>
+
+    {% else %}
+
+        <ul>
+            {% for change in result.changes %}
+            <li>{{ change }}</li>
+            {% endfor %}
+        </ul>
+
+    {% endif %}
 
     <div class="backup">
         Backup: {{ result.backup }}
