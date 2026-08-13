@@ -15,10 +15,10 @@ class CiscoSwitch:
         }
 
     def configure(self, hostname, vlans):
-        commands = [f"hostname {hostname}"]
+        vlan_commands = []
 
         for vlan_id, vlan_name in vlans:
-            commands.extend([
+            vlan_commands.extend([
                 f"vlan {vlan_id}",
                 f"name {vlan_name}",
             ])
@@ -27,11 +27,20 @@ class CiscoSwitch:
             if self.device["secret"]:
                 conn.enable()
 
-            output = conn.send_config_set(commands)
+            hostname_output = conn.send_config_set(
+                [f"hostname {hostname}"],
+                cmd_verify=False,
+            )
+
+            conn.set_base_prompt()
+
+            vlan_output = conn.send_config_set(vlan_commands)
             conn.save_config()
 
             validation = conn.send_command("show vlan brief")
             running_config = conn.send_command("show running-config")
+
+        output = hostname_output + "\n" + vlan_output
 
         return output, validation, running_config
 
