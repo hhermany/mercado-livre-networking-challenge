@@ -9,6 +9,16 @@ def test_generate_paloalto_branch_2():
         psk="TEST-PSK",
     )
 
+    assert "BRANCH-2-VPN1" in config
+    assert "BRANCH-2-VPN2" in config
+
+    assert "ethernet1/1" in config
+    assert "ethernet1/3" in config
+
+    assert "100.64.0.3" in config
+    assert "100.100.0.3" in config
+    assert 'key "TEST-PSK"' in config
+
     assert "tunnel.3" in config
     assert "tunnel.4" in config
 

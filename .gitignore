@@ -26,3 +26,4 @@ backups/*
 # Allow environment templates
 !.env.example
 !**/.env.example
+generated/
