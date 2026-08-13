@@ -7,7 +7,14 @@ DEFAULT_VLANS = [
 ]
 
 
-def provision_switch(host, username, password, hostname, secret=""):
+def provision_switch(
+    host,
+    username,
+    password,
+    hostname,
+    secret="",
+    vlans=None,
+):
     switch = CiscoSwitch(
         host=host,
         username=username,
@@ -15,14 +22,16 @@ def provision_switch(host, username, password, hostname, secret=""):
         secret=secret,
     )
 
+    desired_vlans = vlans or DEFAULT_VLANS
+
     output, vlan_state, running_config = switch.configure(
         hostname=hostname,
-        vlans=DEFAULT_VLANS,
+        vlans=desired_vlans,
     )
 
     missing = []
 
-    for vlan_id, vlan_name in DEFAULT_VLANS:
+    for vlan_id, vlan_name in desired_vlans:
         if str(vlan_id) not in vlan_state or vlan_name not in vlan_state:
             missing.append(f"{vlan_id}:{vlan_name}")
 

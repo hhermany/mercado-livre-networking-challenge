@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<title>Networking Challenge</title>
+<style>
+body { font-family: Arial; max-width: 900px; margin: 40px auto; }
+input { padding: 8px; margin: 5px; }
+button { padding: 10px 20px; }
+.ok { background: #e7f7e7; padding: 15px; }
+.err { background: #ffe7e7; padding: 15px; }
+pre { background: #eee; padding: 15px; overflow: auto; }
+</style>
+</head>
+<body>
+
+<h1>Automação de Switch Cisco</h1>
+
+<form method="post">
+<h3>Hostname</h3>
+<input name="hostname" value="SWITCH_AUTOMATIZADO" required>
+
+<h3>VLANs</h3>
+
+<input name="vlan10_id" value="10" required>
+<input name="vlan10_name" value="VLAN_DADOS" required><br>
+
+<input name="vlan20_id" value="20" required>
+<input name="vlan20_name" value="VLAN_VOZ" required><br>
+
+<input name="vlan50_id" value="50" required>
+<input name="vlan50_name" value="VLAN_SEGURANCA" required><br><br>
+
+<button type="submit">Aplicar Configuração</button>
+</form>
+
+{% if error %}
+<div class="err">
+<h3>ERRO</h3>
+{{ error }}
+</div>
+{% endif %}
+
+{% if result %}
+<div class="{{ 'ok' if result.success else 'err' }}">
+<h3>{{ 'SUCESSO' if result.success else 'ALERTA' }}</h3>
+
+<p>Backup: {{ result.backup }}</p>
+
+{% if result.missing %}
+<p>Divergências: {{ result.missing }}</p>
+{% else %}
+<p>Hostname e VLANs validados.</p>
+{% endif %}
+
+<pre>{{ result.vlan_state }}</pre>
+</div>
+{% endif %}
+
+</body>
+</html>

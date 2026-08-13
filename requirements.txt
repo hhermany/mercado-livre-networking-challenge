@@ -29,3 +29,4 @@ ruff==0.16.2
 scp==0.16.1
 textfsm==2.1.0
 urllib3==2.7.0
+Flask==3.1.3
