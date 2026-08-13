@@ -14,7 +14,13 @@ class NautobotIPAMProvider(IPAMProvider):
     def __init__(self) -> None:
         self.base_url = os.getenv("NAUTOBOT_URL")
         self.token = os.getenv("NAUTOBOT_TOKEN")
+        # Legacy/default pool: VPN overlay addressing.
         self.parent_prefix = os.getenv("NAUTOBOT_PARENT_PREFIX")
+        self.pools = {
+            "vpn": os.getenv("NAUTOBOT_VPN_POOL", self.parent_prefix),
+            "lan": os.getenv("NAUTOBOT_LAN_POOL"),
+            "loopback": os.getenv("NAUTOBOT_LOOPBACK_POOL"),
+        }
 
         if not all((self.base_url, self.token, self.parent_prefix)):
             raise ValueError("Missing required Nautobot environment variables.")
@@ -24,10 +30,23 @@ class NautobotIPAMProvider(IPAMProvider):
             "Content-Type": "application/json",
         }
 
-    def allocate_prefix(self, prefix_length: int, description: str) -> dict:
-        """Allocate the next available child prefix from the parent pool."""
+    def allocate_prefix(
+        self,
+        prefix_length: int,
+        description: str,
+        pool: str = "vpn",
+    ) -> dict:
+        """Allocate the next available child prefix from a named pool."""
 
-        parent_id = self._get_parent_prefix_id()
+        if pool not in self.pools:
+            raise ValueError(f"Unknown Nautobot pool: {pool}")
+
+        parent_prefix = self.pools[pool]
+
+        if not parent_prefix:
+            raise ValueError(f"Nautobot pool is not configured: {pool}")
+
+        parent_id = self._get_parent_prefix_id(parent_prefix)
 
         url = (
             f"{self.base_url}/api/ipam/prefixes/"
@@ -62,15 +81,17 @@ class NautobotIPAMProvider(IPAMProvider):
         )
         response.raise_for_status()
 
-    def _get_parent_prefix_id(self) -> str:
-        """Return the Nautobot object ID for the configured parent prefix."""
+    def _get_parent_prefix_id(self, parent_prefix: str | None = None) -> str:
+        """Return the Nautobot object ID for a parent prefix."""
+
+        parent_prefix = parent_prefix or self.parent_prefix
 
         url = f"{self.base_url}/api/ipam/prefixes/"
 
         response = requests.get(
             url,
             headers=self.headers,
-            params={"prefix": self.parent_prefix},
+            params={"prefix": parent_prefix},
             timeout=10,
         )
         response.raise_for_status()
@@ -79,7 +100,7 @@ class NautobotIPAMProvider(IPAMProvider):
 
         if len(results) != 1:
             raise ValueError(
-                f"Expected exactly one parent prefix: {self.parent_prefix}"
+                f"Expected exactly one parent prefix: {parent_prefix}"
             )
 
         return results[0]["id"]
