@@ -11,8 +11,8 @@ def test_build_tunnel_addressing() -> None:
 
     assert addressing.prefix_id == "test-id"
     assert addressing.prefix == "169.255.0.0/30"
-    assert addressing.site_ip == "169.255.0.1"
-    assert addressing.dc_ip == "169.255.0.2"
+    assert addressing.site_ip == "169.255.0.2"
+    assert addressing.dc_ip == "169.255.0.1"
 
 
 def test_reject_non_30_prefix() -> None:

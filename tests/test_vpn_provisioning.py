@@ -60,9 +60,9 @@ def test_allocate_tunnel_topology() -> None:
     assert len(tunnels) == 2
 
     assert tunnels[0].addressing.prefix == "169.255.0.0/30"
-    assert tunnels[0].addressing.site_ip == "169.255.0.1"
-    assert tunnels[0].addressing.dc_ip == "169.255.0.2"
+    assert tunnels[0].addressing.site_ip == "169.255.0.2"
+    assert tunnels[0].addressing.dc_ip == "169.255.0.1"
 
     assert tunnels[1].addressing.prefix == "169.255.0.4/30"
-    assert tunnels[1].addressing.site_ip == "169.255.0.5"
-    assert tunnels[1].addressing.dc_ip == "169.255.0.6"
+    assert tunnels[1].addressing.site_ip == "169.255.0.6"
+    assert tunnels[1].addressing.dc_ip == "169.255.0.5"

@@ -38,8 +38,8 @@ def test_allocate_tunnel() -> None:
 
     assert tunnel.prefix_id == "fake-prefix-id"
     assert tunnel.prefix == "169.255.0.0/30"
-    assert tunnel.site_ip == "169.255.0.1"
-    assert tunnel.dc_ip == "169.255.0.2"
+    assert tunnel.site_ip == "169.255.0.2"
+    assert tunnel.dc_ip == "169.255.0.1"
 
 
 def test_release_tunnel() -> None:

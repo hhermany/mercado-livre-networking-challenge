@@ -25,6 +25,6 @@ def build_tunnel_addressing(prefix_id: str, prefix: str) -> TunnelAddressing:
     return TunnelAddressing(
         prefix_id=prefix_id,
         prefix=prefix,
-        site_ip=str(hosts[0]),
-        dc_ip=str(hosts[1]),
+        site_ip=str(hosts[1]),
+        dc_ip=str(hosts[0]),
     )
