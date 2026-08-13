@@ -1,0 +1,25 @@
+from src.branch.bundle import generate_branch_bundle
+
+
+def test_generate_branch_2_bundle():
+    bundle = generate_branch_bundle(
+        branch_id=2,
+        branch_wan1_ip="100.64.0.3",
+        branch_wan2_ip="100.100.0.3",
+        dc_wan1_ip="100.64.0.1",
+        dc_wan2_ip="100.100.0.1",
+        psk="TEST-PSK",
+    )
+
+    assert bundle.name == "BRANCH-2"
+    assert bundle.hostname == "FW-BRANCH-2"
+
+    assert "FW-BRANCH-2" in bundle.fortigate
+    assert "172.31.255.2" in bundle.fortigate
+    assert "169.255.2.2" in bundle.fortigate
+    assert "169.255.2.6" in bundle.fortigate
+
+    assert "BRANCH-2-VPN1" in bundle.paloalto
+    assert "BRANCH-2-VPN2" in bundle.paloalto
+    assert "169.255.2.1/30" in bundle.paloalto
+    assert "169.255.2.5/30" in bundle.paloalto
