@@ -1,6 +1,5 @@
 from src.switch.cisco import CiscoSwitch, save_backup
 
-
 DEFAULT_VLANS = [
     (10, "VLAN_DADOS"),
     (20, "VLAN_VOZ"),

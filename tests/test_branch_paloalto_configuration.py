@@ -24,10 +24,21 @@ def test_generate_paloalto_branch_2():
 
     assert "169.255.2.1/30" in config
     assert "169.255.2.5/30" in config
-
     assert "169.255.2.2" in config
     assert "169.255.2.6" in config
 
     assert "FG-BRANCH-2-VPN1" in config
     assert "FG-BRANCH-2-VPN2" in config
     assert "IBGP-SDWAN" in config
+
+
+def test_paloalto_crypto_profiles_match_golden_dc():
+    config = generate_paloalto_branch_config(
+        branch_id=2,
+        branch_wan1_ip="100.64.0.3",
+        branch_wan2_ip="100.100.0.3",
+        psk="TEST-PSK",
+    )
+
+    assert "ike-crypto-profile IKE-FGT-PA" in config
+    assert "ipsec-crypto-profile IPSEC-FGT-PA" in config

@@ -1,8 +1,8 @@
-set network ike gateway {{ tunnel_name }} protocol ikev2 dpd enable yes
+set network ike gateway {{ tunnel_name }} protocol ikev2 ike-crypto-profile IKE-FGT-PA
 set network ike gateway {{ tunnel_name }} local-address interface {{ wan_interface }}
 set network ike gateway {{ tunnel_name }} peer-address ip {{ remote_public_ip }}
 set network ike gateway {{ tunnel_name }} authentication pre-shared-key key "{{ psk }}"
 
 set network tunnel ipsec {{ tunnel_name }} auto-key ike-gateway {{ tunnel_name }}
-set network tunnel ipsec {{ tunnel_name }} auto-key ipsec-crypto-profile default
+set network tunnel ipsec {{ tunnel_name }} auto-key ipsec-crypto-profile IPSEC-FGT-PA
 set network tunnel ipsec {{ tunnel_name }} tunnel-interface {{ tunnel_interface }}

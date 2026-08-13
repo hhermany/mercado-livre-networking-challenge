@@ -41,14 +41,42 @@ end
 config vpn ipsec phase1-interface
     edit "VPN-PA-DC"
         set interface "port2"
+        set ike-version 2
+        set keylife 28800
+        set peertype any
+        set net-device disable
+        set proposal des-sha256
+        set dhgrp 14
         set remote-gw {{ dc_wan1_ip }}
         set psksecret "{{ psk }}"
     next
 
     edit "VPN2-PA-DC"
         set interface "port3"
+        set ike-version 2
+        set keylife 28800
+        set peertype any
+        set net-device disable
+        set proposal des-sha256
+        set dhgrp 14
         set remote-gw {{ dc_wan2_ip }}
         set psksecret "{{ psk }}"
+    next
+end
+
+config vpn ipsec phase2-interface
+    edit "VPN-PA-DC-P2"
+        set phase1name "VPN-PA-DC"
+        set proposal des-sha256
+        set dhgrp 14
+        set keylifeseconds 3600
+    next
+
+    edit "VPN2-PA-DC-P2"
+        set phase1name "VPN2-PA-DC"
+        set proposal des-sha256
+        set dhgrp 14
+        set keylifeseconds 3600
     next
 end
 
