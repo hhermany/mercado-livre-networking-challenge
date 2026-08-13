@@ -14,7 +14,9 @@ class CiscoSwitch:
             "secret": secret,
         }
 
-    def configure(self, hostname, vlans):
+    def configure(self, hostname=None, vlans=None):
+        vlans = vlans or []
+
         vlan_commands = []
 
         for vlan_id, vlan_name in vlans:
@@ -23,26 +25,32 @@ class CiscoSwitch:
                 f"name {vlan_name}",
             ])
 
+        outputs = []
+
         with ConnectHandler(**self.device) as conn:
             if self.device["secret"]:
                 conn.enable()
 
-            hostname_output = conn.send_config_set(
-                [f"hostname {hostname}"],
-                cmd_verify=False,
-            )
+            if hostname:
+                hostname_output = conn.send_config_set(
+                    [f"hostname {hostname}"],
+                    cmd_verify=False,
+                )
+                outputs.append(hostname_output)
 
-            conn.set_base_prompt()
+                # O prompt muda após o comando hostname.
+                conn.set_base_prompt()
 
-            vlan_output = conn.send_config_set(vlan_commands)
+            if vlan_commands:
+                vlan_output = conn.send_config_set(vlan_commands)
+                outputs.append(vlan_output)
+
             conn.save_config()
 
             validation = conn.send_command("show vlan brief")
             running_config = conn.send_command("show running-config")
 
-        output = hostname_output + "\n" + vlan_output
-
-        return output, validation, running_config
+        return "\n".join(outputs), validation, running_config
 
 
 def save_backup(hostname, config):
@@ -50,7 +58,8 @@ def save_backup(hostname, config):
     backup_dir.mkdir(exist_ok=True)
 
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    filename = backup_dir / f"{hostname}_{timestamp}.cfg"
+    backup_name = hostname or "SWITCH"
+    filename = backup_dir / f"{backup_name}_{timestamp}.cfg"
     filename.write_text(config)
 
     return filename

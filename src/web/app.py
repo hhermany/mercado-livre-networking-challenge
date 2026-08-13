@@ -21,30 +21,29 @@ def index():
 
 @app.post("/")
 def stale_root_post():
-    # Compatibilidade com formulario antigo/cacheado.
-    # Nunca executa configuracao pela raiz.
     return redirect(url_for("index"))
 
 
 @app.post("/apply")
 def apply_configuration():
     try:
-        hostname = request.form["hostname"].strip()
+        hostname = request.form.get("hostname", "").strip() or None
 
-        vlans = [
-            (
-                int(request.form["vlan10_id"]),
-                request.form["vlan10_name"].strip(),
-            ),
-            (
-                int(request.form["vlan20_id"]),
-                request.form["vlan20_name"].strip(),
-            ),
-            (
-                int(request.form["vlan50_id"]),
-                request.form["vlan50_name"].strip(),
-            ),
-        ]
+        vlans = []
+
+        for row in ("1", "2", "3"):
+            vlan_id = request.form.get(f"vlan{row}_id", "").strip()
+            vlan_name = request.form.get(f"vlan{row}_name", "").strip()
+
+            if not vlan_id and not vlan_name:
+                continue
+
+            if not vlan_id or not vlan_name:
+                raise ValueError(
+                    "Para configurar uma VLAN, informe ID e nome."
+                )
+
+            vlans.append((int(vlan_id), vlan_name))
 
         result = provision_switch(
             host=os.environ["SWITCH_HOST"],

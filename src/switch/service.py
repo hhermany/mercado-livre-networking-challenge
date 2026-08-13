@@ -1,28 +1,27 @@
 from src.switch.cisco import CiscoSwitch, save_backup
 
-DEFAULT_VLANS = [
-    (10, "VLAN_DADOS"),
-    (20, "VLAN_VOZ"),
-    (50, "VLAN_SEGURANCA"),
-]
-
 
 def provision_switch(
     host,
     username,
     password,
-    hostname,
+    hostname=None,
     secret="",
     vlans=None,
 ):
+    desired_vlans = vlans or []
+
+    if not hostname and not desired_vlans:
+        raise ValueError(
+            "Informe um hostname ou pelo menos uma VLAN para configurar."
+        )
+
     switch = CiscoSwitch(
         host=host,
         username=username,
         password=password,
         secret=secret,
     )
-
-    desired_vlans = vlans or DEFAULT_VLANS
 
     output, vlan_state, running_config = switch.configure(
         hostname=hostname,
@@ -31,13 +30,22 @@ def provision_switch(
 
     missing = []
 
-    expected_hostname = f"hostname {hostname}"
+    if hostname:
+        expected_hostname = f"hostname {hostname}"
 
-    if expected_hostname not in running_config:
-        missing.append(f"hostname:{hostname}")
+        if expected_hostname not in running_config:
+            missing.append(f"hostname:{hostname}")
 
     for vlan_id, vlan_name in desired_vlans:
-        if str(vlan_id) not in vlan_state or vlan_name not in vlan_state:
+        vlan_id = str(vlan_id)
+
+        matching_lines = [
+            line
+            for line in vlan_state.splitlines()
+            if line.strip().startswith(f"{vlan_id} ")
+        ]
+
+        if not matching_lines or vlan_name not in matching_lines[0]:
             missing.append(f"vlan:{vlan_id}:{vlan_name}")
 
     backup = save_backup(hostname, running_config)
