@@ -3,9 +3,18 @@ config system global
 end
 
 config system interface
+    edit "port2"
+        unset allowaccess
+    next
+
+    edit "port3"
+        unset allowaccess
+    next
+
     edit "port4"
         set alias "{{ name }}_LAN"
         set ip {{ lan_gateway }} 255.255.255.0
+        unset allowaccess
     next
 
     edit "LO-MGMT"
@@ -47,11 +56,13 @@ config system interface
     edit "VPN-PA-DC"
         set ip {{ vpn1_branch_ip }} 255.255.255.255
         set remote-ip {{ vpn1_dc_ip }} 255.255.255.252
+        unset allowaccess
     next
 
     edit "VPN2-PA-DC"
         set ip {{ vpn2_branch_ip }} 255.255.255.255
         set remote-ip {{ vpn2_dc_ip }} 255.255.255.252
+        unset allowaccess
     next
 end
 
