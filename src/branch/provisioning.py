@@ -4,6 +4,7 @@ import requests
 from dotenv import load_dotenv
 
 from src.branch.addressing import build_branch_plan
+from src.branch.next_id import get_next_branch_id
 
 load_dotenv(".env")
 
@@ -61,7 +62,10 @@ class BranchProvisioner:
 
         return r.json()
 
-    def provision(self, branch_id):
+    def provision(self, branch_id=None):
+        if branch_id is None:
+            branch_id = get_next_branch_id()
+
         plan = build_branch_plan(branch_id)
 
         resources = [
