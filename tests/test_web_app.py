@@ -672,3 +672,192 @@ def test_success_is_after_interface_information(monkeypatch):
 
 
 
+
+
+def test_index_shows_batch_configuration(monkeypatch):
+    configure_test_environment(monkeypatch)
+
+    client = web_app.app.test_client()
+    response = client.get("/")
+
+    assert response.status_code == 200
+    assert b"Configura\xc3\xa7\xc3\xa3o de Portas em Lote" in response.data
+    assert b"Interface inicial" in response.data
+    assert b"Interface final" in response.data
+    assert b"Visualizar Altera\xc3\xa7\xc3\xb5es" in response.data
+
+
+def test_batch_preview_shows_selected_interfaces(monkeypatch):
+    configure_test_environment(monkeypatch)
+
+    client = web_app.app.test_client()
+
+    response = client.post(
+        "/batch-preview",
+        data={
+            "batch_start_interface": "Gi0/0",
+            "batch_end_interface": "Gi1/0/2",
+            "batch_access_vlan": "10",
+        },
+    )
+
+    assert response.status_code == 200
+    assert b"Preview:" in response.data
+    assert b"3 interfaces" in response.data
+    assert b"Gi0/0" in response.data
+    assert b"Gi1/0/1" in response.data
+    assert b"Gi1/0/2" in response.data
+
+
+def test_batch_preview_shows_warnings(monkeypatch):
+    configure_test_environment(monkeypatch)
+
+    client = web_app.app.test_client()
+
+    response = client.post(
+        "/batch-preview",
+        data={
+            "batch_start_interface": "Gi0/0",
+            "batch_end_interface": "Gi1/0/1",
+        },
+    )
+
+    assert response.status_code == 200
+    assert b"Interface est\xc3\xa1 conectada" in response.data
+    assert b"Interface possui descri\xc3\xa7\xc3\xa3o" in response.data
+
+
+def test_batch_preview_does_not_apply_configuration(monkeypatch):
+    configure_test_environment(monkeypatch)
+
+    def should_not_run(**kwargs):
+        raise AssertionError(
+            "provision_switch nao deveria ser chamado no preview."
+        )
+
+    monkeypatch.setattr(
+        web_app,
+        "provision_switch",
+        should_not_run,
+    )
+
+    client = web_app.app.test_client()
+
+    response = client.post(
+        "/batch-preview",
+        data={
+            "batch_start_interface": "Gi0/0",
+            "batch_end_interface": "Gi1/0/1",
+        },
+    )
+
+    assert response.status_code == 200
+
+
+def test_batch_preview_rejects_reverse_range(monkeypatch):
+    configure_test_environment(monkeypatch)
+
+    client = web_app.app.test_client()
+
+    response = client.post(
+        "/batch-preview",
+        data={
+            "batch_start_interface": "Gi1/0/2",
+            "batch_end_interface": "Gi0/0",
+        },
+    )
+
+    assert response.status_code == 200
+    assert b"deve aparecer antes" in response.data
+
+
+def test_batch_preview_accepts_specific_checkboxes(monkeypatch):
+    configure_test_environment(monkeypatch)
+
+    client = web_app.app.test_client()
+
+    response = client.post(
+        "/batch-preview",
+        data={
+            "batch_interfaces": [
+                "Gi0/0",
+                "Gi1/0/2",
+            ],
+            "batch_access_vlan": "50",
+            "batch_voice_vlan": "20",
+        },
+    )
+
+    assert response.status_code == 200
+    assert b"2 interfaces" in response.data
+    assert b"Access VLAN: 50" in response.data
+    assert b"Voice VLAN: 20" in response.data
+
+
+def test_batch_preview_combines_range_and_checkboxes(monkeypatch):
+    configure_test_environment(monkeypatch)
+
+    client = web_app.app.test_client()
+
+    response = client.post(
+        "/batch-preview",
+        data={
+            "batch_interfaces": [
+                "Gi1/0/2",
+            ],
+            "batch_start_interface": "Gi0/0",
+            "batch_end_interface": "Gi1/0/1",
+            "batch_description": "LOTE TESTE",
+        },
+    )
+
+    assert response.status_code == 200
+
+    html = response.data.decode()
+
+    assert "3 interfaces" in html
+    assert "Gi0/0, Gi1/0/1, Gi1/0/2" in html
+    assert "Description: LOTE TESTE" in html
+
+
+def test_batch_preview_deduplicates_range_and_checkbox(monkeypatch):
+    configure_test_environment(monkeypatch)
+
+    client = web_app.app.test_client()
+
+    response = client.post(
+        "/batch-preview",
+        data={
+            "batch_interfaces": [
+                "Gi1/0/1",
+            ],
+            "batch_start_interface": "Gi0/0",
+            "batch_end_interface": "Gi1/0/1",
+        },
+    )
+
+    assert response.status_code == 200
+    assert b"2 interfaces" in response.data
+
+
+def test_batch_preview_shows_remove_options(monkeypatch):
+    configure_test_environment(monkeypatch)
+
+    client = web_app.app.test_client()
+
+    response = client.post(
+        "/batch-preview",
+        data={
+            "batch_interfaces": [
+                "Gi1/0/1",
+            ],
+            "batch_remove_description": "on",
+            "batch_remove_voice_vlan": "on",
+            "batch_admin_state": "down",
+        },
+    )
+
+    assert response.status_code == 200
+    assert b"Remover Description" in response.data
+    assert b"Remover Voice VLAN" in response.data
+    assert b"Admin Down" in response.data
