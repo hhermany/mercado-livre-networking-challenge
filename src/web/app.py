@@ -10,38 +10,56 @@ load_dotenv(".env")
 app = Flask(__name__)
 
 
-@app.route("/", methods=["GET", "POST"])
+@app.get("/")
 def index():
-    result = None
-    error = None
-
-    if request.method == "POST":
-        try:
-            hostname = request.form["hostname"].strip()
-
-            vlans = [
-                (int(request.form["vlan10_id"]), request.form["vlan10_name"].strip()),
-                (int(request.form["vlan20_id"]), request.form["vlan20_name"].strip()),
-                (int(request.form["vlan50_id"]), request.form["vlan50_name"].strip()),
-            ]
-
-            result = provision_switch(
-                host=os.environ["SWITCH_HOST"],
-                username=os.environ["SWITCH_USERNAME"],
-                password=os.environ["SWITCH_PASSWORD"],
-                secret=os.getenv("SWITCH_SECRET", ""),
-                hostname=hostname,
-                vlans=vlans,
-            )
-
-        except Exception as exc:
-            error = str(exc)
-
     return render_template(
         "index.html",
-        result=result,
-        error=error,
+        result=None,
+        error=None,
     )
+
+
+@app.post("/apply")
+def apply_configuration():
+    try:
+        hostname = request.form["hostname"].strip()
+
+        vlans = [
+            (
+                int(request.form["vlan10_id"]),
+                request.form["vlan10_name"].strip(),
+            ),
+            (
+                int(request.form["vlan20_id"]),
+                request.form["vlan20_name"].strip(),
+            ),
+            (
+                int(request.form["vlan50_id"]),
+                request.form["vlan50_name"].strip(),
+            ),
+        ]
+
+        result = provision_switch(
+            host=os.environ["SWITCH_HOST"],
+            username=os.environ["SWITCH_USERNAME"],
+            password=os.environ["SWITCH_PASSWORD"],
+            secret=os.getenv("SWITCH_SECRET", ""),
+            hostname=hostname,
+            vlans=vlans,
+        )
+
+        return render_template(
+            "index.html",
+            result=result,
+            error=None,
+        )
+
+    except Exception as exc:
+        return render_template(
+            "index.html",
+            result=None,
+            error=str(exc),
+        )
 
 
 if __name__ == "__main__":

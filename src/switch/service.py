@@ -31,9 +31,14 @@ def provision_switch(
 
     missing = []
 
+    expected_hostname = f"hostname {hostname}"
+
+    if expected_hostname not in running_config:
+        missing.append(f"hostname:{hostname}")
+
     for vlan_id, vlan_name in desired_vlans:
         if str(vlan_id) not in vlan_state or vlan_name not in vlan_state:
-            missing.append(f"{vlan_id}:{vlan_name}")
+            missing.append(f"vlan:{vlan_id}:{vlan_name}")
 
     backup = save_backup(hostname, running_config)
 
@@ -43,4 +48,5 @@ def provision_switch(
         "backup": str(backup),
         "configuration_output": output,
         "vlan_state": vlan_state,
+        "hostname": hostname,
     }

@@ -16,7 +16,7 @@ pre { background: #eee; padding: 15px; overflow: auto; }
 
 <h1>Automação de Switch Cisco</h1>
 
-<form method="post">
+<form method="post" action="/apply">
 <h3>Hostname</h3>
 <input name="hostname" value="SWITCH_AUTOMATIZADO" required>
 
@@ -50,7 +50,7 @@ pre { background: #eee; padding: 15px; overflow: auto; }
 {% if result.missing %}
 <p>Divergências: {{ result.missing }}</p>
 {% else %}
-<p>Hostname e VLANs validados.</p>
+<p>Configuração aplicada, salva e validada no switch.</p>
 {% endif %}
 
 <pre>{{ result.vlan_state }}</pre>
