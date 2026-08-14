@@ -728,6 +728,78 @@ class CiscoSwitch:
     def _connect(self):
         return ConnectHandler(**self.device)
 
+    def get_running_config(self):
+        with self._connect() as conn:
+            if self.device["secret"]:
+                conn.enable()
+
+            output = conn.send_command(
+                "show running-config",
+                read_timeout=60,
+            )
+
+        return output
+
+    def get_startup_config(self):
+        with self._connect() as conn:
+            if self.device["secret"]:
+                conn.enable()
+
+            output = conn.send_command(
+                "show startup-config",
+                read_timeout=60,
+            )
+
+        lowered = output.lower()
+
+        if (
+            "startup-config is not present"
+            in lowered
+            or "non-volatile configuration memory"
+            in lowered
+            and "not present" in lowered
+        ):
+            raise ValueError(
+                "Startup-config não encontrada no equipamento."
+            )
+
+        return output
+
+    def save_running_to_startup(self):
+        with self._connect() as conn:
+            if self.device["secret"]:
+                conn.enable()
+
+            output = conn.send_command_timing(
+                "copy running-config startup-config",
+                strip_prompt=False,
+                strip_command=False,
+            )
+
+            # IOS pode pedir confirmação do destination filename.
+            if "Destination filename" in output:
+                output += conn.send_command_timing(
+                    "",
+                    strip_prompt=False,
+                    strip_command=False,
+                )
+
+        lowered = output.lower()
+
+        if (
+            "% invalid" in lowered
+            or "% error" in lowered
+            or "failed" in lowered
+        ):
+            raise RuntimeError(
+                "Falha ao salvar a configuração na NVRAM."
+            )
+
+        return {
+            "success": True,
+            "output": output,
+        }
+
     def list_interfaces(self):
         with self._connect() as conn:
             if self.device["secret"]:
@@ -1164,7 +1236,6 @@ class CiscoSwitch:
                 commands
             )
 
-            conn.save_config()
 
             for interface in interfaces:
                 interface_outputs = []
@@ -1322,7 +1393,6 @@ class CiscoSwitch:
                 )
                 outputs.append(interface_output)
 
-            conn.save_config()
 
             vlan_state = conn.send_command("show vlan brief")
             interface_state = ""

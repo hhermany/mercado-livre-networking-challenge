@@ -1986,3 +1986,153 @@ def test_traceroute_uses_compact_light_result(
         "Ver sessão completa do Extended Traceroute"
         not in html
     )
+
+
+def test_index_shows_configuration_management(
+    monkeypatch,
+):
+    configure_test_environment(monkeypatch)
+
+    client = web_app.app.test_client()
+    response = client.get("/")
+
+    html = response.data.decode()
+
+    assert "Gerenciamento da Configuração" in html
+    assert "Salvar na NVRAM" in html
+    assert "Baixar Running Config" in html
+    assert "Baixar Startup Config" in html
+    assert "Running × Startup" in html
+    assert "Comparar Arquivos" in html
+
+
+def test_download_running_config_returns_attachment(
+    monkeypatch,
+):
+    configure_test_environment(monkeypatch)
+
+    monkeypatch.setattr(
+        web_app,
+        "get_running_config",
+        lambda **kwargs: (
+            "hostname SW-TESTE1\n"
+            "interface GigabitEthernet0/1\n"
+        ),
+    )
+
+    client = web_app.app.test_client()
+
+    response = client.get(
+        "/configuration/download/running"
+    )
+
+    assert response.status_code == 200
+
+    assert (
+        response.mimetype
+        == "text/plain"
+    )
+
+    disposition = response.headers[
+        "Content-Disposition"
+    ]
+
+    assert "attachment" in disposition
+
+    assert (
+        "SW-TESTE1_running_"
+        in disposition
+    )
+
+    assert (
+        b"hostname SW-TESTE1"
+        in response.data
+    )
+
+
+def test_download_startup_config_returns_attachment(
+    monkeypatch,
+):
+    configure_test_environment(monkeypatch)
+
+    monkeypatch.setattr(
+        web_app,
+        "get_startup_config",
+        lambda **kwargs: (
+            "hostname SW-TESTE1\n"
+            "interface GigabitEthernet0/1\n"
+        ),
+    )
+
+    client = web_app.app.test_client()
+
+    response = client.get(
+        "/configuration/download/startup"
+    )
+
+    assert response.status_code == 200
+
+    assert (
+        "SW-TESTE1_startup_"
+        in response.headers[
+            "Content-Disposition"
+        ]
+    )
+
+
+def test_config_diff_uses_structured_comparison(
+    monkeypatch,
+):
+    configure_test_environment(monkeypatch)
+
+    monkeypatch.setattr(
+        web_app,
+        "get_startup_config",
+        lambda **kwargs: """\
+interface GigabitEthernet0/1
+ switchport access vlan 10
+!
+""",
+    )
+
+    monkeypatch.setattr(
+        web_app,
+        "get_running_config",
+        lambda **kwargs: """\
+interface GigabitEthernet0/1
+ switchport access vlan 20
+!
+""",
+    )
+
+    client = web_app.app.test_client()
+
+    response = client.post(
+        "/configuration/diff/live"
+    )
+
+    html = response.data.decode()
+
+    assert response.status_code == 200
+
+    assert (
+        "interface GigabitEthernet0/1"
+        in html
+    )
+
+    assert "Alterada" in html
+    assert "Startup" in html
+    assert "Running" in html
+
+    assert (
+        "switchport access vlan 10"
+        in html
+    )
+
+    assert (
+        "switchport access vlan 20"
+        in html
+    )
+
+    assert "--- startup-config" not in html
+    assert "@@" not in html

@@ -592,6 +592,345 @@ pre {
     margin: 3px 0;
 }
 
+.config-management-grid {
+    display: grid;
+    grid-template-columns:
+        repeat(2, minmax(0, 1fr));
+    gap: 18px;
+}
+
+.config-management-panel {
+    padding: 16px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #fafbfc;
+}
+
+.config-management-panel h3 {
+    margin-top: 0;
+}
+
+.config-download-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.button-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 9px 13px;
+    border-radius: 6px;
+    background: var(--primary);
+    color: white;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 13px;
+}
+
+.config-file-diff {
+    margin-top: 18px;
+    display: grid;
+    gap: 10px;
+}
+
+.config-compare-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 13px 16px;
+    border: 1px solid #d4dce3;
+    border-radius: 8px;
+    background: #f7f9fb;
+    font-size: 13px;
+}
+
+.config-identical {
+    color: #237a3b;
+    font-weight: 700;
+}
+
+.config-changes {
+    display: grid;
+    gap: 10px;
+    margin-top: 14px;
+}
+
+.config-change-card {
+    border: 1px solid #cfd8e1;
+    border-radius: 8px;
+    overflow: hidden;
+    background: white;
+}
+
+.config-change-name {
+    min-width: 0;
+    font-size: 13px;
+}
+
+.config-change-name strong {
+    font-weight: 700;
+}
+
+.config-pair-header {
+    display: grid;
+    grid-template-columns:
+        repeat(2, minmax(0, 1fr));
+    border-bottom: 1px solid #d7dee5;
+    background: #f8fafb;
+}
+
+.config-pair-header > div {
+    padding: 7px 14px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+}
+
+.config-pair-header > div + div {
+    border-left: 1px solid #d7dee5;
+}
+
+.config-pair-body {
+    display: grid;
+}
+
+.config-pair-row {
+    display: grid;
+    grid-template-columns:
+        repeat(2, minmax(0, 1fr));
+    min-height: 34px;
+}
+
+.config-pair-row + .config-pair-row {
+    border-top: 1px solid #edf0f2;
+}
+
+.config-pair-cell {
+    display: grid;
+    grid-template-columns:
+        18px minmax(0, 1fr);
+    align-items: center;
+    gap: 5px;
+
+    padding: 7px 12px;
+
+    font-family:
+        ui-monospace,
+        SFMono-Regular,
+        Menlo,
+        Monaco,
+        Consolas,
+        "Liberation Mono",
+        monospace;
+
+    font-size: 13.5px;
+    font-weight: 500;
+    line-height: 1.35;
+
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.config-pair-cell + .config-pair-cell {
+    border-left: 1px solid #d7dee5;
+}
+
+.config-pair-removed {
+    background: #fdf1f0;
+    color: #832d29;
+}
+
+.config-pair-added {
+    background: #edf7ef;
+    color: #185b2b;
+}
+
+.config-pair-empty {
+    background: #fafbfc;
+    color: #a0a8af;
+}
+
+.diff-symbol {
+    font-weight: 800;
+    text-align: center;
+}
+
+.config-empty-marker {
+    grid-column: 1 / -1;
+    text-align: center;
+    color: #aeb5bb;
+}
+
+.config-side-by-side {
+    display: grid;
+    grid-template-columns:
+        minmax(0, 1fr)
+        minmax(0, 1fr);
+}
+
+.config-side {
+    min-width: 0;
+}
+
+.config-single-side {
+    padding: 0;
+}
+
+.config-change-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 9px 12px;
+    background: #f4f7f9;
+    border-bottom: 1px solid #d7dee5;
+}
+
+.change-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.change-running {
+    background: #e8f5eb;
+    color: #237a3b;
+}
+
+.change-startup {
+    background: #fdeceb;
+    color: #a12622;
+}
+
+.change-modified {
+    background: #fff5dc;
+    color: #765900;
+}
+
+.config-side-by-side {
+    display: grid;
+    grid-template-columns:
+        repeat(2, minmax(0, 1fr));
+}
+
+.config-side + .config-side {
+    border-left: 1px solid #d7dee5;
+}
+
+.config-side-header {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 12px;
+    background: #f8fafb;
+    border-bottom: 1px solid #e0e6eb;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+}
+
+.config-side-header span {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: lowercase;
+    opacity: 0.75;
+}
+
+.config-side-startup {
+    color: #992f2a;
+}
+
+.config-side-running {
+    color: #236b36;
+}
+
+.config-single-side {
+    padding: 9px 0;
+}
+
+.config-line {
+    padding: 6px 14px;
+    font-family:
+        ui-monospace,
+        SFMono-Regular,
+        Menlo,
+        Monaco,
+        Consolas,
+        "Liberation Mono",
+        monospace;
+    font-size: 13.5px;
+    font-weight: 500;
+    line-height: 1.35;
+    white-space: pre-wrap;
+}
+
+.config-line-added {
+    background: #edf7ef;
+    color: #165c2a;
+    border-left: 3px solid #58a66c;
+}
+
+.config-line-removed {
+    background: #fdf0ef;
+    color: #8b2f2a;
+    border-left: 3px solid #d36a63;
+}
+
+.config-no-change {
+    padding: 10px 14px;
+    color: #6c7883;
+    font-size: 12px;
+    font-style: italic;
+    background: #fafbfc;
+}
+
+.config-diff-result {
+    margin-top: 20px;
+}
+
+.config-diff-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.config-diff-stats {
+    display: flex;
+    gap: 8px;
+    font-weight: 700;
+}
+
+.diff-added {
+    color: #237a3b;
+}
+
+.diff-removed {
+    color: #a12622;
+}
+
+.config-diff-output {
+    margin: 0;
+    padding: 14px 16px;
+    border: 1px solid #d7dee5;
+    border-radius: 7px;
+    background: #f7f9fb;
+    color: #17212b;
+    font-size: 13px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    overflow-x: auto;
+}
+
 .troubleshooting-grid {
     display: grid;
     grid-template-columns:
@@ -734,6 +1073,15 @@ details.raw-output summary {
 @media (max-width: 900px) {
     .port-grid {
         grid-template-columns: repeat(2, 1fr);
+    }
+
+    .config-side-by-side {
+        grid-template-columns: 1fr;
+    }
+
+    .config-side + .config-side {
+        border-left: 0;
+        border-top: 1px solid #d7dee5;
     }
 
     .troubleshooting-grid {
@@ -1235,6 +1583,295 @@ details.raw-output summary {
         </div>
 
     </form>
+</div>
+
+
+<div class="card">
+    <h2>Gerenciamento da Configuração</h2>
+
+    <div class="help">
+        Salve, baixe, faça backup e compare configurações do equipamento.
+    </div>
+
+    {% if config_error %}
+    <div class="error">
+        <strong>ERRO</strong><br>
+        {{ config_error }}
+    </div>
+    {% endif %}
+
+    {% if config_result and config_result.type == "save" %}
+    <div class="success">
+        <strong>SUCESSO</strong><br>
+        {{ config_result.message }}
+    </div>
+    {% endif %}
+
+    <div class="config-management-grid">
+
+        <div class="config-management-panel">
+            <h3>Configuração Atual</h3>
+
+            <form
+                method="post"
+                action="/configuration/save"
+            >
+                <button type="submit">
+                    Salvar na NVRAM
+                </button>
+            </form>
+
+            <div class="config-download-actions">
+                <a
+                    class="button-link"
+                    href="/configuration/download/running"
+                >
+                    Baixar Running Config
+                </a>
+
+                <a
+                    class="button-link"
+                    href="/configuration/download/startup"
+                >
+                    Baixar Startup Config
+                </a>
+            </div>
+        </div>
+
+
+        <div class="config-management-panel">
+            <h3>Comparar Configurações</h3>
+
+            <form
+                method="post"
+                action="/configuration/diff/live"
+            >
+                <button type="submit">
+                    Running × Startup
+                </button>
+            </form>
+
+            <form
+                method="post"
+                action="/configuration/diff/files"
+                enctype="multipart/form-data"
+                class="config-file-diff"
+            >
+                <div class="field">
+                    <label for="diff_left_file">
+                        Arquivo A
+                    </label>
+
+                    <input
+                        id="diff_left_file"
+                        name="diff_left_file"
+                        type="file"
+                        accept=".cfg,.conf,.txt"
+                        required
+                    >
+                </div>
+
+                <div class="field">
+                    <label for="diff_right_file">
+                        Arquivo B
+                    </label>
+
+                    <input
+                        id="diff_right_file"
+                        name="diff_right_file"
+                        type="file"
+                        accept=".cfg,.conf,.txt"
+                        required
+                    >
+                </div>
+
+                <button type="submit">
+                    Comparar Arquivos
+                </button>
+            </form>
+        </div>
+
+    </div>
+
+
+    {% if config_result and config_result.type == "diff" %}
+    <div class="config-diff-result">
+
+        <div class="config-compare-summary">
+            <div>
+                <strong>
+                    {{ config_result.diff.left_label }}
+                </strong>
+                ×
+                <strong>
+                    {{ config_result.diff.right_label }}
+                </strong>
+            </div>
+
+            {% if config_result.diff.identical %}
+            <span class="config-identical">
+                Configurações idênticas
+            </span>
+
+            {% else %}
+            <div class="config-diff-stats">
+                <span>
+                    {{ config_result.diff.changed_count }}
+                    bloco{% if config_result.diff.changed_count != 1 %}s{% endif %}
+                    diferente{% if config_result.diff.changed_count != 1 %}s{% endif %}
+                </span>
+
+                <span class="diff-added">
+                    +{{ config_result.diff.added_lines }}
+                </span>
+
+                <span class="diff-removed">
+                    -{{ config_result.diff.removed_lines }}
+                </span>
+            </div>
+            {% endif %}
+        </div>
+
+
+        {% if not config_result.diff.identical %}
+
+        <div class="config-changes">
+
+            {% for section in config_result.diff.changed_sections %}
+            <div class="config-change-card">
+
+                <div class="config-change-title">
+                    <div class="config-change-name">
+                        <strong>
+                            {{ section.name }}
+                        </strong>
+                    </div>
+
+                    {% if section.status == "running_only" %}
+                    <span class="change-badge change-running">
+                        Somente na Running
+                    </span>
+
+                    {% elif section.status == "startup_only" %}
+                    <span class="change-badge change-startup">
+                        Somente na Startup
+                    </span>
+
+                    {% else %}
+                    <span class="change-badge change-modified">
+                        Alterada
+                    </span>
+                    {% endif %}
+                </div>
+
+
+                {% if section.status == "modified" %}
+
+                <div class="config-pair-header">
+                    <div class="config-side-startup">
+                        STARTUP
+                    </div>
+
+                    <div class="config-side-running">
+                        RUNNING
+                    </div>
+                </div>
+
+                <div class="config-pair-body">
+
+                    {% for row in section.rows %}
+                    <div class="config-pair-row">
+
+                        <div
+                            class="
+                                config-pair-cell
+                                {% if row.startup_line %}
+                                config-pair-removed
+                                {% else %}
+                                config-pair-empty
+                                {% endif %}
+                            "
+                        >
+                            {% if row.startup_line %}
+                            <span class="diff-symbol">
+                                -
+                            </span>
+
+                            <span>
+                                {{ row.startup_line }}
+                            </span>
+                            {% else %}
+                            <span class="config-empty-marker">
+                                —
+                            </span>
+                            {% endif %}
+                        </div>
+
+
+                        <div
+                            class="
+                                config-pair-cell
+                                {% if row.running_line %}
+                                config-pair-added
+                                {% else %}
+                                config-pair-empty
+                                {% endif %}
+                            "
+                        >
+                            {% if row.running_line %}
+                            <span class="diff-symbol">
+                                +
+                            </span>
+
+                            <span>
+                                {{ row.running_line }}
+                            </span>
+                            {% else %}
+                            <span class="config-empty-marker">
+                                —
+                            </span>
+                            {% endif %}
+                        </div>
+
+                    </div>
+                    {% endfor %}
+
+                </div>
+
+
+                {% elif section.status == "running_only" %}
+
+                <div class="config-single-side">
+                    {% for line in section.running_lines %}
+                    <div class="config-line config-line-added">
+                        + {{ line }}
+                    </div>
+                    {% endfor %}
+                </div>
+
+
+                {% elif section.status == "startup_only" %}
+
+                <div class="config-single-side">
+                    {% for line in section.startup_lines %}
+                    <div class="config-line config-line-removed">
+                        - {{ line }}
+                    </div>
+                    {% endfor %}
+                </div>
+
+                {% endif %}
+
+            </div>
+            {% endfor %}
+
+        </div>
+
+        {% endif %}
+
+    </div>
+    {% endif %}
+
 </div>
 
 

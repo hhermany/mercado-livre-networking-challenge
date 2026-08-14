@@ -1,4 +1,5 @@
 import os
+from io import BytesIO
 
 from dotenv import load_dotenv
 from flask import (
@@ -7,6 +8,7 @@ from flask import (
     redirect,
     render_template,
     request,
+    send_file,
     url_for,
 )
 
@@ -16,12 +18,16 @@ from src.switch.batch import (
 )
 from src.switch.cisco import validate_switchport_change
 from src.switch.service import (
+    compare_config_texts,
+    get_running_config,
+    get_startup_config,
     get_switch_interfaces,
     get_switch_l3_interfaces,
     provision_interfaces_batch,
     provision_switch,
     run_switch_ping,
     run_switch_traceroute,
+    save_running_to_startup,
 )
 
 load_dotenv(".env")
@@ -61,6 +67,8 @@ def render_page(
     batch_preview=None,
     troubleshooting_result=None,
     troubleshooting_error=None,
+    config_result=None,
+    config_error=None,
 ):
     (
         interfaces,
@@ -80,6 +88,8 @@ def render_page(
         batch_preview=batch_preview,
         troubleshooting_result=troubleshooting_result,
         troubleshooting_error=troubleshooting_error,
+        config_result=config_result,
+        config_error=config_error,
     )
 
 
@@ -362,6 +372,192 @@ def apply_ports():
     except Exception as exc:
         return render_page(
             error=str(exc),
+        )
+
+
+@app.post("/configuration/save")
+def configuration_save():
+    try:
+        result = save_running_to_startup(
+            **switch_credentials()
+        )
+
+        return render_page(
+            config_result={
+                "type": "save",
+                "success": result["success"],
+                "message": (
+                    "Configuração salva na NVRAM com sucesso."
+                ),
+            }
+        )
+
+    except Exception as exc:
+        return render_page(
+            config_error=str(exc),
+        )
+
+
+@app.get("/configuration/download/running")
+def configuration_download_running():
+    from src.switch.configuration import (
+        build_backup_filename,
+        extract_hostname,
+        normalize_config_text,
+    )
+
+    config = get_running_config(
+        **switch_credentials()
+    )
+
+    hostname = extract_hostname(
+        config
+    )
+
+    filename = build_backup_filename(
+        hostname=hostname,
+        config_type="running",
+    )
+
+    content = normalize_config_text(
+        config
+    ).encode(
+        "utf-8"
+    )
+
+    return send_file(
+        BytesIO(content),
+        as_attachment=True,
+        download_name=filename,
+        mimetype=(
+            "text/plain; charset=utf-8"
+        ),
+    )
+
+
+@app.get("/configuration/download/startup")
+def configuration_download_startup():
+    from src.switch.configuration import (
+        build_backup_filename,
+        extract_hostname,
+        normalize_config_text,
+    )
+
+    config = get_startup_config(
+        **switch_credentials()
+    )
+
+    hostname = extract_hostname(
+        config
+    )
+
+    filename = build_backup_filename(
+        hostname=hostname,
+        config_type="startup",
+    )
+
+    content = normalize_config_text(
+        config
+    ).encode(
+        "utf-8"
+    )
+
+    return send_file(
+        BytesIO(content),
+        as_attachment=True,
+        download_name=filename,
+        mimetype=(
+            "text/plain; charset=utf-8"
+        ),
+    )
+
+
+@app.post("/configuration/diff/live")
+def configuration_diff_live():
+    try:
+        running = get_running_config(
+            **switch_credentials()
+        )
+
+        startup = get_startup_config(
+            **switch_credentials()
+        )
+
+        diff = compare_config_texts(
+            left_text=startup,
+            right_text=running,
+            left_label="startup-config",
+            right_label="running-config",
+        )
+
+        return render_page(
+            config_result={
+                "type": "diff",
+                "diff": diff,
+            }
+        )
+
+    except Exception as exc:
+        return render_page(
+            config_error=str(exc),
+        )
+
+
+@app.post("/configuration/diff/files")
+def configuration_diff_files():
+    try:
+        from src.switch.configuration import (
+            validate_config_filename,
+        )
+
+        left_file = request.files.get(
+            "diff_left_file"
+        )
+
+        right_file = request.files.get(
+            "diff_right_file"
+        )
+
+        if left_file is None or right_file is None:
+            raise ValueError(
+                "Selecione os dois arquivos para comparação."
+            )
+
+        validate_config_filename(
+            left_file.filename
+        )
+
+        validate_config_filename(
+            right_file.filename
+        )
+
+        left_text = left_file.read().decode(
+            "utf-8",
+            errors="replace",
+        )
+
+        right_text = right_file.read().decode(
+            "utf-8",
+            errors="replace",
+        )
+
+        diff = compare_config_texts(
+            left_text=left_text,
+            right_text=right_text,
+            left_label=left_file.filename,
+            right_label=right_file.filename,
+        )
+
+        return render_page(
+            config_result={
+                "type": "diff",
+                "diff": diff,
+            }
+        )
+
+    except Exception as exc:
+        return render_page(
+            config_error=str(exc),
         )
 
 

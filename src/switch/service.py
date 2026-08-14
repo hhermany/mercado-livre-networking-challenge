@@ -1212,3 +1212,111 @@ def run_switch_traceroute(
         ),
         "raw_output": raw_output,
     }
+
+
+def get_running_config(
+    host,
+    username,
+    password,
+    secret="",
+):
+    switch = CiscoSwitch(
+        host=host,
+        username=username,
+        password=password,
+        secret=secret,
+    )
+
+    return switch.get_running_config()
+
+
+def get_startup_config(
+    host,
+    username,
+    password,
+    secret="",
+):
+    switch = CiscoSwitch(
+        host=host,
+        username=username,
+        password=password,
+        secret=secret,
+    )
+
+    return switch.get_startup_config()
+
+
+def save_running_to_startup(
+    host,
+    username,
+    password,
+    secret="",
+):
+    switch = CiscoSwitch(
+        host=host,
+        username=username,
+        password=password,
+        secret=secret,
+    )
+
+    return switch.save_running_to_startup()
+
+
+def create_local_config_backup(
+    config_text,
+    hostname,
+    config_type,
+    backup_dir="backups",
+):
+    from pathlib import Path
+
+    from src.switch.configuration import (
+        build_backup_filename,
+        normalize_config_text,
+    )
+
+    directory = Path(
+        backup_dir
+    )
+
+    directory.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    filename = build_backup_filename(
+        hostname=hostname,
+        config_type=config_type,
+    )
+
+    path = directory / filename
+
+    path.write_text(
+        normalize_config_text(
+            config_text
+        )
+    )
+
+    return {
+        "filename": filename,
+        "path": str(path),
+        "size": path.stat().st_size,
+    }
+
+
+def compare_config_texts(
+    left_text,
+    right_text,
+    left_label,
+    right_label,
+):
+    from src.switch.configuration import (
+        compare_cisco_configs,
+    )
+
+    return compare_cisco_configs(
+        startup_text=left_text,
+        running_text=right_text,
+        left_label=left_label,
+        right_label=right_label,
+    )
