@@ -520,6 +520,161 @@ class CiscoSwitch:
             ),
         }
 
+    def list_svis(self):
+        from src.switch.troubleshooting import parse_svi_interfaces
+
+        with self._connect() as conn:
+            if self.device["secret"]:
+                conn.enable()
+
+            output = conn.send_command(
+                "show ip interface brief"
+            )
+
+        return {
+            "svis": parse_svi_interfaces(output),
+            "raw": output,
+        }
+
+    def ping(
+        self,
+        destination,
+        source_interface,
+        repeat=5,
+        timeout=2,
+    ):
+        command = (
+            f"ping {destination} "
+            f"source {source_interface} "
+            f"repeat {repeat} "
+            f"timeout {timeout}"
+        )
+
+        with self._connect() as conn:
+            if self.device["secret"]:
+                conn.enable()
+
+            output = conn.send_command(
+                command,
+                read_timeout=30,
+            )
+
+        return {
+            "command": command,
+            "output": output,
+        }
+
+    def traceroute(
+        self,
+        destination,
+        source_ip,
+    ):
+        transcript = []
+
+        with self._connect() as conn:
+            if self.device["secret"]:
+                conn.enable()
+
+            output = conn.send_command_timing(
+                "traceroute",
+                strip_prompt=False,
+                strip_command=False,
+            )
+            transcript.append(output)
+
+            if "Protocol" not in output:
+                raise RuntimeError(
+                    "Extended Traceroute não apresentou "
+                    "o prompt de protocolo."
+                )
+
+            output = conn.send_command_timing(
+                "",
+                strip_prompt=False,
+                strip_command=False,
+            )
+            transcript.append(output)
+
+            if "Target IP address" not in output:
+                raise RuntimeError(
+                    "Extended Traceroute não apresentou "
+                    "o prompt de destino."
+                )
+
+            output = conn.send_command_timing(
+                destination,
+                strip_prompt=False,
+                strip_command=False,
+            )
+            transcript.append(output)
+
+            if "Source address" not in output:
+                raise RuntimeError(
+                    "Extended Traceroute não apresentou "
+                    "o prompt de source."
+                )
+
+            output = conn.send_command_timing(
+                source_ip,
+                strip_prompt=False,
+                strip_command=False,
+            )
+            transcript.append(output)
+
+            default_prompts = (
+                "Numeric display",
+                "Timeout in seconds",
+                "Probe count",
+                "Minimum Time to Live",
+                "Maximum Time to Live",
+                "Port Number",
+                "Loose, Strict, Record, Timestamp, Verbose",
+            )
+
+            for expected_prompt in default_prompts:
+                if expected_prompt not in output:
+                    raise RuntimeError(
+                        "Extended Traceroute não apresentou "
+                        f"o prompt esperado: {expected_prompt}"
+                    )
+
+                output = conn.send_command_timing(
+                    "",
+                    strip_prompt=False,
+                    strip_command=False,
+                )
+                transcript.append(output)
+
+            full_output = "".join(transcript)
+
+            if (
+                "Tracing the route" not in full_output
+                and "Type escape sequence" not in full_output
+            ):
+                output = conn.send_command_timing(
+                    "",
+                    strip_prompt=False,
+                    strip_command=False,
+                )
+                transcript.append(output)
+
+                full_output = "".join(transcript)
+
+        lowered = full_output.lower()
+
+        if "% invalid input" in lowered:
+            raise RuntimeError(
+                "IOS rejeitou a execução do Extended Traceroute."
+            )
+
+        return {
+            "mode": "extended",
+            "destination": destination,
+            "source_ip": source_ip,
+            "output": full_output,
+        }
+
+
     def configure_interfaces(
         self,
         interfaces,

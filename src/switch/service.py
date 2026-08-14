@@ -989,3 +989,137 @@ def provision_interfaces_batch(
         "interface_results": interface_results,
         "interfaces": interfaces,
     }
+
+
+def get_switch_svis(
+    host,
+    username,
+    password,
+    secret="",
+):
+    switch = CiscoSwitch(
+        host=host,
+        username=username,
+        password=password,
+        secret=secret,
+    )
+
+    return switch.list_svis()
+
+
+def run_switch_ping(
+    host,
+    username,
+    password,
+    source_interface,
+    targets,
+    secret="",
+    repeat=5,
+    timeout=2,
+):
+    from src.switch.troubleshooting import (
+        parse_ipv4_targets,
+        parse_ping_result,
+        validate_source_svi,
+    )
+
+    switch = CiscoSwitch(
+        host=host,
+        username=username,
+        password=password,
+        secret=secret,
+    )
+
+    svi_inventory = switch.list_svis()
+    svis = svi_inventory["svis"]
+
+    source = validate_source_svi(
+        svis,
+        source_interface,
+    )
+
+    destinations = parse_ipv4_targets(
+        targets
+        if isinstance(targets, str)
+        else ",".join(targets)
+    )
+
+    results = []
+
+    for destination in destinations:
+        execution = switch.ping(
+            destination=destination,
+            source_interface=source["name"],
+            repeat=repeat,
+            timeout=timeout,
+        )
+
+        parsed = parse_ping_result(
+            execution["output"]
+        )
+
+        results.append(
+            {
+                "destination": destination,
+                "source_interface": source["name"],
+                "source_ip": source["ip_address"],
+                "command": execution["command"],
+                "output": execution["output"],
+                **parsed,
+            }
+        )
+
+    return {
+        "source": source,
+        "count": len(results),
+        "results": results,
+    }
+
+
+def run_switch_traceroute(
+    host,
+    username,
+    password,
+    source_interface,
+    destination,
+    secret="",
+):
+    from src.switch.troubleshooting import (
+        parse_ipv4_targets,
+        validate_source_svi,
+    )
+
+    switch = CiscoSwitch(
+        host=host,
+        username=username,
+        password=password,
+        secret=secret,
+    )
+
+    svi_inventory = switch.list_svis()
+    svis = svi_inventory["svis"]
+
+    source = validate_source_svi(
+        svis,
+        source_interface,
+    )
+
+    destinations = parse_ipv4_targets(
+        destination,
+        max_targets=1,
+    )
+
+    target = destinations[0]
+
+    execution = switch.traceroute(
+        destination=target,
+        source_ip=source["ip_address"],
+    )
+
+    return {
+        "destination": target,
+        "source_interface": source["name"],
+        "source_ip": source["ip_address"],
+        "mode": execution["mode"],
+        "output": execution["output"],
+    }
