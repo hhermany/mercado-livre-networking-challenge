@@ -398,3 +398,166 @@ GigabitEthernet0/1 is up, line protocol is up (connected)
     assert "input errors" in summary
     assert "output errors" in summary
     assert "Protected: false" not in summary
+
+
+def test_detects_vlan_name_divergence_after_configuration(
+    monkeypatch,
+    tmp_path,
+):
+    import src.switch.service as service
+
+    class DivergentVlanSwitch:
+        def __init__(self, **kwargs):
+            pass
+
+        def configure(
+            self,
+            hostname=None,
+            vlans=None,
+            interface=None,
+            access_vlan=None,
+            voice_vlan=None,
+            remove_voice_vlan=False,
+            description=None,
+            remove_description=False,
+            admin_state=None,
+        ):
+            vlan_state = """\
+VLAN Name                             Status    Ports
+---- -------------------------------- --------- ----------------
+10   VLAN_ERRADA                      active
+20   VLAN_VOZ                         active
+50   VLAN_SEGURANCA                   active
+"""
+
+            running = """\
+hostname SW-TESTE1
+"""
+
+            return (
+                "",
+                vlan_state,
+                "",
+                running,
+            )
+
+    monkeypatch.setattr(
+        service,
+        "CiscoSwitch",
+        DivergentVlanSwitch,
+    )
+
+    monkeypatch.setattr(
+        service,
+        "save_backup",
+        lambda hostname, config: (
+            tmp_path / "backup.cfg"
+        ),
+    )
+
+    result = service.provision_switch(
+        host="192.0.2.1",
+        username="admin",
+        password="password",
+        hostname="SW-TESTE1",
+        vlans=[
+            (10, "VLAN_DADOS"),
+            (20, "VLAN_VOZ"),
+            (50, "VLAN_SEGURANCA"),
+        ],
+    )
+
+    rendered = str(result).lower()
+
+    assert (
+        "vlan_dados" in rendered
+        or "vlan 10" in rendered
+        or "10" in rendered
+    )
+
+    assert (
+        "missing" in result
+        or "diverg" in rendered
+        or result.get("success") is False
+    )
+
+
+def test_detects_hostname_divergence_after_configuration(
+    monkeypatch,
+    tmp_path,
+):
+    import src.switch.service as service
+
+    class DivergentHostnameSwitch:
+        def __init__(self, **kwargs):
+            pass
+
+        def configure(
+            self,
+            hostname=None,
+            vlans=None,
+            interface=None,
+            access_vlan=None,
+            voice_vlan=None,
+            remove_voice_vlan=False,
+            description=None,
+            remove_description=False,
+            admin_state=None,
+        ):
+            vlan_state = """\
+VLAN Name                             Status    Ports
+---- -------------------------------- --------- ----------------
+10   VLAN_DADOS                       active
+20   VLAN_VOZ                         active
+50   VLAN_SEGURANCA                   active
+"""
+
+            running = """\
+hostname SW-ERRADO
+"""
+
+            return (
+                "",
+                vlan_state,
+                "",
+                running,
+            )
+
+    monkeypatch.setattr(
+        service,
+        "CiscoSwitch",
+        DivergentHostnameSwitch,
+    )
+
+    monkeypatch.setattr(
+        service,
+        "save_backup",
+        lambda hostname, config: (
+            tmp_path / "backup.cfg"
+        ),
+    )
+
+    result = service.provision_switch(
+        host="192.0.2.1",
+        username="admin",
+        password="password",
+        hostname="SW-TESTE1",
+        vlans=[
+            (10, "VLAN_DADOS"),
+            (20, "VLAN_VOZ"),
+            (50, "VLAN_SEGURANCA"),
+        ],
+    )
+
+    rendered = str(result).lower()
+
+    assert (
+        "sw-teste1" in rendered
+        or "hostname" in rendered
+    )
+
+    assert (
+        "missing" in result
+        or "diverg" in rendered
+        or result.get("success") is False
+    )

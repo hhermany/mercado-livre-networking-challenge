@@ -2604,3 +2604,23 @@ def test_backup_route_passes_tftp_parameters(
     assert captured[
         "backup_port"
     ] == "69"
+
+
+def test_web_has_clear_divergence_feedback(
+    monkeypatch,
+):
+    configure_test_environment(
+        monkeypatch
+    )
+
+    client = web_app.app.test_client()
+
+    response = client.get("/")
+
+    html = response.data.decode().lower()
+
+    assert (
+        "diverg" in html
+        or "warning" in html
+        or "alert" in html
+    )
