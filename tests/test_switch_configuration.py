@@ -310,3 +310,143 @@ interface GigabitEthernet0/2
         section.rows[1].running_line
         == " spanning-tree portfast disable"
     )
+
+
+def test_save_config_backup_creates_timestamped_file(
+    tmp_path,
+):
+    from datetime import datetime
+
+    from src.switch.configuration import (
+        save_config_backup,
+    )
+
+    config = """\
+Building configuration...
+
+Current configuration : 100 bytes
+!
+hostname SW-TESTE1
+!
+interface GigabitEthernet0/1
+ description TESTE
+!
+"""
+
+    path = save_config_backup(
+        config_text=config,
+        hostname="SW-TESTE1",
+        config_type="running",
+        local_directory=tmp_path,
+        timestamp=datetime(
+            2026,
+            8,
+            14,
+            10,
+            30,
+            45,
+        ),
+    )
+
+    assert path.name == (
+        "SW-TESTE1_running_"
+        "20260814_103045.cfg"
+    )
+
+    assert path.parent == tmp_path
+    assert path.exists()
+
+    content = path.read_text(
+        encoding="utf-8"
+    )
+
+    assert "hostname SW-TESTE1" in content
+
+    assert (
+        "interface GigabitEthernet0/1"
+        in content
+    )
+
+    assert (
+        "Building configuration"
+        not in content
+    )
+
+
+def test_backup_filename_sanitizes_hostname(
+    tmp_path,
+):
+    from datetime import datetime
+
+    from src.switch.configuration import (
+        save_config_backup,
+    )
+
+    path = save_config_backup(
+        config_text="hostname SW1\n",
+        hostname="../../SW1",
+        local_directory=tmp_path,
+        timestamp=datetime(
+            2026,
+            8,
+            14,
+            10,
+            0,
+            0,
+        ),
+    )
+
+    assert path.parent == tmp_path
+
+    assert ".." not in path.name
+
+    assert "/" not in path.name
+
+
+def test_create_switch_backup(
+    monkeypatch,
+    tmp_path,
+):
+    import src.switch.service as service
+
+    monkeypatch.setattr(
+        service,
+        "get_running_config",
+        lambda **kwargs: (
+            "hostname SW-TESTE1\n"
+            "!\n"
+            "interface GigabitEthernet0/1\n"
+            " description TESTE\n"
+            "!\n"
+        ),
+    )
+
+    result = service.create_switch_backup(
+        host="192.0.2.1",
+        username="admin",
+        password="password",
+        local_directory=tmp_path,
+    )
+
+    assert (
+        result["hostname"]
+        == "SW-TESTE1"
+    )
+
+    assert (
+        result["config_type"]
+        == "running"
+    )
+
+    assert (
+        result["filename"].startswith(
+            "SW-TESTE1_running_"
+        )
+    )
+
+    assert result["size"] > 0
+
+    assert (
+        tmp_path
+        / result["filename"]
+    ).exists()

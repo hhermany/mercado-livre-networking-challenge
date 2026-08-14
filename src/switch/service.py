@@ -1320,3 +1320,69 @@ def compare_config_texts(
         left_label=left_label,
         right_label=right_label,
     )
+
+
+def create_switch_backup(
+    host,
+    username,
+    password,
+    secret="",
+    protocol="local",
+    local_directory="backups",
+    backup_host=None,
+    backup_port=None,
+    backup_username=None,
+    backup_password=None,
+    remote_directory="/",
+):
+    from src.switch.backup import (
+        store_backup,
+    )
+    from src.switch.configuration import (
+        build_backup_filename,
+        extract_hostname,
+        normalize_config_text,
+    )
+
+    config = get_running_config(
+        host=host,
+        username=username,
+        password=password,
+        secret=secret,
+    )
+
+    hostname = extract_hostname(
+        config
+    )
+
+    filename = build_backup_filename(
+        hostname=hostname,
+        config_type="running",
+    )
+
+    content = normalize_config_text(
+        config
+    ).encode(
+        "utf-8"
+    )
+
+    stored = store_backup(
+        protocol=protocol,
+        content=content,
+        filename=filename,
+        local_directory=local_directory,
+        host=backup_host,
+        port=backup_port,
+        username=backup_username,
+        password=backup_password,
+        remote_directory=remote_directory,
+    )
+
+    return {
+        "hostname": hostname,
+        "config_type": "running",
+        "protocol": stored.protocol,
+        "filename": stored.filename,
+        "destination": stored.destination,
+        "size": stored.size,
+    }

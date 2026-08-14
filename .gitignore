@@ -27,3 +27,4 @@ backups/*
 !.env.example
 !**/.env.example
 generated/
+backups/*.cfg

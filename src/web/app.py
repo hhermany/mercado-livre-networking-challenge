@@ -19,6 +19,7 @@ from src.switch.batch import (
 from src.switch.cisco import validate_switchport_change
 from src.switch.service import (
     compare_config_texts,
+    create_switch_backup,
     get_running_config,
     get_startup_config,
     get_switch_interfaces,
@@ -396,6 +397,122 @@ def configuration_save():
         return render_page(
             config_error=str(exc),
         )
+
+
+@app.post("/configuration/backup")
+def configuration_create_backup():
+    protocol = (
+        request.form.get(
+            "backup_protocol",
+            "local",
+        )
+        .strip()
+        .lower()
+    )
+
+    try:
+        backup_port = (
+            request.form.get(
+                "backup_port"
+            )
+            or None
+        )
+
+        result = create_switch_backup(
+            **switch_credentials(),
+            protocol=protocol,
+            backup_host=request.form.get(
+                "backup_host"
+            ),
+            backup_port=backup_port,
+            backup_username=request.form.get(
+                "backup_username"
+            ),
+            backup_password=request.form.get(
+                "backup_password"
+            ),
+            remote_directory=(
+                request.form.get(
+                    "backup_remote_directory"
+                )
+                or "/"
+            ),
+        )
+
+        return render_page(
+            config_result={
+                "type": "backup",
+                "success": True,
+                "backup": result,
+            },
+        )
+
+    except Exception as exc:
+        return render_page(
+            config_result={
+                "type": "backup",
+                "success": False,
+                "error": str(exc),
+                "protocol": protocol,
+            },
+        ), 500
+
+
+@app.get("/configuration/download")
+def configuration_download_selected():
+    config_type = request.args.get(
+        "config_type",
+        "running",
+    ).strip().lower()
+
+    if config_type not in {
+        "running",
+        "startup",
+    }:
+        return render_page(
+            config_error=(
+                "Tipo de configuração inválido."
+            ),
+        ), 400
+
+    from src.switch.configuration import (
+        build_backup_filename,
+        extract_hostname,
+        normalize_config_text,
+    )
+
+    if config_type == "running":
+        config = get_running_config(
+            **switch_credentials()
+        )
+    else:
+        config = get_startup_config(
+            **switch_credentials()
+        )
+
+    hostname = extract_hostname(
+        config
+    )
+
+    filename = build_backup_filename(
+        hostname=hostname,
+        config_type=config_type,
+    )
+
+    content = normalize_config_text(
+        config
+    ).encode(
+        "utf-8"
+    )
+
+    return send_file(
+        BytesIO(content),
+        as_attachment=True,
+        download_name=filename,
+        mimetype=(
+            "text/plain; charset=utf-8"
+        ),
+    )
 
 
 @app.get("/configuration/download/running")

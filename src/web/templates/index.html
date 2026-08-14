@@ -610,6 +610,11 @@ pre {
     margin-top: 0;
 }
 
+.config-radio-option input {
+    width: auto;
+    margin: 0;
+}
+
 .config-download-actions {
     display: flex;
     flex-wrap: wrap;
@@ -1104,6 +1109,267 @@ details.raw-output summary {
         grid-template-columns: 1fr;
     }
 }
+
+.config-operation-result {
+    margin-top: 14px;
+}
+
+.config-operation-result .config-backup-result {
+    margin-top: 0;
+}
+
+.config-backup-result {
+    margin-top: 14px;
+    border: 1px solid #cfd8e1;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #fff;
+}
+
+.config-backup-status {
+    padding: 10px 14px;
+    background: #edf7ef;
+    color: #185b2b;
+    border-bottom: 1px solid #d8e8dc;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.config-backup-details {
+    display: grid;
+    grid-template-columns:
+        repeat(2, minmax(0, 1fr));
+}
+
+.config-backup-details > div {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+    padding: 10px 14px;
+    border-bottom: 1px solid #edf0f2;
+}
+
+.config-backup-details > div:nth-child(odd) {
+    border-right: 1px solid #edf0f2;
+}
+
+.config-backup-details span {
+    color: #6c7883;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.config-backup-details strong {
+    overflow-wrap: anywhere;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.config-backup-error {
+    margin-top: 14px;
+    padding: 10px 14px;
+    border: 1px solid #e3b4b0;
+    border-radius: 8px;
+    background: #fdf0ef;
+    color: #842f2a;
+    font-size: 12px;
+}
+
+
+
+.config-file-actions {
+    display: grid;
+    grid-template-columns:
+        minmax(220px, 0.8fr)
+        minmax(420px, 1.6fr);
+    gap: 14px;
+    margin-top: 14px;
+    align-items: stretch;
+}
+
+.config-action-group {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    padding: 15px;
+    border: 1px solid #d7dee5;
+    border-radius: 8px;
+    background: #f9fafb;
+}
+
+.config-action-title {
+    margin-bottom: 5px;
+    color: #17212b;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.config-action-help {
+    margin-bottom: 14px;
+    color: #66737e;
+    font-size: 11px;
+    line-height: 1.45;
+}
+
+.config-download-form,
+.config-backup-form {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 13px;
+    width: 100%;
+    margin: 0;
+}
+
+.config-download-options {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+}
+
+.config-radio-options,
+.backup-protocol-options {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 18px;
+}
+
+.config-radio-option {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.config-radio-option input {
+    width: auto;
+    margin: 0;
+}
+
+.backup-protocol-disabled {
+    color: #909aa3;
+    cursor: default;
+}
+
+.backup-protocol-disabled small {
+    padding: 2px 5px;
+    border-radius: 4px;
+    background: #edf0f2;
+    color: #7a858e;
+    font-size: 9px;
+    font-weight: 600;
+}
+
+.backup-destination-label {
+    margin-bottom: -4px;
+    color: #4c5963;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.backup-protocol-help {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 9px 11px;
+    border-radius: 6px;
+    background: #f0f4f7;
+    color: #62707b;
+    font-size: 11px;
+    line-height: 1.45;
+}
+
+.backup-remote-fields {
+    display: grid;
+    grid-template-columns:
+        minmax(0, 1fr)
+        minmax(0, 1fr);
+    gap: 12px 14px;
+    width: 100%;
+}
+
+.backup-remote-fields[hidden] {
+    display: none;
+}
+
+.backup-field[hidden] {
+    display: none !important;
+}
+
+.backup-field {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    min-width: 0;
+}
+
+.backup-field label {
+    margin: 0;
+    color: #3d4953;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.backup-field input {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.backup-host-field {
+    grid-column: 1;
+}
+
+.backup-port-field {
+    grid-column: 2;
+}
+
+.backup-port-field input {
+    max-width: 140px;
+}
+
+.backup-directory-field {
+    grid-column: 1 / -1;
+}
+
+.backup-submit-row {
+    display: flex;
+    justify-content: flex-start;
+    width: 100%;
+    padding-top: 2px;
+}
+
+.backup-submit-row button {
+    min-width: 130px;
+}
+
+@media (max-width: 1050px) {
+    .config-file-actions {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 700px) {
+    .backup-remote-fields {
+        grid-template-columns: 1fr;
+    }
+
+    .backup-host-field,
+    .backup-port-field,
+    .backup-directory-field {
+        grid-column: 1;
+    }
+
+    .backup-port-field input {
+        max-width: none;
+    }
+}
+
 </style>
 </head>
 
@@ -1621,21 +1887,235 @@ details.raw-output summary {
                 </button>
             </form>
 
-            <div class="config-download-actions">
-                <a
-                    class="button-link"
-                    href="/configuration/download/running"
-                >
-                    Baixar Running Config
-                </a>
+            <div class="config-file-actions">
 
-                <a
-                    class="button-link"
-                    href="/configuration/download/startup"
-                >
-                    Baixar Startup Config
-                </a>
+                <div class="config-action-group config-download-panel">
+
+                    <div class="config-action-title">
+                        Download de Configuração
+                    </div>
+
+                    <div class="config-action-help">
+                        Escolha qual configuração deseja
+                        baixar para o computador.
+                    </div>
+
+                    <form
+                        method="get"
+                        action="/configuration/download"
+                        class="config-download-form"
+                    >
+
+                        <div class="config-radio-options config-download-options">
+
+                            <label class="config-radio-option">
+                                <input
+                                    type="radio"
+                                    name="config_type"
+                                    value="running"
+                                    checked
+                                >
+                                <span>Running Config</span>
+                            </label>
+
+                            <label class="config-radio-option">
+                                <input
+                                    type="radio"
+                                    name="config_type"
+                                    value="startup"
+                                >
+                                <span>Startup Config</span>
+                            </label>
+
+                        </div>
+
+                        <button type="submit">
+                            Baixar Configuração
+                        </button>
+
+                    </form>
+
+                </div>
+
+
+                <div class="config-action-group config-backup-panel">
+
+                    <div class="config-action-title">
+                        Backup de Configuração
+                    </div>
+
+                    <div class="config-action-help">
+                        Cria uma cópia da running-config
+                        e envia para o destino selecionado.
+                    </div>
+
+
+                    <form
+                        method="post"
+                        action="/configuration/backup"
+                        class="config-backup-form"
+                        id="config-backup-form"
+                    >
+
+                        <div class="backup-destination-label">
+                            Destino
+                        </div>
+
+                        <div class="backup-protocol-options">
+
+                            <label class="config-radio-option">
+                                <input
+                                    type="radio"
+                                    name="backup_protocol"
+                                    value="local"
+                                    checked
+                                >
+                                <span>Local</span>
+                            </label>
+
+                            <label class="config-radio-option">
+                                <input
+                                    type="radio"
+                                    name="backup_protocol"
+                                    value="ftp"
+                                >
+                                <span>FTP</span>
+                            </label>
+
+                            <label class="config-radio-option">
+                                <input
+                                    type="radio"
+                                    name="backup_protocol"
+                                    value="sftp"
+                                >
+                                <span>SFTP</span>
+                            </label>
+
+                            <label class="config-radio-option">
+                                <input
+                                    type="radio"
+                                    name="backup_protocol"
+                                    value="tftp"
+                                >
+                                <span>TFTP</span>
+                            </label>
+
+                        </div>
+
+
+                        <div
+                            id="backup-local-help"
+                            class="backup-protocol-help"
+                        >
+                            O arquivo será salvo em
+                            <strong>backups/</strong>
+                            no servidor da aplicação.
+                        </div>
+
+                        <div
+                            id="backup-remote-help"
+                            class="backup-protocol-help"
+                            hidden
+                        ></div>
+
+
+                        <div
+                            id="backup-ftp-fields"
+                            class="backup-remote-fields"
+                            hidden
+                        >
+
+                            <div class="backup-field backup-host-field">
+                                <label for="backup_host">
+                                    Servidor
+                                </label>
+
+                                <input
+                                    id="backup_host"
+                                    name="backup_host"
+                                    type="text"
+                                    placeholder="Ex.: 192.0.2.10"
+                                    autocomplete="off"
+                                >
+                            </div>
+
+
+                            <div class="backup-field backup-port-field">
+                                <label for="backup_port">
+                                    Porta
+                                </label>
+
+                                <input
+                                    id="backup_port"
+                                    name="backup_port"
+                                    type="number"
+                                    min="1"
+                                    max="65535"
+                                    value="21"
+                                >
+                            </div>
+
+
+                            <div class="backup-field">
+                                <label for="backup_username">
+                                    Usuário
+                                </label>
+
+                                <input
+                                    id="backup_username"
+                                    name="backup_username"
+                                    type="text"
+                                    autocomplete="username"
+                                >
+                            </div>
+
+
+                            <div class="backup-field">
+                                <label for="backup_password">
+                                    Senha
+                                </label>
+
+                                <input
+                                    id="backup_password"
+                                    name="backup_password"
+                                    type="password"
+                                    autocomplete="current-password"
+                                >
+                            </div>
+
+
+                            <div class="backup-field backup-directory-field">
+                                <label for="backup_remote_directory">
+                                    Diretório remoto
+                                </label>
+
+                                <input
+                                    id="backup_remote_directory"
+                                    name="backup_remote_directory"
+                                    type="text"
+                                    value="/"
+                                    autocomplete="off"
+                                >
+                            </div>
+
+                        </div>
+
+
+                        <div class="backup-submit-row">
+                            <button
+                                type="submit"
+                                class="button secondary"
+                            >
+                                Criar Backup
+                            </button>
+                        </div>
+
+                    </form>
+
+                </div>
+
             </div>
+
         </div>
 
 
@@ -2433,6 +2913,67 @@ details.raw-output summary {
 </div>
 
 
+{% if config_result and config_result.type == "backup" %}
+<div class="card config-operation-result">
+
+    {% if config_result.success %}
+
+    <div class="config-backup-result">
+        <div class="config-backup-status">
+            Backup criado com sucesso
+        </div>
+
+        <div class="config-backup-details">
+            <div>
+                <span>Equipamento</span>
+                <strong>
+                    {{ config_result.backup.hostname }}
+                </strong>
+            </div>
+
+            <div>
+                <span>Arquivo</span>
+                <strong>
+                    {{ config_result.backup.filename }}
+                </strong>
+            </div>
+
+            <div>
+                <span>Tamanho</span>
+                <strong>
+                    {{ config_result.backup.size }} bytes
+                </strong>
+            </div>
+
+            <div>
+                <span>Protocolo</span>
+                <strong>
+                    {{ config_result.backup.protocol | upper }}
+                </strong>
+            </div>
+
+            <div>
+                <span>Destino</span>
+                <strong>
+                    {{ config_result.backup.destination }}
+                </strong>
+            </div>
+        </div>
+    </div>
+
+    {% else %}
+
+    <div class="config-backup-error">
+        <strong>Falha ao criar backup.</strong>
+        {{ config_result.error }}
+    </div>
+
+    {% endif %}
+
+</div>
+{% endif %}
+
+
 <script>
 const interfaceCheckboxes = Array.from(
     document.querySelectorAll(
@@ -2932,6 +3473,138 @@ updatePingEstimate();
 updatePingEstimate();
 loadTroubleshootingInterfaces();
 updateSelection();
+
+function updateBackupProtocolFields() {
+    const selected = document.querySelector(
+        'input[name="backup_protocol"]:checked'
+    );
+
+    const remoteFields = document.getElementById(
+        "backup-ftp-fields"
+    );
+
+    const localHelp = document.getElementById(
+        "backup-local-help"
+    );
+
+    const remoteHelp = document.getElementById(
+        "backup-remote-help"
+    );
+
+    const portField = document.getElementById(
+        "backup_port"
+    );
+
+    const hostField = document.getElementById(
+        "backup_host"
+    );
+
+    const usernameField = document.getElementById(
+        "backup_username"
+    );
+
+    const passwordField = document.getElementById(
+        "backup_password"
+    );
+
+    if (
+        !selected
+        || !remoteFields
+        || !localHelp
+    ) {
+        return;
+    }
+
+    const protocol = selected.value;
+
+    const isRemote = (
+        protocol === "ftp"
+        || protocol === "sftp"
+        || protocol === "tftp"
+    );
+
+    const requiresCredentials = (
+        protocol === "ftp"
+        || protocol === "sftp"
+    );
+
+    remoteFields.hidden = !isRemote;
+    localHelp.hidden = isRemote;
+
+    if (remoteHelp) {
+        remoteHelp.hidden = !isRemote;
+
+        if (protocol === "ftp") {
+            remoteHelp.textContent =
+                "Envia o backup usando FTP.";
+        } else if (protocol === "sftp") {
+            remoteHelp.textContent =
+                "Envia o backup usando SFTP sobre SSH.";
+        } else if (protocol === "tftp") {
+            remoteHelp.textContent =
+                "TFTP não utiliza usuário ou senha.";
+        }
+    }
+
+    if (hostField) {
+        hostField.required = isRemote;
+    }
+
+    if (usernameField) {
+        usernameField.required =
+            requiresCredentials;
+
+        const wrapper =
+            usernameField.closest(
+                ".backup-field"
+            );
+
+        if (wrapper) {
+            wrapper.hidden =
+                !requiresCredentials;
+        }
+    }
+
+    if (passwordField) {
+        passwordField.required =
+            requiresCredentials;
+
+        const wrapper =
+            passwordField.closest(
+                ".backup-field"
+            );
+
+        if (wrapper) {
+            wrapper.hidden =
+                !requiresCredentials;
+        }
+    }
+
+    if (portField) {
+        if (protocol === "ftp") {
+            portField.value = "21";
+        } else if (protocol === "sftp") {
+            portField.value = "22";
+        } else if (protocol === "tftp") {
+            portField.value = "69";
+        }
+    }
+}
+
+
+document.querySelectorAll(
+    'input[name="backup_protocol"]'
+).forEach(
+    option => {
+        option.addEventListener(
+            "change",
+            updateBackupProtocolFields
+        );
+    }
+);
+
+updateBackupProtocolFields();
+
 </script>
 
 </body>

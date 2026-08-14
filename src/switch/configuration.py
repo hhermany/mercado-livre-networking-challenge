@@ -657,3 +657,44 @@ def compare_cisco_configs(
         added_lines=total_added,
         removed_lines=total_removed,
     )
+
+
+def save_config_backup(
+    config_text,
+    hostname,
+    config_type="running",
+    backup_directory="backups",
+    timestamp=None,
+    local_directory=None,
+):
+    directory = Path(
+        local_directory
+        if local_directory is not None
+        else backup_directory
+    )
+
+    directory.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    filename = build_backup_filename(
+        hostname=hostname,
+        config_type=config_type,
+        timestamp=timestamp,
+    )
+
+    destination = (
+        directory / filename
+    )
+
+    normalized = normalize_config_text(
+        config_text
+    )
+
+    destination.write_text(
+        normalized,
+        encoding="utf-8",
+    )
+
+    return destination

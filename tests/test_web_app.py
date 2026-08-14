@@ -2000,8 +2000,11 @@ def test_index_shows_configuration_management(
 
     assert "Gerenciamento da Configuração" in html
     assert "Salvar na NVRAM" in html
-    assert "Baixar Running Config" in html
-    assert "Baixar Startup Config" in html
+    assert "Download de Configuração" in html
+    assert "Running Config" in html
+    assert "Startup Config" in html
+    assert "Baixar Configuração" in html
+    assert "Backup de Configuração" in html
     assert "Running × Startup" in html
     assert "Comparar Arquivos" in html
 
@@ -2136,3 +2139,468 @@ interface GigabitEthernet0/1
 
     assert "--- startup-config" not in html
     assert "@@" not in html
+
+
+def test_configuration_backup_route(
+    monkeypatch,
+):
+    configure_test_environment(
+        monkeypatch
+    )
+
+    monkeypatch.setattr(
+        web_app,
+        "create_switch_backup",
+        lambda **kwargs: {
+            "hostname": "SW-TESTE1",
+            "config_type": "running",
+            "filename": (
+                "SW-TESTE1_running_"
+                "20260814_103000.cfg"
+            ),
+            "protocol": "local",
+            "destination": (
+                "backups/"
+                "SW-TESTE1_running_"
+                "20260814_103000.cfg"
+            ),
+            "size": 3000,
+        },
+    )
+
+    client = web_app.app.test_client()
+
+    response = client.post(
+        "/configuration/backup"
+    )
+
+    html = response.data.decode()
+
+    assert response.status_code == 200
+
+    assert (
+        "Backup criado com sucesso"
+        in html
+    )
+
+    assert (
+        "SW-TESTE1_running_"
+        "20260814_103000.cfg"
+        in html
+    )
+
+
+def test_configuration_page_has_backup_button(
+    monkeypatch,
+):
+    configure_test_environment(
+        monkeypatch
+    )
+
+    client = web_app.app.test_client()
+
+    response = client.get("/")
+
+    html = response.data.decode()
+
+    assert response.status_code == 200
+
+    assert (
+        'action="/configuration/backup"'
+        in html
+    )
+
+    assert "Criar Backup" in html
+
+
+def test_configuration_download_uses_single_selector(
+    monkeypatch,
+):
+    configure_test_environment(
+        monkeypatch
+    )
+
+    client = web_app.app.test_client()
+
+    response = client.get("/")
+
+    html = response.data.decode()
+
+    assert response.status_code == 200
+
+    assert (
+        'action="/configuration/download"'
+        in html
+    )
+
+    assert (
+        'name="config_type"'
+        in html
+    )
+
+    assert (
+        'value="running"'
+        in html
+    )
+
+    assert (
+        'value="startup"'
+        in html
+    )
+
+    assert (
+        "Baixar Configuração"
+        in html
+    )
+
+
+def test_backup_has_explanatory_text(
+    monkeypatch,
+):
+    configure_test_environment(
+        monkeypatch
+    )
+
+    client = web_app.app.test_client()
+
+    response = client.get("/")
+
+    html = response.data.decode()
+
+    assert "Backup de Configuração" in html
+
+    assert (
+        "Cria uma cópia da running-config"
+        in html
+    )
+
+    assert (
+        "servidor da aplicação"
+        in html
+    )
+
+
+def test_unified_download_running(
+    monkeypatch,
+):
+    configure_test_environment(
+        monkeypatch
+    )
+
+    monkeypatch.setattr(
+        web_app,
+        "get_running_config",
+        lambda **kwargs: (
+            "hostname SW-TESTE1\n"
+        ),
+    )
+
+    client = web_app.app.test_client()
+
+    response = client.get(
+        "/configuration/download"
+        "?config_type=running"
+    )
+
+    assert response.status_code == 200
+
+    assert (
+        "SW-TESTE1_running_"
+        in response.headers[
+            "Content-Disposition"
+        ]
+    )
+
+
+def test_unified_download_startup(
+    monkeypatch,
+):
+    configure_test_environment(
+        monkeypatch
+    )
+
+    monkeypatch.setattr(
+        web_app,
+        "get_startup_config",
+        lambda **kwargs: (
+            "hostname SW-TESTE1\n"
+        ),
+    )
+
+    client = web_app.app.test_client()
+
+    response = client.get(
+        "/configuration/download"
+        "?config_type=startup"
+    )
+
+    assert response.status_code == 200
+
+    assert (
+        "SW-TESTE1_startup_"
+        in response.headers[
+            "Content-Disposition"
+        ]
+    )
+
+
+def test_backup_ui_offers_local_and_ftp(
+    monkeypatch,
+):
+    configure_test_environment(
+        monkeypatch
+    )
+
+    client = web_app.app.test_client()
+
+    response = client.get("/")
+
+    html = response.data.decode()
+
+    assert response.status_code == 200
+
+    assert (
+        'name="backup_protocol"'
+        in html
+    )
+
+    assert 'value="local"' in html
+    assert 'value="ftp"' in html
+
+    assert "Servidor" in html
+    assert "Diretório remoto" in html
+
+
+def test_backup_route_passes_ftp_parameters(
+    monkeypatch,
+):
+    configure_test_environment(
+        monkeypatch
+    )
+
+    captured = {}
+
+    def fake_backup(**kwargs):
+        captured.update(kwargs)
+
+        return {
+            "hostname": "SW-TESTE1",
+            "config_type": "running",
+            "protocol": "ftp",
+            "filename": "SW-TESTE1.cfg",
+            "destination": (
+                "ftp://172.30.192.1:21/"
+                "SW-TESTE1.cfg"
+            ),
+            "size": 3000,
+        }
+
+    monkeypatch.setattr(
+        web_app,
+        "create_switch_backup",
+        fake_backup,
+    )
+
+    client = web_app.app.test_client()
+
+    response = client.post(
+        "/configuration/backup",
+        data={
+            "backup_protocol": "ftp",
+            "backup_host": "172.30.192.1",
+            "backup_port": "21",
+            "backup_username": "Administrador",
+            "backup_password": "secret",
+            "backup_remote_directory": "/",
+        },
+    )
+
+    assert response.status_code == 200
+
+    assert captured[
+        "protocol"
+    ] == "ftp"
+
+    assert captured[
+        "backup_host"
+    ] == "172.30.192.1"
+
+    assert captured[
+        "backup_port"
+    ] == "21"
+
+    assert captured[
+        "backup_username"
+    ] == "Administrador"
+
+    assert captured[
+        "backup_password"
+    ] == "secret"
+
+    assert (
+        "secret"
+        not in response.data.decode()
+    )
+
+
+def test_backup_ui_offers_sftp(
+    monkeypatch,
+):
+    configure_test_environment(
+        monkeypatch
+    )
+
+    client = web_app.app.test_client()
+
+    response = client.get("/")
+
+    html = response.data.decode()
+
+    assert response.status_code == 200
+
+    assert (
+        'name="backup_protocol"'
+        in html
+    )
+
+    assert 'value="sftp"' in html
+    assert ">SFTP<" in html
+
+
+def test_backup_route_passes_sftp_parameters(
+    monkeypatch,
+):
+    configure_test_environment(
+        monkeypatch
+    )
+
+    captured = {}
+
+    def fake_backup(**kwargs):
+        captured.update(
+            kwargs
+        )
+
+        return {
+            "hostname": "SW-TESTE1",
+            "config_type": "running",
+            "protocol": "sftp",
+            "filename": "SW-TESTE1.cfg",
+            "destination": (
+                "sftp://192.0.2.20:22/"
+                "SW-TESTE1.cfg"
+            ),
+            "size": 3000,
+        }
+
+    monkeypatch.setattr(
+        web_app,
+        "create_switch_backup",
+        fake_backup,
+    )
+
+    client = web_app.app.test_client()
+
+    response = client.post(
+        "/configuration/backup",
+        data={
+            "backup_protocol": "sftp",
+            "backup_host": "192.0.2.20",
+            "backup_port": "22",
+            "backup_username": "admin",
+            "backup_password": "secret",
+            "backup_remote_directory": "/",
+        },
+    )
+
+    assert response.status_code == 200
+
+    assert captured[
+        "protocol"
+    ] == "sftp"
+
+    assert captured[
+        "backup_port"
+    ] == "22"
+
+    assert captured[
+        "backup_password"
+    ] == "secret"
+
+    assert (
+        "secret"
+        not in response.data.decode()
+    )
+
+
+def test_backup_ui_offers_tftp(
+    monkeypatch,
+):
+    configure_test_environment(
+        monkeypatch
+    )
+
+    client = web_app.app.test_client()
+
+    response = client.get("/")
+
+    html = response.data.decode()
+
+    assert response.status_code == 200
+    assert 'value="tftp"' in html
+    assert ">TFTP<" in html
+
+
+def test_backup_route_passes_tftp_parameters(
+    monkeypatch,
+):
+    configure_test_environment(
+        monkeypatch
+    )
+
+    captured = {}
+
+    def fake_backup(**kwargs):
+        captured.update(
+            kwargs
+        )
+
+        return {
+            "hostname": "SW-TESTE1",
+            "config_type": "running",
+            "protocol": "tftp",
+            "filename": "SW-TESTE1.cfg",
+            "destination": (
+                "tftp://192.0.2.30:69/"
+                "SW-TESTE1.cfg"
+            ),
+            "size": 3000,
+        }
+
+    monkeypatch.setattr(
+        web_app,
+        "create_switch_backup",
+        fake_backup,
+    )
+
+    client = web_app.app.test_client()
+
+    response = client.post(
+        "/configuration/backup",
+        data={
+            "backup_protocol": "tftp",
+            "backup_host": "192.0.2.30",
+            "backup_port": "69",
+            "backup_remote_directory": "/",
+        },
+    )
+
+    assert response.status_code == 200
+
+    assert captured[
+        "protocol"
+    ] == "tftp"
+
+    assert captured[
+        "backup_port"
+    ] == "69"
