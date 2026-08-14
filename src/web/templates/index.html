@@ -166,6 +166,15 @@ table thead th {
     width: 100%;
 }
 
+.description-value,
+.description-empty {
+    text-align: center !important;
+}
+
+.description-empty {
+    color: var(--muted);
+}
+
 .description-column {
     min-width: 250px;
 }
@@ -705,8 +714,12 @@ pre {
                     </label>
                 </td>
 
-                <td>
-                    {{ item.description or '-' }}
+                <td class="{{
+                    'description-value'
+                    if item.description
+                    else 'description-empty'
+                }}">
+                    {{ item.description or '--' }}
                 </td>
 
                 <td class="{{

@@ -1,9 +1,11 @@
 import pytest
 
 from src.switch.cisco import (
+    enrich_interfaces_with_descriptions,
     enrich_interfaces_with_portfast,
     enrich_interfaces_with_voice_vlan,
     normalize_interface_name,
+    parse_interface_descriptions,
     parse_interface_portfast,
     parse_interface_status,
     parse_stp_capabilities,
@@ -424,3 +426,70 @@ def test_voice_vlan_matches_long_and_short_interface_names():
 
     assert result[0]["voice_vlan"] == 20
     assert result[0]["voice_vlan_label"] == "VLAN 20"
+
+
+def test_parse_interface_descriptions_preserves_full_description():
+    output = """\
+Interface                      Status         Protocol Description
+Gi0/0                          up             up
+Gi0/1                          up             up       ## HOST DE TESTES ##
+Gi0/2                          admin down     down
+Gi1/0                          up             up       UPLINK CORE PRINCIPAL
+Vl10                           up             up
+"""
+
+    result = parse_interface_descriptions(output)
+
+    assert result[
+        normalize_interface_name("Gi0/1")
+    ] == "## HOST DE TESTES ##"
+
+    assert result[
+        normalize_interface_name("Gi1/0")
+    ] == "UPLINK CORE PRINCIPAL"
+
+    assert result[
+        normalize_interface_name("Gi0/2")
+    ] == ""
+
+
+def test_enrich_interfaces_uses_description_command_as_source():
+    interfaces = [
+        {
+            "name": "Gi0/1",
+            "description": "## HOST DE TESTES",
+            "status": "connected",
+            "status_label": "Up",
+            "vlan": "10",
+            "mode_label": "VLAN 10",
+        },
+        {
+            "name": "Gi0/2",
+            "description": "",
+            "status": "disabled",
+            "status_label": "Admin Down",
+            "vlan": "101",
+            "mode_label": "VLAN 101",
+        },
+    ]
+
+    descriptions = {
+        normalize_interface_name(
+            "GigabitEthernet0/1"
+        ): "## HOST DE TESTES ##",
+        normalize_interface_name(
+            "GigabitEthernet0/2"
+        ): "",
+    }
+
+    result = enrich_interfaces_with_descriptions(
+        interfaces,
+        descriptions,
+    )
+
+    assert (
+        result[0]["description"]
+        == "## HOST DE TESTES ##"
+    )
+
+    assert result[1]["description"] == ""

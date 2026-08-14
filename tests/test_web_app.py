@@ -1506,3 +1506,16 @@ def test_interface_inventory_shows_portfast_column(
     html = response.data.decode()
 
     assert "<th>PortFast</th>" in html
+
+
+def test_interface_description_empty_uses_double_dash(
+    monkeypatch,
+):
+    configure_test_environment(monkeypatch)
+
+    client = web_app.app.test_client()
+    response = client.get("/")
+
+    html = response.data.decode()
+
+    assert "description-empty" in html

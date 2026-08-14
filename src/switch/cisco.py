@@ -287,6 +287,66 @@ def enrich_interfaces_with_portfast(
 
 
 
+def parse_interface_descriptions(output):
+    descriptions = {}
+
+    for raw_line in output.splitlines():
+        line = raw_line.rstrip()
+
+        if not line.strip():
+            continue
+
+        if line.lstrip().startswith("Interface"):
+            continue
+
+        match = re.match(
+            r"^(\S+)\s+"
+            r"(?:admin down|up|down)\s+"
+            r"(?:up|down)\s*"
+            r"(.*)$",
+            line,
+            re.IGNORECASE,
+        )
+
+        if not match:
+            continue
+
+        interface = match.group(1).strip()
+        description = match.group(2).strip()
+
+        descriptions[
+            normalize_interface_name(interface)
+        ] = description
+
+    return descriptions
+
+
+def enrich_interfaces_with_descriptions(
+    interfaces,
+    descriptions,
+):
+    enriched = []
+
+    for item in interfaces:
+        normalized_name = normalize_interface_name(
+            item["name"]
+        )
+
+        description = descriptions.get(
+            normalized_name,
+            "",
+        )
+
+        enriched.append(
+            {
+                **item,
+                "description": description,
+            }
+        )
+
+    return enriched
+
+
 def validate_interface_description(description):
     if description is None:
         return
@@ -405,6 +465,9 @@ class CiscoSwitch:
                 conn.enable()
 
             output = conn.send_command("show interfaces status")
+            description_output = conn.send_command(
+                "show interfaces description"
+            )
             switchport_output = conn.send_command(
                 "show interfaces switchport"
             )
@@ -418,6 +481,15 @@ class CiscoSwitch:
 
         interfaces = parse_interface_status(
             output
+        )
+
+        descriptions = parse_interface_descriptions(
+            description_output
+        )
+
+        interfaces = enrich_interfaces_with_descriptions(
+            interfaces,
+            descriptions,
         )
 
         voice_vlans = parse_voice_vlans(
