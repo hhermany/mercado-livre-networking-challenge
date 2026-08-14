@@ -28,3 +28,5 @@ backups/*
 !**/.env.example
 generated/
 backups/*.cfg
+.runtime/
+*.bak*

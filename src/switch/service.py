@@ -748,10 +748,6 @@ def provision_interfaces_batch(
             interface
         ]["running_config"]
 
-        stp_detail = validation[
-            interface
-        ].get("stp_detail", "")
-
         interface_missing = []
 
         has_switchport_config = (
@@ -839,11 +835,6 @@ def provision_interfaces_batch(
                     "admin-up"
                 )
 
-        interface_admin_down = (
-            "administratively down"
-            in state.lower()
-        )
-
         if portfast_state == "enable":
             if (
                 "spanning-tree portfast edge"
@@ -853,18 +844,13 @@ def provision_interfaces_batch(
                     "portfast-edge"
                 )
 
-            # Com a interface administrativamente desativada,
-            # o running-config confirma a intenção configurada.
-            # A ausência de estado operacional STP não é divergência.
-            if (
-                not interface_admin_down
-                and stp_detail
-                and "portfast edge mode"
-                not in stp_detail.lower()
-            ):
-                interface_missing.append(
-                    "portfast-edge-operational"
-                )
+            # A configuração é validada pelo running-config.
+            #
+            # O estado operacional do STP é diagnóstico e não
+            # deve transformar uma configuração válida em falha.
+            # Ex.: porta sem link, STP ainda convergindo ou
+            # ausência de detalhe operacional naquele instante.
+
 
         if portfast_state == "disable":
             if (
@@ -875,15 +861,9 @@ def provision_interfaces_batch(
                     "portfast-disable"
                 )
 
-            if (
-                not interface_admin_down
-                and stp_detail
-                and "portfast edge mode"
-                in stp_detail.lower()
-            ):
-                interface_missing.append(
-                    "portfast-disable-operational"
-                )
+            # Assim como no enable, estado STP operacional
+            # é diagnóstico separado e não divergência de config.
+
 
         for item in interface_missing:
             missing.append(
@@ -1433,4 +1413,39 @@ def discover_managed_switch(
     return {
         "hostname": hostname,
         "interfaces": interfaces or [],
+    }
+
+
+def load_managed_switch_workspace(
+    device,
+):
+    """
+    Coleta o estado operacional necessário para o
+    workspace multi-switch.
+
+    As credenciais permanecem no ManagedDevice/backend.
+    """
+    credentials = device.credentials()
+
+    inventory = get_switch_interfaces(
+        **credentials
+    )
+
+    return {
+        "hostname": (
+            device.hostname
+            or device.host
+        ),
+        "interfaces": inventory.get(
+            "interfaces",
+            [],
+        ),
+        "vlan_state": inventory.get(
+            "vlan_state",
+            "",
+        ),
+        "capabilities": inventory.get(
+            "capabilities",
+            {},
+        ),
     }

@@ -2995,3 +2995,716 @@ def test_device_list_keeps_credentials_private(
         "ENABLE_PRIVATE_456"
         not in body
     )
+
+
+def test_multi_device_workspace_api(
+    monkeypatch,
+):
+    configure_test_environment(
+        monkeypatch
+    )
+
+    web_app.device_manager.clear()
+
+    first = web_app.device_manager.add(
+        host="192.0.2.10",
+        username="admin",
+        password="password",
+    )
+
+    second = web_app.device_manager.add(
+        host="192.0.2.11",
+        username="admin",
+        password="password",
+    )
+
+    def fake_workspace(device):
+        return {
+            "hostname": (
+                "SW1"
+                if device.id == first.id
+                else "SW2"
+            ),
+            "interfaces": [
+                {
+                    "name": "Gi0/1",
+                    "status_label": "Up",
+                    "mode_label": (
+                        "ACCESS · VLAN 10"
+                    ),
+                }
+            ],
+            "vlan_state": (
+                "10 VLAN_DADOS active"
+            ),
+            "capabilities": {},
+        }
+
+    monkeypatch.setattr(
+        web_app,
+        "load_managed_switch_workspace",
+        fake_workspace,
+    )
+
+    response = (
+        web_app.app.test_client().post(
+            "/api/devices/workspace",
+            json={
+                "device_ids": [
+                    first.id,
+                    second.id,
+                ],
+            },
+        )
+    )
+
+    assert response.status_code == 200
+
+    data = response.get_json()
+
+    assert len(data["devices"]) == 2
+
+    assert all(
+        item["success"]
+        for item in data["devices"]
+    )
+
+    hostnames = {
+        item["hostname"]
+        for item in data["devices"]
+    }
+
+    assert hostnames == {
+        "SW1",
+        "SW2",
+    }
+
+
+def test_multi_switch_workspace_ui_exists(
+    monkeypatch,
+):
+    configure_test_environment(
+        monkeypatch
+    )
+
+    response = (
+        web_app.app.test_client().get("/")
+    )
+
+    html = response.data.decode()
+
+    assert response.status_code == 200
+    assert "Workspace Multi-Switch" in html
+    assert "Abrir selecionados" in html
+    assert "function openSelectedDevices()" in html
+    assert "multi-switch-interface-select" in html
+
+
+def test_multi_device_cards_have_direct_selection(
+    monkeypatch,
+):
+    configure_test_environment(
+        monkeypatch
+    )
+
+    response = (
+        web_app.app.test_client().get("/")
+    )
+
+    html = response.data.decode()
+
+    assert response.status_code == 200
+
+    assert (
+        "managed-device-select-v2"
+        in html
+    )
+
+    assert (
+        "Gerenciar selecionados"
+        in html
+    )
+
+    assert (
+        "function manageSelectedDevicesV2()"
+        in html
+    )
+
+
+def test_multi_device_interface_configuration(
+    monkeypatch,
+):
+    configure_test_environment(
+        monkeypatch
+    )
+
+    web_app.device_manager.clear()
+
+    first = web_app.device_manager.add(
+        host="192.0.2.10",
+        username="admin",
+        password="password",
+    )
+
+    second = web_app.device_manager.add(
+        host="192.0.2.11",
+        username="admin",
+        password="password",
+    )
+
+    calls = []
+
+    def fake_batch(**kwargs):
+        calls.append(
+            kwargs
+        )
+
+        return {
+            "success": True,
+        }
+
+    monkeypatch.setattr(
+        web_app,
+        "provision_interfaces_batch",
+        fake_batch,
+    )
+
+    response = (
+        web_app.app.test_client().post(
+            "/api/devices/interfaces/configure",
+            json={
+                "selections": [
+                    {
+                        "device_id":
+                            first.id,
+                        "interface":
+                            "Gi0/1",
+                    },
+                    {
+                        "device_id":
+                            first.id,
+                        "interface":
+                            "Gi0/2",
+                    },
+                    {
+                        "device_id":
+                            second.id,
+                        "interface":
+                            "Gi1/0",
+                    },
+                ],
+                "access_vlan": "50",
+                "voice_vlan": "20",
+                "description": "CAMERAS",
+                "admin_state": "up",
+            },
+        )
+    )
+
+    assert response.status_code == 200
+
+    data = response.get_json()
+
+    assert data["success"] is True
+
+    assert len(calls) == 2
+
+    by_host = {
+        call["host"]: call
+        for call in calls
+    }
+
+    assert set(
+        by_host
+    ) == {
+        "192.0.2.10",
+        "192.0.2.11",
+    }
+
+    assert set(
+        by_host[
+            "192.0.2.10"
+        ]["interfaces"]
+    ) == {
+        "Gi0/1",
+        "Gi0/2",
+    }
+
+    assert (
+        by_host[
+            "192.0.2.11"
+        ]["interfaces"]
+        == ["Gi1/0"]
+    )
+
+    assert all(
+        call["access_vlan"] == 50
+        for call in calls
+    )
+
+    assert all(
+        call["voice_vlan"] == 20
+        for call in calls
+    )
+
+
+def test_multi_switch_configuration_ui_is_real(
+    monkeypatch,
+):
+    configure_test_environment(
+        monkeypatch
+    )
+
+    response = (
+        web_app.app.test_client().get("/")
+    )
+
+    html = response.data.decode()
+
+    assert response.status_code == 200
+
+    assert (
+        'id="multi-access-vlan"'
+        in html
+    )
+
+    assert (
+        'id="multi-voice-vlan"'
+        in html
+    )
+
+    assert (
+        'id="multi-description"'
+        in html
+    )
+
+    assert (
+        'id="multi-admin-state"'
+        in html
+    )
+
+    assert (
+        "async function applyConfiguration()"
+        in html
+    )
+
+    assert (
+        "/api/devices/interfaces/configure"
+        in html
+    )
+
+    assert (
+        "await refreshWorkspace("
+        in html
+    )
+
+
+
+def test_multi_device_configuration_runs_in_parallel(
+    monkeypatch,
+):
+    import time
+
+    configure_test_environment(
+        monkeypatch
+    )
+
+    web_app.device_manager.clear()
+
+    first = web_app.device_manager.add(
+        host="192.0.2.70",
+        username="admin",
+        password="password",
+    )
+
+    second = web_app.device_manager.add(
+        host="192.0.2.71",
+        username="admin",
+        password="password",
+    )
+
+    def slow_batch(**kwargs):
+        time.sleep(0.20)
+
+        return {
+            "success": True,
+        }
+
+    monkeypatch.setattr(
+        web_app,
+        "provision_interfaces_batch",
+        slow_batch,
+    )
+
+    started = time.monotonic()
+
+    response = (
+        web_app.app.test_client().post(
+            "/api/devices/interfaces/configure",
+            json={
+                "selections": [
+                    {
+                        "device_id":
+                            first.id,
+                        "interface":
+                            "Gi0/1",
+                    },
+                    {
+                        "device_id":
+                            second.id,
+                        "interface":
+                            "Gi0/1",
+                    },
+                ],
+                "access_vlan": 50,
+            },
+        )
+    )
+
+    elapsed = (
+        time.monotonic()
+        - started
+    )
+
+    assert response.status_code == 200
+
+    data = response.get_json()
+
+    assert data["success"] is True
+
+    assert (
+        data["timing"]["workers"]
+        == 2
+    )
+
+    # Duas operações de 200 ms sequenciais
+    # levariam aproximadamente 400 ms.
+    assert elapsed < 0.34
+
+    timings = [
+        item["timing"]
+        for item in data["results"]
+    ]
+
+    # Os dois workers devem começar praticamente
+    # juntos, não depois de o primeiro terminar.
+    assert all(
+        timing["started_ms"] < 100
+        for timing in timings
+    )
+
+
+def test_multi_switch_preserves_operational_interface_features(
+    monkeypatch,
+):
+    configure_test_environment(
+        monkeypatch
+    )
+
+    response = (
+        web_app.app.test_client().get("/")
+    )
+
+    html = response.data.decode()
+
+    assert response.status_code == 200
+
+    assert "Selecionar" in html
+    assert "PortFast" in html
+    assert "Port-Channel" in html
+    assert "Saúde" in html
+    assert "Operacional" in html
+
+    assert (
+        "interfaceDiagnosticsV2"
+        in html
+    )
+
+    assert (
+        "lost carrier"
+        in html.lower()
+    )
+
+
+def test_multi_switch_uses_single_management_button(
+    monkeypatch,
+):
+    configure_test_environment(
+        monkeypatch
+    )
+
+    response = (
+        web_app.app.test_client().get("/")
+    )
+
+    html = response.data.decode()
+
+    assert (
+        'id="manage-selected-devices-v2"'
+        in html
+    )
+
+    assert (
+        "Gerenciar selecionado"
+        in html
+    )
+
+    assert (
+        "Gerenciar selecionados"
+        in html
+    )
+
+
+def test_multi_general_configuration_ui_is_present(
+    monkeypatch,
+):
+    configure_test_environment(
+        monkeypatch
+    )
+
+    response = (
+        web_app.app.test_client().get("/")
+    )
+
+    html = response.data.decode()
+
+    assert response.status_code == 200
+
+    assert (
+        'id="multi-general-config"'
+        in html
+    )
+
+    assert (
+        'id="multi-general-device-list"'
+        in html
+    )
+
+    assert (
+        'id="multi-general-apply"'
+        in html
+    )
+
+    assert (
+        "/api/devices/general/configure"
+        in html
+    )
+
+
+def test_multi_general_requires_operations(
+    monkeypatch,
+):
+    configure_test_environment(
+        monkeypatch
+    )
+
+    response = (
+        web_app.app.test_client().post(
+            "/api/devices/general/configure",
+            json={
+                "operations": [],
+            },
+        )
+    )
+
+    assert response.status_code == 400
+
+    data = response.get_json()
+
+    assert data["success"] is False
+
+
+def test_multi_configuration_management_ui_exists(
+    monkeypatch,
+):
+    configure_test_environment(
+        monkeypatch
+    )
+
+    response = (
+        web_app.app.test_client().get("/")
+    )
+
+    html = response.data.decode()
+
+    assert response.status_code == 200
+
+    assert (
+        'id="multi-config-management"'
+        in html
+    )
+
+    assert "Running Config" in html
+    assert "Startup Config" in html
+
+    assert (
+        'value="local"'
+        in html
+    )
+
+    assert (
+        'value="ftp"'
+        in html
+    )
+
+    assert (
+        'value="sftp"'
+        in html
+    )
+
+    assert (
+        'value="tftp"'
+        in html
+    )
+
+
+def test_multi_configuration_save_requires_devices(
+    monkeypatch,
+):
+    configure_test_environment(
+        monkeypatch
+    )
+
+    response = (
+        web_app.app.test_client().post(
+            "/api/devices/configuration/save",
+            json={
+                "device_ids": [],
+            },
+        )
+    )
+
+    assert response.status_code == 400
+
+
+def test_multi_configuration_backup_requires_devices(
+    monkeypatch,
+):
+    configure_test_environment(
+        monkeypatch
+    )
+
+    response = (
+        web_app.app.test_client().post(
+            "/api/devices/configuration/backup",
+            json={
+                "device_ids": [],
+                "protocol": "local",
+            },
+        )
+    )
+
+    assert response.status_code == 400
+
+
+def test_multi_configuration_download_requires_devices(
+    monkeypatch,
+):
+    configure_test_environment(
+        monkeypatch
+    )
+
+    response = (
+        web_app.app.test_client().post(
+            "/api/devices/configuration/download",
+            json={
+                "device_ids": [],
+                "config_type": "running",
+            },
+        )
+    )
+
+    assert response.status_code == 400
+
+def test_multi_troubleshooting_ui_exists(
+    monkeypatch,
+):
+    configure_test_environment(
+        monkeypatch
+    )
+
+    response = (
+        web_app.app.test_client().get("/")
+    )
+
+    html = response.data.decode()
+
+    assert response.status_code == 200
+
+    assert (
+        'id="multi-troubleshooting"'
+        in html
+    )
+
+    assert "Executar Ping" in html
+    assert "Executar Traceroute" in html
+
+    assert (
+        'id="multi-ping-repeat"'
+        in html
+    )
+
+    assert (
+        'id="multi-ping-timeout"'
+        in html
+    )
+
+    assert (
+        'id="multi-ping-size"'
+        in html
+    )
+
+    assert (
+        'id="multi-ping-df"'
+        in html
+    )
+
+    assert (
+        'id="multi-trace-probes"'
+        in html
+    )
+
+    assert (
+        'id="multi-trace-max-ttl"'
+        in html
+    )
+
+
+def test_multi_troubleshooting_ping_requires_devices(
+    monkeypatch,
+):
+    configure_test_environment(
+        monkeypatch
+    )
+
+    response = (
+        web_app.app.test_client().post(
+            "/api/devices/troubleshooting/ping",
+            json={
+                "operations": [],
+                "targets": "8.8.8.8",
+            },
+        )
+    )
+
+    assert response.status_code == 400
+
+
+def test_multi_troubleshooting_trace_requires_devices(
+    monkeypatch,
+):
+    configure_test_environment(
+        monkeypatch
+    )
+
+    response = (
+        web_app.app.test_client().post(
+            "/api/devices/troubleshooting/traceroute",
+            json={
+                "operations": [],
+                "destination": "8.8.8.8",
+            },
+        )
+    )
+
+    assert response.status_code == 400
