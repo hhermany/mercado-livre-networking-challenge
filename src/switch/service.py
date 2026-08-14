@@ -1449,3 +1449,82 @@ def load_managed_switch_workspace(
             {},
         ),
     }
+
+
+def run_interface_quick_action(
+    *,
+    host,
+    username,
+    password,
+    interfaces,
+    action,
+    port=22,
+    **kwargs,
+):
+    """
+    Executa ações operacionais rápidas em múltiplas
+    interfaces de um único equipamento.
+
+    A orquestração entre equipamentos permanece no web layer,
+    como nas demais operações Multi-Switch.
+    """
+    normalized_interfaces = list(
+        dict.fromkeys(
+            str(interface).strip()
+            for interface in interfaces
+            if str(interface).strip()
+        )
+    )
+
+    if not normalized_interfaces:
+        raise ValueError(
+            "Selecione pelo menos uma interface."
+        )
+
+    if action not in {
+        "default",
+        "bounce",
+    }:
+        raise ValueError(
+            "Ação de interface inválida."
+        )
+
+    switch = CiscoSwitch(
+        host=host,
+        username=username,
+        password=password,
+        **kwargs,
+    )
+
+    if action == "default":
+        operation = switch.default_interfaces(
+            normalized_interfaces
+        )
+
+        message = (
+            "Interface restaurada para o padrão."
+        )
+
+    else:
+        operation = switch.bounce_interfaces(
+            normalized_interfaces
+        )
+
+        message = (
+            "Bounce concluído (shutdown / no shutdown)."
+        )
+
+    return {
+        "success": True,
+        "action": action,
+        "interfaces": normalized_interfaces,
+        "interface_results": {
+            interface: {
+                "success": True,
+                "message": message,
+            }
+            for interface
+            in normalized_interfaces
+        },
+        "operation": operation,
+    }

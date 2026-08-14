@@ -561,3 +561,151 @@ hostname SW-ERRADO
         or "diverg" in rendered
         or result.get("success") is False
     )
+
+
+def test_cisco_default_interfaces_sends_ios_default_command(
+    monkeypatch,
+):
+    import src.switch.cisco as cisco
+
+    commands_seen = []
+
+    class FakeConnection:
+        def __enter__(self):
+            return self
+
+        def __exit__(
+            self,
+            exc_type,
+            exc_value,
+            traceback,
+        ):
+            return False
+
+        def send_config_set(
+            self,
+            commands,
+            **kwargs,
+        ):
+            commands_seen.extend(
+                commands
+            )
+            return "OK"
+
+        def send_command(
+            self,
+            command,
+            **kwargs,
+        ):
+            return command
+
+    switch = cisco.CiscoSwitch(
+        host="192.0.2.10",
+        username="admin",
+        password="password",
+    )
+
+    monkeypatch.setattr(
+        switch,
+        "_connect",
+        lambda: FakeConnection(),
+    )
+
+    result = switch.default_interfaces(
+        [
+            "Gi1/1",
+            "Gi1/2",
+        ]
+    )
+
+    assert commands_seen == [
+        "default interface Gi1/1",
+        "default interface Gi1/2",
+    ]
+
+    assert (
+        "Gi1/1"
+        in result["validation"]
+    )
+
+    assert (
+        "Gi1/2"
+        in result["validation"]
+    )
+
+
+def test_cisco_bounce_interfaces_sends_shutdown_no_shutdown(
+    monkeypatch,
+):
+    import src.switch.cisco as cisco
+
+    commands_seen = []
+
+    class FakeConnection:
+        def __enter__(self):
+            return self
+
+        def __exit__(
+            self,
+            exc_type,
+            exc_value,
+            traceback,
+        ):
+            return False
+
+        def send_config_set(
+            self,
+            commands,
+            **kwargs,
+        ):
+            commands_seen.extend(
+                commands
+            )
+            return "OK"
+
+        def send_command(
+            self,
+            command,
+            **kwargs,
+        ):
+            return command
+
+    switch = cisco.CiscoSwitch(
+        host="192.0.2.10",
+        username="admin",
+        password="password",
+    )
+
+    monkeypatch.setattr(
+        switch,
+        "_connect",
+        lambda: FakeConnection(),
+    )
+
+    result = switch.bounce_interfaces(
+        [
+            "Gi1/1",
+            "Gi1/2",
+        ]
+    )
+
+    assert commands_seen == [
+        "interface Gi1/1",
+        "shutdown",
+        "interface Gi1/2",
+        "shutdown",
+        "interface Gi1/1",
+        "no shutdown",
+        "interface Gi1/2",
+        "no shutdown",
+    ]
+
+    assert (
+        "Gi1/1"
+        in result["validation"]
+    )
+
+    assert (
+        "Gi1/2"
+        in result["validation"]
+    )

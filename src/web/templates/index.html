@@ -4811,7 +4811,34 @@ body.multi-switch-mode #device-workspace {
 
             <div class="multi-config-actions">
 
-                <button
+
+        <div
+            class="multi-interface-quick-actions"
+        >
+            <div
+                class="multi-interface-quick-actions-title"
+            >
+                Ações rápidas
+            </div>
+
+            <button
+                type="button"
+                id="multi-interface-default"
+                class="multi-interface-quick-action-button"
+            >
+                Restaurar padrão
+            </button>
+
+            <button
+                type="button"
+                id="multi-interface-bounce"
+                class="multi-interface-quick-action-button"
+            >
+                Bounce (Shut/No Shut)
+            </button>
+        </div>
+
+<button
                     type="button"
                     id="apply-multi-interface-config"
                     disabled
@@ -4837,33 +4864,8 @@ body.multi-switch-mode #device-workspace {
         </div>
 
 
-        <div class="multi-next-features">
-
-            <div class="multi-next-feature">
-                <strong>
-                    Gerenciamento da Configuração
-                </strong>
-
-                <span>
-                    Running, Startup, backup e
-                    comparação entre equipamentos.
-                </span>
-            </div>
 
 
-            <div class="multi-next-feature">
-                <strong>
-                    Troubleshooting
-                </strong>
-
-                <span>
-                    Ping e traceroute escolhendo
-                    equipamento e interface de origem.
-                </span>
-            </div>
-
-        </div>
-    </div>
 </div>
 
 
@@ -19521,6 +19523,1346 @@ strong {
 
     margin:
         2px 0 0 0 !important;
+}
+
+</style>
+
+
+<script id="multi-interface-quick-actions-script">
+(function () {
+    "use strict";
+
+
+    function quickActionEscape(
+        value
+    ) {
+        const div =
+            document.createElement(
+                "div"
+            );
+
+        div.textContent =
+            value == null
+                ? ""
+                : String(value);
+
+        return div.innerHTML;
+    }
+
+
+    function quickActionSelections() {
+        /*
+         * IMPORTANTE:
+         *
+         * A seleção Multi-Switch original vive em outro
+         * escopo JavaScript. Portanto não dependemos mais
+         * de selectedMultiInterfaces().
+         *
+         * Lemos diretamente as MESMAS checkboxes que o
+         * operador marcou nas tabelas.
+         */
+
+        const candidates = [
+            ...document.querySelectorAll(
+                [
+                    'input.multi-interface-select[type="checkbox"]:checked',
+                    'input.multi-interface-checkbox[type="checkbox"]:checked',
+                    'input[data-device-id][data-interface][type="checkbox"]:checked',
+                    'input[data-interface][type="checkbox"]:checked',
+                ].join(",")
+            ),
+        ];
+
+
+        const selections = [];
+
+        const seen = new Set();
+
+
+        candidates.forEach(
+            checkbox => {
+                /*
+                 * Interface.
+                 */
+                const interfaceName = String(
+                    checkbox.dataset.interface
+                    || checkbox.dataset.interfaceName
+                    || checkbox.value
+                    || ""
+                ).trim();
+
+
+                /*
+                 * Evita capturar checkboxes de seleção
+                 * de equipamento ou outros controles.
+                 */
+                if (
+                    !interfaceName
+                    || !(
+                        /^(?:Gi|GigabitEthernet|Fa|FastEthernet|Te|TenGigabitEthernet|Twe|TwentyFiveGigE|Hu|HundredGigE|Eth|Ethernet|Po|Port-channel)\S*$/i
+                    ).test(
+                        interfaceName
+                    )
+                ) {
+                    return;
+                }
+
+
+                /*
+                 * Device ID pode estar no próprio checkbox
+                 * ou no container do switch.
+                 */
+                const deviceContainer =
+                    checkbox.closest(
+                        "[data-device-id]"
+                    );
+
+
+                const deviceId = String(
+                    checkbox.dataset.deviceId
+                    || deviceContainer?.dataset.deviceId
+                    || ""
+                ).trim();
+
+
+                if (!deviceId) {
+                    return;
+                }
+
+
+                const key =
+                    `${deviceId}|${interfaceName}`;
+
+
+                if (
+                    seen.has(
+                        key
+                    )
+                ) {
+                    return;
+                }
+
+
+                seen.add(
+                    key
+                );
+
+
+                selections.push(
+                    {
+                        device_id:
+                            deviceId,
+
+                        interface:
+                            interfaceName,
+                    }
+                );
+            }
+        );
+
+
+        /*
+         * Fallback:
+         *
+         * Algumas versões do HTML armazenam device/interface
+         * no row em vez do próprio checkbox.
+         */
+        if (!selections.length) {
+            document.querySelectorAll(
+                'input[type="checkbox"]:checked'
+            ).forEach(
+                checkbox => {
+                    const row =
+                        checkbox.closest(
+                            "[data-device-id][data-interface]"
+                        );
+
+
+                    if (!row) {
+                        return;
+                    }
+
+
+                    const deviceId =
+                        String(
+                            row.dataset.deviceId
+                            || ""
+                        ).trim();
+
+                    const interfaceName =
+                        String(
+                            row.dataset.interface
+                            || ""
+                        ).trim();
+
+
+                    if (
+                        !deviceId
+                        || !interfaceName
+                    ) {
+                        return;
+                    }
+
+
+                    const key =
+                        `${deviceId}|${interfaceName}`;
+
+
+                    if (
+                        seen.has(
+                            key
+                        )
+                    ) {
+                        return;
+                    }
+
+
+                    seen.add(
+                        key
+                    );
+
+
+                    selections.push(
+                        {
+                            device_id:
+                                deviceId,
+
+                            interface:
+                                interfaceName,
+                        }
+                    );
+                }
+            );
+        }
+
+
+        return selections;
+    }
+
+    function quickActionStatusElement() {
+        return document.getElementById(
+            "multi-interface-config-status"
+        );
+    }
+
+
+    function quickActionResultsElement() {
+        return document.getElementById(
+            "multi-interface-config-results"
+        );
+    }
+
+
+    function quickActionConfirmation(
+
+        selections
+    ) {
+        const grouped =
+            new Map();
+
+
+        selections.forEach(
+            item => {
+                if (
+                    !grouped.has(
+                        item.device_id
+                    )
+                ) {
+                    grouped.set(
+                        item.device_id,
+                        []
+                    );
+                }
+
+                grouped.get(
+                    item.device_id
+                ).push(
+                    item.interface
+                );
+            }
+        );
+
+
+        const lines = [
+            `Restaurar ${selections.length} interface(s) para a configuração padrão?`,
+            "",
+        ];
+
+
+        grouped.forEach(
+            (
+                interfaces,
+                deviceId
+            ) => {
+                lines.push(
+                    `${deviceId}: ${interfaces.join(", ")}`
+                );
+            }
+        );
+
+
+        lines.push(
+            "",
+            "Esta operação removerá a configuração atual dessas interfaces."
+        );
+
+
+        return window.confirm(
+            lines.join("\n")
+        );
+    }
+
+
+    async function executeQuickAction(
+        action
+    ) {
+        const selections =
+            quickActionSelections();
+
+
+        if (!selections.length) {
+            window.alert(
+                "Selecione pelo menos uma interface."
+            );
+
+            return;
+        }
+
+
+        if (
+            action === "default"
+            && !quickActionConfirmation(
+                selections
+            )
+        ) {
+            return;
+        }
+
+
+        const defaultButton =
+            document.getElementById(
+                "multi-interface-default"
+            );
+
+        const bounceButton =
+            document.getElementById(
+                "multi-interface-bounce"
+            );
+
+        const status =
+            quickActionStatusElement();
+
+        const resultContainer =
+            quickActionResultsElement();
+
+
+        if (defaultButton) {
+            defaultButton.disabled =
+                true;
+        }
+
+        if (bounceButton) {
+            bounceButton.disabled =
+                true;
+        }
+
+
+        if (status) {
+            status.textContent =
+                action === "default"
+                    ? "Restaurando interfaces para o padrão..."
+                    : "Executando Bounce (Shut/No Shut)...";
+        }
+
+
+        try {
+            const response =
+                await fetch(
+                    "/api/devices/interfaces/quick-action",
+                    {
+                        method:
+                            "POST",
+
+                        headers: {
+                            "Content-Type":
+                                "application/json",
+                        },
+
+                        body:
+                            JSON.stringify(
+                                {
+                                    action:
+                                        action,
+
+                                    selections:
+                                        selections.map(
+                                            item => ({
+                                                device_id:
+                                                    item.device_id,
+
+                                                interface:
+                                                    item.interface,
+                                            })
+                                        ),
+                                }
+                            ),
+                    }
+                );
+
+
+            const data =
+                await response.json();
+
+
+            if (
+                !response.ok
+                && !data.results
+            ) {
+                throw new Error(
+                    data.error
+                    || "Falha na operação."
+                );
+            }
+
+
+            const rows = [];
+
+
+            (
+                data.results
+                || []
+            ).forEach(
+                item => {
+                    const device =
+                        item.device
+                        || {};
+
+                    const name =
+                        device.hostname
+                        || device.host
+                        || device.id
+                        || "Equipamento";
+
+
+                    if (!item.success) {
+                        rows.push(`
+                            <div
+                                class="
+                                    multi-operation-result
+                                    multi-operation-result-error
+                                "
+                            >
+                                <strong>
+                                    ${quickActionEscape(
+                                        name
+                                    )}
+                                </strong>
+
+                                — ${quickActionEscape(
+                                    item.error
+                                    || "Falha na operação."
+                                )}
+                            </div>
+                        `);
+
+                        return;
+                    }
+
+
+                    const serviceResult =
+                        item.result
+                        || {};
+
+                    const interfaceResults =
+                        serviceResult.interface_results
+                        || {};
+
+
+                    Object.entries(
+                        interfaceResults
+                    ).forEach(
+                        (
+                            [
+                                interfaceName,
+                                interfaceResult,
+                            ]
+                        ) => {
+                            rows.push(`
+                                <div
+                                    class="
+                                        multi-operation-result
+                                        ${
+                                            interfaceResult.success
+                                                ? "multi-operation-result-ok"
+                                                : "multi-operation-result-error"
+                                        }
+                                    "
+                                >
+                                    <strong>
+                                        ${quickActionEscape(
+                                            name
+                                        )}
+                                        —
+                                        ${quickActionEscape(
+                                            interfaceName
+                                        )}
+                                    </strong>
+
+                                    —
+                                    ${quickActionEscape(
+                                        interfaceResult.message
+                                        || (
+                                            interfaceResult.success
+                                                ? "Operação concluída."
+                                                : "Falha na operação."
+                                        )
+                                    )}
+                                </div>
+                            `);
+                        }
+                    );
+                }
+            );
+
+
+            if (resultContainer) {
+                resultContainer.innerHTML =
+                    rows.join("");
+            }
+
+
+            const failures =
+                (
+                    data.results
+                    || []
+                ).filter(
+                    item =>
+                        !item.success
+                ).length;
+
+
+            if (status) {
+                status.textContent =
+                    failures
+                        ? (
+                            `Operação concluída com `
+                            + `${failures} equipamento(s) com falha.`
+                        )
+                        : "Operação concluída com sucesso.";
+            }
+
+
+            /*
+             * =================================================
+             * REFRESH AUTOMÁTICO
+             *
+             * Preserva as interfaces que estavam selecionadas.
+             * =================================================
+             */
+
+            const selectedKeys =
+                new Set(
+                    selections.map(
+                        item =>
+                            `${item.device_id}|${item.interface}`
+                    )
+                );
+
+
+            if (
+                typeof window.refreshManagedWorkspaceV2
+                === "function"
+            ) {
+                /*
+                 * O refresh do inventário recria partes do DOM.
+                 * Preservamos a posição do operador para evitar
+                 * o salto visual para cima.
+                 */
+                const previousScrollX =
+                    window.scrollX;
+
+                const previousScrollY =
+                    window.scrollY;
+
+
+                await (
+                    window.refreshManagedWorkspaceV2()
+                );
+
+
+                const restoreScroll =
+                    function () {
+                        window.scrollTo(
+                            previousScrollX,
+                            previousScrollY
+                        );
+                    };
+
+
+                requestAnimationFrame(
+                    restoreScroll
+                );
+
+                window.setTimeout(
+                    restoreScroll,
+                    80
+                );
+
+
+                document.querySelectorAll(
+                    [
+                        ".multi-interface-select",
+                        ".multi-interface-checkbox",
+                        "[data-device-id][data-interface]",
+                    ].join(",")
+                ).forEach(
+                    checkbox => {
+                        if (
+                            checkbox.type
+                            !== "checkbox"
+                        ) {
+                            return;
+                        }
+
+
+                        const deviceId =
+                            checkbox.dataset.deviceId
+                            || checkbox.closest(
+                                "[data-device-id]"
+                            )?.dataset.deviceId
+                            || "";
+
+                        const interfaceName =
+                            checkbox.dataset.interface
+                            || checkbox.value
+                            || "";
+
+
+                        const key =
+                            `${deviceId}|${interfaceName}`;
+
+
+                        if (
+                            selectedKeys.has(
+                                key
+                            )
+                        ) {
+                            checkbox.checked =
+                                true;
+                        }
+                    }
+                );
+            }
+
+
+        } catch (error) {
+            if (status) {
+                status.textContent =
+                    error.message;
+            }
+
+
+        } finally {
+            if (defaultButton) {
+                defaultButton.disabled =
+                    false;
+            }
+
+            if (bounceButton) {
+                bounceButton.disabled =
+                    false;
+            }
+        }
+    }
+
+
+    document.getElementById(
+        "multi-interface-default"
+    )?.addEventListener(
+        "click",
+        function () {
+            executeQuickAction(
+                "default"
+            );
+        }
+    );
+
+
+    document.getElementById(
+        "multi-interface-bounce"
+    )?.addEventListener(
+        "click",
+        function () {
+            executeQuickAction(
+                "bounce"
+            );
+        }
+    );
+
+})();
+</script>
+
+
+
+<style id="multi-interface-quick-actions-style">
+
+/*
+ * ==========================================================
+ * QUICK ACTIONS - REGRA ÚNICA
+ * ==========================================================
+ */
+
+.multi-config-actions {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    width: 100% !important;
+}
+
+
+.multi-interface-quick-actions {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+
+    width: 100% !important;
+
+    margin: 11px 0 0 !important;
+    padding: 10px 0 0 !important;
+
+    box-sizing: border-box !important;
+
+    border: 0 !important;
+    border-top: 1px solid #dce3e8 !important;
+    border-radius: 0 !important;
+
+    background: transparent !important;
+}
+
+
+.multi-interface-quick-actions-title {
+    flex: 0 0 100% !important;
+
+    margin: 0 0 3px !important;
+    padding: 0 !important;
+
+    color: #45535f !important;
+
+    font-size: 10px !important;
+    line-height: 1.2 !important;
+    font-weight: 600 !important;
+}
+
+
+.multi-interface-quick-actions-title::after {
+    content: " nas interfaces selecionadas";
+
+    color: #687581;
+
+    font-weight: 400;
+}
+
+
+.multi-interface-quick-action-button {
+    flex: 0 0 auto !important;
+
+    min-width: 150px !important;
+    min-height: 34px !important;
+
+    margin: 0 !important;
+    padding: 6px 12px !important;
+
+    box-sizing: border-box !important;
+
+    font-size: 11px !important;
+    line-height: 1.2 !important;
+    font-weight: 500 !important;
+}
+
+
+#multi-interface-default {
+    background: #fff !important;
+    border: 1px solid #b46b2a !important;
+    color: #8a4b13 !important;
+}
+
+
+#multi-interface-default:hover {
+    background: #fff8f1 !important;
+}
+
+
+#multi-interface-bounce {
+    background: #1772b8 !important;
+    border: 1px solid #1772b8 !important;
+    color: #fff !important;
+}
+
+
+#multi-interface-bounce:hover {
+    filter: brightness(0.95);
+}
+
+
+/*
+ * Aplicar também fica à esquerda.
+ */
+
+#apply-multi-interface-config {
+    flex: 0 0 auto !important;
+    align-self: flex-start !important;
+
+    margin: 10px 0 0 !important;
+}
+
+
+/*
+ * Status abaixo dos controles.
+ */
+
+#multi-interface-config-status {
+    display: block !important;
+
+    margin: 6px 0 0 !important;
+
+    font-size: 10px !important;
+}
+
+
+/*
+ * Resultado sempre abaixo da linha operacional.
+ */
+
+#multi-interface-config-results {
+    display: block !important;
+
+    width: 100% !important;
+
+    margin: 10px 0 0 !important;
+}
+
+
+/*
+ * Não deixa resultado alterar geometria dos botões.
+ */
+
+#multi-interface-config-results
+.multi-operation-result {
+    width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+
+@media (max-width: 700px) {
+
+    .multi-interface-quick-action-button {
+        width: 100% !important;
+    }
+}
+
+</style>
+
+
+
+
+
+
+
+
+<style id="multi-interface-select-all-style">
+
+/*
+ * Checkbox "Selecionar todas".
+ * Mantém proporção e alinhamento das checkboxes das linhas.
+ */
+
+.multi-interface-select-all-wrapper {
+    display:
+        inline-flex !important;
+
+    align-items:
+        center !important;
+
+    justify-content:
+        center !important;
+
+    vertical-align:
+        middle !important;
+
+    margin:
+        0 !important;
+
+    padding:
+        0 !important;
+
+    cursor:
+        pointer !important;
+}
+
+
+.multi-interface-select-all {
+    width:
+        15px !important;
+
+    height:
+        15px !important;
+
+    margin:
+        0 !important;
+
+    padding:
+        0 !important;
+
+    cursor:
+        pointer !important;
+}
+
+
+/*
+ * Pequeno espaço se o cabeçalho da coluna já possuir texto.
+ */
+
+.multi-interface-select-all-wrapper
++ * {
+    margin-left:
+        4px;
+}
+
+</style>
+
+
+<script id="multi-interface-select-all-script">
+(function () {
+    "use strict";
+
+    const INTERFACE_PATTERN =
+        /^(?:Gi|GigabitEthernet|Fa|FastEthernet|Te|TenGigabitEthernet|Twe|TwentyFiveGigE|Hu|HundredGigE|Eth|Ethernet|Po|Port-channel)\S*$/i;
+
+
+    function interfaceCheckboxes(
+        table
+    ) {
+        return [
+            ...table.querySelectorAll(
+                'input[type="checkbox"]'
+            ),
+        ].filter(
+            checkbox => {
+                if (
+                    checkbox.classList.contains(
+                        "multi-interface-select-all"
+                    )
+                ) {
+                    return false;
+                }
+
+
+                const interfaceName =
+                    String(
+                        checkbox.dataset.interface
+                        || checkbox.dataset.interfaceName
+                        || checkbox.value
+                        || checkbox.closest(
+                            "[data-interface]"
+                        )?.dataset.interface
+                        || ""
+                    ).trim();
+
+
+                return (
+                    interfaceName
+                    && INTERFACE_PATTERN.test(
+                        interfaceName
+                    )
+                );
+            }
+        );
+    }
+
+
+    function syncSelectAll(
+        table
+    ) {
+        const selectAll =
+            table.querySelector(
+                ".multi-interface-select-all"
+            );
+
+        if (!selectAll) {
+            return;
+        }
+
+
+        const checkboxes =
+            interfaceCheckboxes(
+                table
+            );
+
+
+        if (!checkboxes.length) {
+            selectAll.checked =
+                false;
+
+            selectAll.indeterminate =
+                false;
+
+            selectAll.disabled =
+                true;
+
+            return;
+        }
+
+
+        selectAll.disabled =
+            false;
+
+
+        const checkedCount =
+            checkboxes.filter(
+                checkbox =>
+                    checkbox.checked
+            ).length;
+
+
+        selectAll.checked =
+            checkedCount
+            === checkboxes.length;
+
+
+        selectAll.indeterminate =
+            checkedCount > 0
+            && checkedCount
+            < checkboxes.length;
+    }
+
+
+    function installSelectAll(
+        table
+    ) {
+        const checkboxes =
+            interfaceCheckboxes(
+                table
+            );
+
+
+        if (!checkboxes.length) {
+            return;
+        }
+
+
+        const headerRow =
+            table.querySelector(
+                "thead tr"
+            )
+            || table.querySelector(
+                "tr"
+            );
+
+
+        if (!headerRow) {
+            return;
+        }
+
+
+        if (
+            headerRow.querySelector(
+                ".multi-interface-select-all"
+            )
+        ) {
+            syncSelectAll(
+                table
+            );
+
+            return;
+        }
+
+
+        /*
+         * A coluna de seleção é a primeira coluna da tabela.
+         * Reutilizamos a própria célula de cabeçalho.
+         */
+        const firstHeader =
+            headerRow.querySelector(
+                "th"
+            )
+            || headerRow.firstElementChild;
+
+
+        if (!firstHeader) {
+            return;
+        }
+
+
+        const wrapper =
+            document.createElement(
+                "label"
+            );
+
+        wrapper.className =
+            "multi-interface-select-all-wrapper";
+
+        wrapper.title =
+            "Selecionar todas as interfaces deste equipamento";
+
+
+        const checkbox =
+            document.createElement(
+                "input"
+            );
+
+        checkbox.type =
+            "checkbox";
+
+        checkbox.className =
+            "multi-interface-select-all";
+
+        checkbox.setAttribute(
+            "aria-label",
+            "Selecionar todas as interfaces"
+        );
+
+
+        wrapper.appendChild(
+            checkbox
+        );
+
+
+        /*
+         * Não apaga eventual conteúdo existente no TH.
+         * Apenas adiciona o checkbox.
+         */
+        firstHeader.prepend(
+            wrapper
+        );
+
+
+        checkbox.addEventListener(
+            "change",
+            function () {
+                const targetState =
+                    checkbox.checked;
+
+
+                interfaceCheckboxes(
+                    table
+                ).forEach(
+                    interfaceCheckbox => {
+                        if (
+                            interfaceCheckbox.disabled
+                        ) {
+                            return;
+                        }
+
+
+                        if (
+                            interfaceCheckbox.checked
+                            !== targetState
+                        ) {
+                            interfaceCheckbox.checked =
+                                targetState;
+
+                            /*
+                             * Essencial:
+                             * dispara a MESMA lógica que já
+                             * atualiza contador, preview e botões.
+                             */
+                            interfaceCheckbox.dispatchEvent(
+                                new Event(
+                                    "change",
+                                    {
+                                        bubbles:
+                                            true,
+                                    }
+                                )
+                            );
+                        }
+                    }
+                );
+
+
+                syncSelectAll(
+                    table
+                );
+            }
+        );
+
+
+        syncSelectAll(
+            table
+        );
+    }
+
+
+    function installAll() {
+        document.querySelectorAll(
+            ".multi-switch-workspace table"
+        ).forEach(
+            table => {
+                if (
+                    interfaceCheckboxes(
+                        table
+                    ).length
+                ) {
+                    installSelectAll(
+                        table
+                    );
+                }
+            }
+        );
+    }
+
+
+    /*
+     * Quando o usuário marca/desmarca uma porta manualmente,
+     * atualiza checked/indeterminate do Select All.
+     */
+    document.addEventListener(
+        "change",
+        function (
+            event
+        ) {
+            const target =
+                event.target;
+
+
+            if (
+                !target
+                || target.type !== "checkbox"
+                || target.classList.contains(
+                    "multi-interface-select-all"
+                )
+            ) {
+                return;
+            }
+
+
+            const table =
+                target.closest(
+                    ".multi-switch-workspace table"
+                );
+
+
+            if (table) {
+                syncSelectAll(
+                    table
+                );
+            }
+        }
+    );
+
+
+    /*
+     * As tabelas são recriadas durante refresh do inventário.
+     * Reinstala o Select All sem alterar scroll ou seleção.
+     */
+    let refreshTimer = null;
+
+    const workspace =
+        document.querySelector(
+            ".multi-switch-workspace"
+        );
+
+
+    if (workspace) {
+        const observer =
+            new MutationObserver(
+                function () {
+                    window.clearTimeout(
+                        refreshTimer
+                    );
+
+                    refreshTimer =
+                        window.setTimeout(
+                            installAll,
+                            50
+                        );
+                }
+            );
+
+
+        observer.observe(
+            workspace,
+            {
+                childList:
+                    true,
+
+                subtree:
+                    true,
+            }
+        );
+    }
+
+
+    installAll();
+
+})();
+</script>
+
+
+<style id="multi-interface-select-all-alignment">
+
+/*
+ * Select All no cabeçalho da coluna INTERFACE.
+ *
+ * Mantém checkbox e título alinhados, mas com
+ * espaço visual suficiente entre os dois.
+ */
+
+.multi-interface-select-all-wrapper {
+    display:
+        inline-flex !important;
+
+    align-items:
+        center !important;
+
+    justify-content:
+        center !important;
+
+    vertical-align:
+        middle !important;
+
+    margin:
+        0 8px 0 0 !important;
+
+    padding:
+        0 !important;
+
+    line-height:
+        1 !important;
+}
+
+
+.multi-interface-select-all {
+    width:
+        14px !important;
+
+    height:
+        14px !important;
+
+    margin:
+        0 !important;
+
+    padding:
+        0 !important;
+
+    vertical-align:
+        middle !important;
+}
+
+
+/*
+ * Garante que o conteúdo do primeiro TH fique
+ * visualmente alinhado no centro vertical.
+ */
+
+.multi-switch-workspace table thead th:first-child {
+    vertical-align:
+        middle !important;
+
+    white-space:
+        nowrap !important;
 }
 
 </style>

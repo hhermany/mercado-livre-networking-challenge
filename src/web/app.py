@@ -32,6 +32,7 @@ from src.switch.service import (
     load_managed_switch_workspace,
     provision_interfaces_batch,
     provision_switch,
+    run_interface_quick_action,
     run_switch_ping,
     run_switch_traceroute,
     save_running_to_startup,
@@ -474,6 +475,202 @@ def api_remove_device(
                 "Equipamento não encontrado."
             ),
         }, 404
+
+
+
+@app.post("/api/devices/interfaces/quick-action")
+def api_multi_interface_quick_action():
+    payload = (
+        request.get_json(
+            silent=True
+        )
+        or {}
+    )
+
+    selections = payload.get(
+        "selections",
+        [],
+    )
+
+    action = str(
+        payload.get(
+            "action",
+            "",
+        )
+        or ""
+    ).strip().lower()
+
+
+    if action not in {
+        "default",
+        "bounce",
+    }:
+        return jsonify(
+            {
+                "success": False,
+                "error": (
+                    "Ação de interface inválida."
+                ),
+            }
+        ), 400
+
+
+    if (
+        not isinstance(
+            selections,
+            list,
+        )
+        or not selections
+    ):
+        return jsonify(
+            {
+                "success": False,
+                "error": (
+                    "Selecione pelo menos uma interface."
+                ),
+            }
+        ), 400
+
+
+    grouped = {}
+
+    for item in selections:
+        device_id = str(
+            item.get(
+                "device_id",
+                "",
+            )
+            or ""
+        ).strip()
+
+        interface = str(
+            item.get(
+                "interface",
+                "",
+            )
+            or ""
+        ).strip()
+
+        if (
+            not device_id
+            or not interface
+        ):
+            continue
+
+        grouped.setdefault(
+            device_id,
+            []
+        ).append(
+            interface
+        )
+
+
+    if not grouped:
+        return jsonify(
+            {
+                "success": False,
+                "error": (
+                    "Seleção de interfaces inválida."
+                ),
+            }
+        ), 400
+
+
+    workers = min(
+        device_manager.max_workers,
+        len(grouped),
+    )
+
+    results = []
+
+
+    def worker(
+        device_id,
+        interfaces,
+    ):
+        device = device_manager.get(
+            device_id
+        )
+
+        result = (
+            run_interface_quick_action(
+                **device.credentials(),
+                interfaces=interfaces,
+                action=action,
+            )
+        )
+
+        return {
+            "device": device.public(),
+            "success": True,
+            "result": result,
+        }
+
+
+    with ThreadPoolExecutor(
+        max_workers=workers
+    ) as executor:
+        futures = {
+            executor.submit(
+                worker,
+                device_id,
+                interfaces,
+            ): device_id
+            for device_id, interfaces
+            in grouped.items()
+        }
+
+
+        for future in as_completed(
+            futures
+        ):
+            device_id = futures[
+                future
+            ]
+
+            try:
+                results.append(
+                    future.result()
+                )
+
+            except Exception as exc:
+                try:
+                    device = (
+                        device_manager.get(
+                            device_id
+                        ).public()
+                    )
+
+                except Exception:
+                    device = {
+                        "id": device_id,
+                        "hostname": device_id,
+                        "host": "",
+                    }
+
+                results.append(
+                    {
+                        "device": device,
+                        "success": False,
+                        "error": str(exc),
+                    }
+                )
+
+
+    return jsonify(
+        {
+            "success": all(
+                item.get(
+                    "success",
+                    False,
+                )
+                for item
+                in results
+            ),
+            "action": action,
+            "results": results,
+        }
+    )
 
 
 @app.post("/api/devices/interfaces/configure")

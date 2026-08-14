@@ -1152,6 +1152,182 @@ class CiscoSwitch:
         }
 
 
+    def default_interfaces(
+        self,
+        interfaces,
+    ):
+        """
+        Restaura interfaces para a configuração padrão do IOS.
+
+        Equivalente a:
+            default interface <interface>
+        """
+        normalized_interfaces = list(
+            dict.fromkeys(
+                str(interface).strip()
+                for interface in interfaces
+                if str(interface).strip()
+            )
+        )
+
+        if not normalized_interfaces:
+            raise ValueError(
+                "Selecione pelo menos uma interface."
+            )
+
+        commands = [
+            f"default interface {interface}"
+            for interface in normalized_interfaces
+        ]
+
+        validation = {}
+
+        with self._connect() as conn:
+            if self.device["secret"]:
+                conn.enable()
+
+            output = conn.send_config_set(
+                commands
+            )
+
+            lowered = output.lower()
+
+            if (
+                "% invalid input" in lowered
+                or "% incomplete command" in lowered
+                or "% ambiguous command" in lowered
+            ):
+                raise RuntimeError(
+                    "IOS rejeitou o comando de restauração "
+                    "da interface."
+                )
+
+            for interface in normalized_interfaces:
+                running_interface = conn.send_command(
+                    f"show running-config interface {interface}"
+                )
+
+                interface_state = conn.send_command(
+                    f"show interfaces {interface}"
+                )
+
+                validation[interface] = {
+                    "running_config":
+                        running_interface,
+                    "interface_state":
+                        interface_state,
+                }
+
+            running_config = conn.send_command(
+                "show running-config"
+            )
+
+        return {
+            "output": output,
+            "validation": validation,
+            "running_config": running_config,
+        }
+
+
+    def bounce_interfaces(
+        self,
+        interfaces,
+    ):
+        """
+        Executa shutdown, aguarda 3 segundos e aplica
+        no shutdown nas interfaces selecionadas.
+        """
+        from time import sleep
+
+        normalized_interfaces = list(
+            dict.fromkeys(
+                str(interface).strip()
+                for interface in interfaces
+                if str(interface).strip()
+            )
+        )
+
+        if not normalized_interfaces:
+            raise ValueError(
+                "Selecione pelo menos uma interface."
+            )
+
+        validation = {}
+        outputs = []
+
+        with self._connect() as conn:
+            if self.device["secret"]:
+                conn.enable()
+
+            for interface in normalized_interfaces:
+                shutdown_output = conn.send_config_set(
+                    [
+                        f"interface {interface}",
+                        "shutdown",
+                    ]
+                )
+
+                outputs.append(
+                    shutdown_output
+                )
+
+            sleep(3)
+
+            for interface in normalized_interfaces:
+                no_shutdown_output = conn.send_config_set(
+                    [
+                        f"interface {interface}",
+                        "no shutdown",
+                    ]
+                )
+
+                outputs.append(
+                    no_shutdown_output
+                )
+
+            output = "\n".join(
+                outputs
+            )
+
+            lowered = output.lower()
+
+            if (
+                "% invalid input" in lowered
+                or "% incomplete command" in lowered
+                or "% ambiguous command" in lowered
+            ):
+                raise RuntimeError(
+                    "IOS rejeitou o Bounce da interface."
+                )
+
+            for interface in normalized_interfaces:
+                interface_state = conn.send_command(
+                    f"show interfaces {interface}"
+                )
+
+                running_interface = conn.send_command(
+                    f"show running-config interface {interface}"
+                )
+
+                validation[interface] = {
+                    "interface_state":
+                        interface_state,
+                    "running_config":
+                        running_interface,
+                }
+
+            running_config = conn.send_command(
+                "show running-config"
+            )
+
+        return {
+            "output": output,
+            "validation": validation,
+            "running_config": running_config,
+        }
+
+
+
     def configure_interfaces(
         self,
         interfaces,

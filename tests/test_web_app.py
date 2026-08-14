@@ -3708,3 +3708,170 @@ def test_multi_troubleshooting_trace_requires_devices(
     )
 
     assert response.status_code == 400
+
+
+def test_multi_interface_quick_actions_ui_exists(
+    monkeypatch,
+):
+    configure_test_environment(
+        monkeypatch
+    )
+
+    response = (
+        web_app.app.test_client().get("/")
+    )
+
+    html = response.data.decode()
+
+    assert response.status_code == 200
+
+    assert (
+        'id="multi-interface-default"'
+        in html
+    )
+
+    assert (
+        'id="multi-interface-bounce"'
+        in html
+    )
+
+    assert (
+        "Restaurar padrão"
+        in html
+    )
+
+    assert (
+        "Bounce (Shut/No Shut)"
+        in html
+    )
+
+
+def test_multi_interface_quick_action_requires_selection(
+    monkeypatch,
+):
+    configure_test_environment(
+        monkeypatch
+    )
+
+    response = (
+        web_app.app.test_client().post(
+            "/api/devices/interfaces/quick-action",
+            json={
+                "action":
+                    "bounce",
+
+                "selections":
+                    [],
+            },
+        )
+    )
+
+    assert response.status_code == 400
+
+
+def test_multi_interface_quick_action_rejects_invalid_action(
+    monkeypatch,
+):
+    configure_test_environment(
+        monkeypatch
+    )
+
+    response = (
+        web_app.app.test_client().post(
+            "/api/devices/interfaces/quick-action",
+            json={
+                "action":
+                    "destroy",
+
+                "selections": [
+                    {
+                        "device_id":
+                            "device-1",
+
+                        "interface":
+                            "GigabitEthernet0/1",
+                    }
+                ],
+            },
+        )
+    )
+
+    assert response.status_code == 400
+
+
+def test_quick_action_endpoint_does_not_require_cisco_port_argument(
+    monkeypatch,
+):
+    configure_test_environment(
+        monkeypatch
+    )
+
+    import src.web.app as app_module
+
+    app_module.device_manager.clear()
+
+    device = (
+        app_module.device_manager.add(
+            host="192.0.2.50",
+            username="admin",
+            password="password",
+        )
+    )
+
+    calls = []
+
+
+    def fake_quick_action(
+        **kwargs,
+    ):
+        calls.append(
+            kwargs
+        )
+
+        return {
+            "success": True,
+            "interface_results": {
+                "Gi1/1": {
+                    "success": True,
+                    "message": "Bounce concluído.",
+                }
+            },
+        }
+
+
+    monkeypatch.setattr(
+        app_module,
+        "run_interface_quick_action",
+        fake_quick_action,
+    )
+
+
+    response = (
+        app_module.app.test_client().post(
+            "/api/devices/interfaces/quick-action",
+            json={
+                "action": "bounce",
+                "selections": [
+                    {
+                        "device_id": device.id,
+                        "interface": "Gi1/1",
+                    }
+                ],
+            },
+        )
+    )
+
+
+    assert response.status_code == 200
+
+    assert len(calls) == 1
+
+    assert calls[0]["host"] == "192.0.2.50"
+    assert calls[0]["username"] == "admin"
+    assert calls[0]["password"] == "password"
+    assert calls[0]["interfaces"] == [
+        "Gi1/1"
+    ]
+    assert calls[0]["action"] == "bounce"
+
+    assert "port" not in calls[0]
