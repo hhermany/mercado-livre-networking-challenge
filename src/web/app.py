@@ -1,7 +1,14 @@
 import os
 
 from dotenv import load_dotenv
-from flask import Flask, redirect, render_template, request, url_for
+from flask import (
+    Flask,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    url_for,
+)
 
 from src.switch.batch import (
     build_selection_preview,
@@ -10,8 +17,11 @@ from src.switch.batch import (
 from src.switch.cisco import validate_switchport_change
 from src.switch.service import (
     get_switch_interfaces,
+    get_switch_l3_interfaces,
     provision_interfaces_batch,
     provision_switch,
+    run_switch_ping,
+    run_switch_traceroute,
 )
 
 load_dotenv(".env")
@@ -49,6 +59,8 @@ def render_page(
     result=None,
     error=None,
     batch_preview=None,
+    troubleshooting_result=None,
+    troubleshooting_error=None,
 ):
     (
         interfaces,
@@ -66,6 +78,8 @@ def render_page(
         inventory_error=inventory_error,
         capabilities=capabilities,
         batch_preview=batch_preview,
+        troubleshooting_result=troubleshooting_result,
+        troubleshooting_error=troubleshooting_error,
     )
 
 
@@ -348,6 +362,209 @@ def apply_ports():
     except Exception as exc:
         return render_page(
             error=str(exc),
+        )
+
+
+@app.get("/api/troubleshooting/interfaces")
+def troubleshooting_interfaces():
+    try:
+        result = get_switch_l3_interfaces(
+            **switch_credentials()
+        )
+
+        return jsonify(
+            {
+                "success": True,
+                "interfaces": result["interfaces"],
+            }
+        )
+
+    except Exception as exc:
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": str(exc),
+                    "interfaces": [],
+                }
+            ),
+            500,
+        )
+
+
+@app.post("/troubleshooting/ping")
+def troubleshooting_ping():
+    try:
+        source_interface = request.form.get(
+            "ping_source",
+            "",
+        ).strip()
+
+        targets = request.form.get(
+            "ping_targets",
+            "",
+        ).strip()
+
+        if not source_interface:
+            raise ValueError(
+                "Selecione uma interface L3 de origem."
+            )
+
+        def positive_int(field, label, default):
+            raw = request.form.get(
+                field,
+                str(default),
+            ).strip()
+
+            try:
+                value = int(raw)
+            except ValueError as exc:
+                raise ValueError(
+                    f"{label} deve ser um número inteiro."
+                ) from exc
+
+            if value < 1:
+                raise ValueError(
+                    f"{label} deve ser maior que zero."
+                )
+
+            return value
+
+        repeat = positive_int(
+            "ping_repeat",
+            "Quantidade de pacotes",
+            5,
+        )
+
+        timeout = positive_int(
+            "ping_timeout",
+            "Timeout",
+            2,
+        )
+
+        size = positive_int(
+            "ping_size",
+            "Tamanho do pacote",
+            100,
+        )
+
+        concurrency = positive_int(
+            "ping_concurrency",
+            "Concorrência",
+            4,
+        )
+
+        if concurrency > 8:
+            raise ValueError(
+                "A concorrência máxima permitida é 8."
+            )
+
+        df_bit = (
+            request.form.get(
+                "ping_df_bit"
+            )
+            == "on"
+        )
+
+        troubleshooting_result = {
+            "type": "ping",
+            **run_switch_ping(
+                **switch_credentials(),
+                source_interface=source_interface,
+                targets=targets,
+                repeat=repeat,
+                timeout=timeout,
+                size=size,
+                df_bit=df_bit,
+                concurrency=concurrency,
+            ),
+        }
+
+        return render_page(
+            troubleshooting_result=troubleshooting_result,
+        )
+
+    except Exception as exc:
+        return render_page(
+            troubleshooting_error=str(exc),
+        )
+
+
+@app.post("/troubleshooting/traceroute")
+def troubleshooting_traceroute():
+    try:
+        source_interface = request.form.get(
+            "trace_source",
+            "",
+        ).strip()
+
+        destination = request.form.get(
+            "trace_destination",
+            "",
+        ).strip()
+
+        if not source_interface:
+            raise ValueError(
+                "Selecione uma interface L3 de origem."
+            )
+
+        def positive_int(field, label, default):
+            raw = request.form.get(
+                field,
+                str(default),
+            ).strip()
+
+            try:
+                value = int(raw)
+            except ValueError as exc:
+                raise ValueError(
+                    f"{label} deve ser um número inteiro."
+                ) from exc
+
+            if value < 1:
+                raise ValueError(
+                    f"{label} deve ser maior que zero."
+                )
+
+            return value
+
+        timeout = positive_int(
+            "trace_timeout",
+            "Timeout",
+            1,
+        )
+
+        probe_count = positive_int(
+            "trace_probe_count",
+            "Probes por salto",
+            3,
+        )
+
+        max_ttl = positive_int(
+            "trace_max_ttl",
+            "TTL máximo",
+            20,
+        )
+
+        troubleshooting_result = {
+            "type": "traceroute",
+            **run_switch_traceroute(
+                **switch_credentials(),
+                source_interface=source_interface,
+                destination=destination,
+                timeout=timeout,
+                probe_count=probe_count,
+                max_ttl=max_ttl,
+            ),
+        }
+
+        return render_page(
+            troubleshooting_result=troubleshooting_result,
+        )
+
+    except Exception as exc:
+        return render_page(
+            troubleshooting_error=str(exc),
         )
 
 

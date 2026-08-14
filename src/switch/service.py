@@ -991,7 +991,7 @@ def provision_interfaces_batch(
     }
 
 
-def get_switch_svis(
+def get_switch_l3_interfaces(
     host,
     username,
     password,
@@ -1004,7 +1004,7 @@ def get_switch_svis(
         secret=secret,
     )
 
-    return switch.list_svis()
+    return switch.list_l3_interfaces()
 
 
 def run_switch_ping(
@@ -1016,25 +1016,37 @@ def run_switch_ping(
     secret="",
     repeat=5,
     timeout=2,
+    size=100,
+    df_bit=False,
+    concurrency=4,
 ):
+    from concurrent.futures import ThreadPoolExecutor
+
     from src.switch.troubleshooting import (
         parse_ipv4_targets,
         parse_ping_result,
-        validate_source_svi,
+        split_targets_for_workers,
+        validate_source_interface,
     )
 
-    switch = CiscoSwitch(
+    if concurrency < 1 or concurrency > 8:
+        raise ValueError(
+            "A concorrência deve estar entre 1 e 8."
+        )
+
+    inventory_switch = CiscoSwitch(
         host=host,
         username=username,
         password=password,
         secret=secret,
     )
 
-    svi_inventory = switch.list_svis()
-    svis = svi_inventory["svis"]
+    inventory = (
+        inventory_switch.list_l3_interfaces()
+    )
 
-    source = validate_source_svi(
-        svis,
+    source = validate_source_interface(
+        inventory["interfaces"],
         source_interface,
     )
 
@@ -1044,36 +1056,99 @@ def run_switch_ping(
         else ",".join(targets)
     )
 
-    results = []
+    chunks = split_targets_for_workers(
+        destinations,
+        concurrency,
+    )
 
-    for destination in destinations:
-        execution = switch.ping(
-            destination=destination,
+    worker_count = len(chunks)
+
+    def execute_chunk(chunk):
+        worker_switch = CiscoSwitch(
+            host=host,
+            username=username,
+            password=password,
+            secret=secret,
+        )
+
+        return worker_switch.ping_many(
+            destinations=chunk,
             source_interface=source["name"],
             repeat=repeat,
             timeout=timeout,
+            size=size,
+            df_bit=df_bit,
         )
 
+    if worker_count == 1:
+        batch_results = [
+            execute_chunk(
+                chunks[0]
+            )
+        ]
+    else:
+        with ThreadPoolExecutor(
+            max_workers=worker_count
+        ) as executor:
+            batch_results = list(
+                executor.map(
+                    execute_chunk,
+                    chunks,
+                )
+            )
+
+    # executor.map preserva a ordem dos chunks.
+    executions = [
+        execution
+        for batch in batch_results
+        for execution in batch
+    ]
+
+    results = []
+
+    for execution in executions:
         parsed = parse_ping_result(
             execution["output"]
         )
 
         results.append(
             {
-                "destination": destination,
+                "destination": execution[
+                    "destination"
+                ],
                 "source_interface": source["name"],
                 "source_ip": source["ip_address"],
                 "command": execution["command"],
                 "output": execution["output"],
+                "repeat": repeat,
+                "timeout": timeout,
+                "size": size,
+                "df_bit": df_bit,
                 **parsed,
             }
         )
 
+    reachable = sum(
+        1
+        for item in results
+        if item["success"]
+    )
+
     return {
         "source": source,
         "count": len(results),
+        "reachable": reachable,
+        "unreachable": (
+            len(results) - reachable
+        ),
+        "repeat": repeat,
+        "timeout": timeout,
+        "size": size,
+        "df_bit": df_bit,
+        "concurrency": worker_count,
         "results": results,
     }
+
 
 
 def run_switch_traceroute(
@@ -1083,10 +1158,14 @@ def run_switch_traceroute(
     source_interface,
     destination,
     secret="",
+    timeout=1,
+    probe_count=3,
+    max_ttl=20,
 ):
     from src.switch.troubleshooting import (
+        extract_traceroute_result,
         parse_ipv4_targets,
-        validate_source_svi,
+        validate_source_interface,
     )
 
     switch = CiscoSwitch(
@@ -1096,30 +1175,40 @@ def run_switch_traceroute(
         secret=secret,
     )
 
-    svi_inventory = switch.list_svis()
-    svis = svi_inventory["svis"]
+    inventory = switch.list_l3_interfaces()
 
-    source = validate_source_svi(
-        svis,
+    source = validate_source_interface(
+        inventory["interfaces"],
         source_interface,
     )
 
-    destinations = parse_ipv4_targets(
+    target = parse_ipv4_targets(
         destination,
         max_targets=1,
-    )
-
-    target = destinations[0]
+    )[0]
 
     execution = switch.traceroute(
         destination=target,
         source_ip=source["ip_address"],
+        timeout=timeout,
+        probe_count=probe_count,
+        max_ttl=max_ttl,
     )
+
+    raw_output = execution[
+        "output"
+    ]
 
     return {
         "destination": target,
         "source_interface": source["name"],
         "source_ip": source["ip_address"],
         "mode": execution["mode"],
-        "output": execution["output"],
+        "timeout": timeout,
+        "probe_count": probe_count,
+        "max_ttl": max_ttl,
+        "output": extract_traceroute_result(
+            raw_output
+        ),
+        "raw_output": raw_output,
     }

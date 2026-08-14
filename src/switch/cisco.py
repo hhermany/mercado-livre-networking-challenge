@@ -66,6 +66,74 @@ def normalize_interface_name(interface):
     ).lower()
 
 
+def parse_etherchannel_members(output):
+    members = {}
+
+    for raw_line in output.splitlines():
+        line = raw_line.strip()
+
+        if not line:
+            continue
+
+        match = re.match(
+            r"^(\d+)\s+"
+            r"(Po\d+)\([^)]*\)\s+"
+            r"\S+\s+"
+            r"(.+)$",
+            line,
+        )
+
+        if not match:
+            continue
+
+        port_channel = match.group(2)
+        ports_text = match.group(3)
+
+        for port_match in re.finditer(
+            r"([A-Za-z]+\d+(?:/\d+)+)\([^)]*\)",
+            ports_text,
+        ):
+            interface = port_match.group(1)
+
+            members[
+                normalize_interface_name(
+                    interface
+                )
+            ] = port_channel
+
+    return members
+
+
+def enrich_interfaces_with_etherchannel(
+    interfaces,
+    members,
+):
+    enriched = []
+
+    for item in interfaces:
+        normalized = normalize_interface_name(
+            item["name"]
+        )
+
+        port_channel = members.get(
+            normalized
+        )
+
+        enriched.append(
+            {
+                **item,
+                "port_channel": port_channel,
+                "port_channel_label": (
+                    port_channel
+                    if port_channel
+                    else "--"
+                ),
+            }
+        )
+
+    return enriched
+
+
 def parse_interface_status(output):
     interfaces = []
 
@@ -127,6 +195,207 @@ def parse_interface_status(output):
         )
 
     return interfaces
+
+
+def parse_switchport_details(output):
+    details = {}
+    current_interface = None
+
+    for raw_line in output.splitlines():
+        line = raw_line.strip()
+
+        if line.startswith("Name:"):
+            current_interface = line.split(
+                ":",
+                1,
+            )[1].strip()
+
+            details[
+                normalize_interface_name(
+                    current_interface
+                )
+            ] = {
+                "mode": None,
+                "access_vlan": None,
+                "voice_vlan": None,
+                "trunk_vlans": None,
+            }
+
+            continue
+
+        if current_interface is None:
+            continue
+
+        normalized = normalize_interface_name(
+            current_interface
+        )
+
+        item = details[normalized]
+
+        if line.startswith(
+            "Administrative Mode:"
+        ):
+            value = line.split(
+                ":",
+                1,
+            )[1].strip().lower()
+
+            if "trunk" in value:
+                item["mode"] = "trunk"
+
+            elif (
+                "static access" in value
+                or value == "access"
+            ):
+                item["mode"] = "access"
+
+        elif line.startswith(
+            "Operational Mode:"
+        ):
+            value = line.split(
+                ":",
+                1,
+            )[1].strip().lower()
+
+            # Operational trunk é evidência mais forte.
+            if value == "trunk":
+                item["mode"] = "trunk"
+
+            elif (
+                item["mode"] is None
+                and value == "static access"
+            ):
+                item["mode"] = "access"
+
+        elif line.startswith(
+            "Access Mode VLAN:"
+        ):
+            value = line.split(
+                ":",
+                1,
+            )[1].strip()
+
+            if (
+                value
+                and value.lower()
+                != "unassigned"
+            ):
+                vlan = value.split(
+                    None,
+                    1,
+                )[0]
+
+                if vlan.isdigit():
+                    item["access_vlan"] = vlan
+
+        elif line.startswith(
+            "Voice VLAN:"
+        ):
+            value = line.split(
+                ":",
+                1,
+            )[1].strip()
+
+            if value.lower() != "none":
+                vlan = value.split(
+                    None,
+                    1,
+                )[0]
+
+                if vlan.isdigit():
+                    item["voice_vlan"] = vlan
+
+        elif line.startswith(
+            "Trunking VLANs Enabled:"
+        ):
+            value = line.split(
+                ":",
+                1,
+            )[1].strip()
+
+            if value:
+                item["trunk_vlans"] = value
+
+    return details
+
+
+def enrich_interfaces_with_switchport_details(
+    interfaces,
+    switchport_details,
+):
+    enriched = []
+
+    for item in interfaces:
+        normalized = normalize_interface_name(
+            item["name"]
+        )
+
+        switchport = switchport_details.get(
+            normalized,
+            {},
+        )
+
+        mode = switchport.get(
+            "mode"
+        )
+
+        access_vlan = switchport.get(
+            "access_vlan"
+        )
+
+        trunk_vlans = switchport.get(
+            "trunk_vlans"
+        )
+
+        if (
+            item.get("vlan") == "routed"
+            or item.get("mode_label") == "Routed"
+        ):
+            mode_label = "ROUTED"
+
+        elif mode == "trunk":
+            if trunk_vlans:
+                mode_label = (
+                    "TRUNK · VLANs "
+                    f"{trunk_vlans}"
+                )
+            else:
+                mode_label = "TRUNK"
+
+        elif mode == "access":
+            vlan = (
+                access_vlan
+                or item.get("vlan")
+            )
+
+            if (
+                vlan
+                and str(vlan).isdigit()
+            ):
+                mode_label = (
+                    f"ACCESS · VLAN {vlan}"
+                )
+            else:
+                mode_label = "ACCESS"
+
+        else:
+            # Mantém compatibilidade com inventário legado.
+            mode_label = item.get(
+                "mode_label",
+                "--",
+            )
+
+        enriched.append(
+            {
+                **item,
+                "switchport_mode": mode,
+                "access_vlan": access_vlan,
+                "trunk_vlans": trunk_vlans,
+                "mode_label": mode_label,
+            }
+        )
+
+    return enriched
 
 
 def parse_voice_vlans(output):
@@ -471,6 +740,9 @@ class CiscoSwitch:
             switchport_output = conn.send_command(
                 "show interfaces switchport"
             )
+            etherchannel_output = conn.send_command(
+                "show etherchannel summary"
+            )
             vlan_state = conn.send_command("show vlan brief")
             stp_summary = conn.send_command(
                 "show spanning-tree summary"
@@ -490,6 +762,24 @@ class CiscoSwitch:
         interfaces = enrich_interfaces_with_descriptions(
             interfaces,
             descriptions,
+        )
+
+        switchport_details = parse_switchport_details(
+            switchport_output
+        )
+
+        interfaces = enrich_interfaces_with_switchport_details(
+            interfaces,
+            switchport_details,
+        )
+
+        etherchannel_members = parse_etherchannel_members(
+            etherchannel_output
+        )
+
+        interfaces = enrich_interfaces_with_etherchannel(
+            interfaces,
+            etherchannel_members,
         )
 
         voice_vlans = parse_voice_vlans(
@@ -520,8 +810,10 @@ class CiscoSwitch:
             ),
         }
 
-    def list_svis(self):
-        from src.switch.troubleshooting import parse_svi_interfaces
+    def list_l3_interfaces(self):
+        from src.switch.troubleshooting import (
+            parse_l3_interfaces,
+        )
 
         with self._connect() as conn:
             if self.device["secret"]:
@@ -532,9 +824,117 @@ class CiscoSwitch:
             )
 
         return {
-            "svis": parse_svi_interfaces(output),
+            "interfaces": parse_l3_interfaces(
+                output
+            ),
             "raw": output,
         }
+
+    @staticmethod
+    def build_ping_command(
+        destination,
+        source_interface,
+        repeat=5,
+        timeout=2,
+        size=100,
+        df_bit=False,
+    ):
+        command_parts = [
+            "ping",
+            destination,
+            "source",
+            source_interface,
+            "repeat",
+            str(repeat),
+            "timeout",
+            str(timeout),
+            "size",
+            str(size),
+        ]
+
+        if df_bit:
+            command_parts.append(
+                "df-bit"
+            )
+
+        return " ".join(command_parts)
+
+    @staticmethod
+    def _validate_ping_output(output):
+        lowered = output.lower()
+
+        if (
+            "% invalid input" in lowered
+            or "% incomplete command" in lowered
+            or "% ambiguous command" in lowered
+        ):
+            raise RuntimeError(
+                "IOS rejeitou a execução do Ping."
+            )
+
+    @staticmethod
+    def validate_ping_output(output):
+        lowered = output.lower()
+
+        if (
+            "% invalid input" in lowered
+            or "% incomplete command" in lowered
+            or "% ambiguous command" in lowered
+        ):
+            raise RuntimeError(
+                "IOS rejeitou a execução do Ping."
+            )
+
+    def ping_many(
+        self,
+        destinations,
+        source_interface,
+        repeat=5,
+        timeout=2,
+        size=100,
+        df_bit=False,
+    ):
+        """
+        Executa vários pings reutilizando uma única
+        sessão SSH para todo o lote deste worker.
+        """
+        results = []
+
+        with self._connect() as conn:
+            if self.device["secret"]:
+                conn.enable()
+
+            for destination in destinations:
+                command = self.build_ping_command(
+                    destination=destination,
+                    source_interface=source_interface,
+                    repeat=repeat,
+                    timeout=timeout,
+                    size=size,
+                    df_bit=df_bit,
+                )
+
+                output = conn.send_command(
+                    command,
+                    read_timeout=max(
+                        15,
+                        repeat * timeout + 10,
+                    ),
+                )
+
+                self.validate_ping_output(
+                    output
+                )
+
+                results.append(
+                    {
+                        "destination": destination,
+                        "command": command,
+                        "output": output,
+                    }
+                )
+
+        return results
 
     def ping(
         self,
@@ -542,135 +942,140 @@ class CiscoSwitch:
         source_interface,
         repeat=5,
         timeout=2,
+        size=100,
+        df_bit=False,
     ):
-        command = (
-            f"ping {destination} "
-            f"source {source_interface} "
-            f"repeat {repeat} "
-            f"timeout {timeout}"
+        return self.ping_many(
+            destinations=[destination],
+            source_interface=source_interface,
+            repeat=repeat,
+            timeout=timeout,
+            size=size,
+            df_bit=df_bit,
+        )[0]
+
+
+    def traceroute(
+        self,
+        destination,
+        source_ip,
+        timeout=1,
+        probe_count=3,
+        max_ttl=20,
+    ):
+        transcript = []
+
+        dialog = (
+            (
+                "traceroute",
+                "Protocol",
+            ),
+            (
+                "",
+                "Target IP address",
+            ),
+            (
+                destination,
+                "Source address",
+            ),
+            (
+                source_ip,
+                "Numeric display",
+            ),
+            (
+                "",
+                "Timeout in seconds",
+            ),
+            (
+                str(timeout),
+                "Probe count",
+            ),
+            (
+                str(probe_count),
+                "Minimum Time to Live",
+            ),
+            (
+                "",
+                "Maximum Time to Live",
+            ),
+            (
+                str(max_ttl),
+                "Port Number",
+            ),
+            (
+                "",
+                (
+                    "Loose, Strict, Record, "
+                    "Timestamp, Verbose"
+                ),
+            ),
         )
 
         with self._connect() as conn:
             if self.device["secret"]:
                 conn.enable()
 
-            output = conn.send_command(
-                command,
-                read_timeout=30,
-            )
-
-        return {
-            "command": command,
-            "output": output,
-        }
-
-    def traceroute(
-        self,
-        destination,
-        source_ip,
-    ):
-        transcript = []
-
-        with self._connect() as conn:
-            if self.device["secret"]:
-                conn.enable()
-
-            output = conn.send_command_timing(
-                "traceroute",
-                strip_prompt=False,
-                strip_command=False,
-            )
-            transcript.append(output)
-
-            if "Protocol" not in output:
-                raise RuntimeError(
-                    "Extended Traceroute não apresentou "
-                    "o prompt de protocolo."
+            for answer, expected_prompt in dialog:
+                output = conn.send_command_timing(
+                    answer,
+                    strip_prompt=False,
+                    strip_command=False,
                 )
 
+                transcript.append(
+                    output
+                )
+
+                if expected_prompt not in output:
+                    raise RuntimeError(
+                        "Extended Traceroute não apresentou "
+                        "o prompt esperado: "
+                        f"{expected_prompt}"
+                    )
+
+            # Aceita opções avançadas padrão e inicia.
             output = conn.send_command_timing(
                 "",
                 strip_prompt=False,
                 strip_command=False,
-            )
-            transcript.append(output)
-
-            if "Target IP address" not in output:
-                raise RuntimeError(
-                    "Extended Traceroute não apresentou "
-                    "o prompt de destino."
-                )
-
-            output = conn.send_command_timing(
-                destination,
-                strip_prompt=False,
-                strip_command=False,
-            )
-            transcript.append(output)
-
-            if "Source address" not in output:
-                raise RuntimeError(
-                    "Extended Traceroute não apresentou "
-                    "o prompt de source."
-                )
-
-            output = conn.send_command_timing(
-                source_ip,
-                strip_prompt=False,
-                strip_command=False,
-            )
-            transcript.append(output)
-
-            default_prompts = (
-                "Numeric display",
-                "Timeout in seconds",
-                "Probe count",
-                "Minimum Time to Live",
-                "Maximum Time to Live",
-                "Port Number",
-                "Loose, Strict, Record, Timestamp, Verbose",
-            )
-
-            for expected_prompt in default_prompts:
-                if expected_prompt not in output:
-                    raise RuntimeError(
-                        "Extended Traceroute não apresentou "
-                        f"o prompt esperado: {expected_prompt}"
+                read_timeout=max(
+                    30,
+                    (
+                        timeout
+                        * probe_count
+                        * max_ttl
                     )
+                    + 15,
+                ),
+            )
 
-                output = conn.send_command_timing(
-                    "",
-                    strip_prompt=False,
-                    strip_command=False,
-                )
-                transcript.append(output)
+            transcript.append(
+                output
+            )
 
-            full_output = "".join(transcript)
-
-            if (
-                "Tracing the route" not in full_output
-                and "Type escape sequence" not in full_output
-            ):
-                output = conn.send_command_timing(
-                    "",
-                    strip_prompt=False,
-                    strip_command=False,
-                )
-                transcript.append(output)
-
-                full_output = "".join(transcript)
+        full_output = "".join(
+            transcript
+        )
 
         lowered = full_output.lower()
 
         if "% invalid input" in lowered:
             raise RuntimeError(
-                "IOS rejeitou a execução do Extended Traceroute."
+                "IOS rejeitou o Extended Traceroute."
+            )
+
+        if "tracing the route" not in lowered:
+            raise RuntimeError(
+                "IOS não iniciou corretamente o traceroute."
             )
 
         return {
             "mode": "extended",
             "destination": destination,
             "source_ip": source_ip,
+            "timeout": timeout,
+            "probe_count": probe_count,
+            "max_ttl": max_ttl,
             "output": full_output,
         }
 

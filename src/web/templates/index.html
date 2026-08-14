@@ -32,7 +32,7 @@ body {
 }
 
 .container {
-    max-width: 1380px;
+    max-width: 1540px;
     margin: 0 auto;
     padding: 28px 24px 60px;
 }
@@ -152,6 +152,56 @@ button:hover {
 table thead th {
     text-align: center;
 }
+
+table.interface-inventory {
+    table-layout: fixed;
+    width: 100%;
+}
+
+table.interface-inventory th:nth-child(1),
+table.interface-inventory td:nth-child(1) {
+    width: 12%;
+}
+
+table.interface-inventory th:nth-child(2),
+table.interface-inventory td:nth-child(2) {
+    width: 24%;
+}
+
+table.interface-inventory th:nth-child(3),
+table.interface-inventory td:nth-child(3) {
+    width: 12%;
+}
+
+table.interface-inventory th:nth-child(4),
+table.interface-inventory td:nth-child(4) {
+    width: 10%;
+}
+
+table.interface-inventory th:nth-child(5),
+table.interface-inventory td:nth-child(5) {
+    width: 10%;
+}
+
+table.interface-inventory th:nth-child(6),
+table.interface-inventory td:nth-child(6) {
+    width: 11%;
+}
+
+table.interface-inventory th:nth-child(7),
+table.interface-inventory td:nth-child(7) {
+    width: 11%;
+}
+
+table.interface-inventory th:nth-child(8),
+table.interface-inventory td:nth-child(8) {
+    width: 10%;
+}
+
+table.interface-inventory td {
+    overflow-wrap: anywhere;
+}
+
 
 .interface-inventory-row td {
     text-align: center;
@@ -542,9 +592,156 @@ pre {
     margin: 3px 0;
 }
 
+.troubleshooting-grid {
+    display: grid;
+    grid-template-columns:
+        repeat(2, minmax(0, 1fr));
+    gap: 18px;
+}
+
+.troubleshooting-tool {
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    padding: 18px;
+    background: #fafbfc;
+}
+
+.troubleshooting-tool h3 {
+    margin-top: 0;
+    margin-bottom: 6px;
+}
+
+.traceroute-options {
+    display: grid;
+    grid-template-columns:
+        repeat(3, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.ping-options {
+    display: grid;
+    grid-template-columns:
+        repeat(3, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.checkbox-option {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 13px;
+}
+
+.checkbox-option input {
+    width: auto;
+    margin: 0;
+}
+
+.ping-estimate {
+    padding: 9px 11px;
+    border-radius: 6px;
+    background: #f1f5f8;
+    color: var(--muted);
+    font-size: 12px;
+}
+
+.ping-estimate-large {
+    background: #fff5dc;
+    color: #765900;
+    border: 1px solid #dfc06b;
+}
+
+.troubleshooting-fields {
+    display: grid;
+    gap: 12px;
+    margin-top: 16px;
+}
+
+.trace-result {
+    margin-top: 12px;
+    border: 1px solid #d7dee5;
+    border-radius: 7px;
+    background: #f7f9fb;
+    overflow: hidden;
+}
+
+.trace-output {
+    margin: 0;
+    padding: 14px 18px;
+
+    background: transparent;
+    color: #17212b;
+
+    font-family:
+        ui-monospace,
+        SFMono-Regular,
+        Menlo,
+        Monaco,
+        Consolas,
+        "Liberation Mono",
+        monospace;
+
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.55;
+
+    white-space: pre-wrap;
+    overflow-wrap: normal;
+    overflow-x: auto;
+}
+
+.troubleshooting-result {
+    margin-top: 18px;
+}
+
+.ping-result-table td,
+.ping-result-table th {
+    text-align: center;
+}
+
+.ping-result-success {
+    color: #237a3b;
+    font-weight: 700;
+}
+
+.ping-result-failure {
+    color: #a12622;
+    font-weight: 700;
+}
+
+.troubleshooting-meta {
+    margin-bottom: 12px;
+    color: var(--muted);
+    font-size: 13px;
+}
+
+details.raw-output {
+    margin-top: 10px;
+}
+
+details.raw-output summary {
+    cursor: pointer;
+    color: var(--primary);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.svi-loading {
+    color: var(--muted);
+}
+
 @media (max-width: 900px) {
     .port-grid {
         grid-template-columns: repeat(2, 1fr);
+    }
+
+    .troubleshooting-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .traceroute-options {
+        grid-template-columns: 1fr;
     }
 }
 
@@ -683,14 +880,16 @@ pre {
     {% elif interfaces %}
     <div class="table-wrap">
 
-        <table>
+        <table class="interface-inventory">
             <thead>
             <tr>
                 <th>Interface</th>
                 <th class="description-column">Descrição</th>
                 <th>Estado</th>
-                <th>VLAN / Modo</th>
+                <th>Modo</th>
+                <th>VLAN</th>
                 <th>VLAN de Voz</th>
+                <th>Port-Channel</th>
                 <th>PortFast</th>
             </tr>
             </thead>
@@ -732,11 +931,33 @@ pre {
                 </td>
 
                 <td>
-                    {{ item.mode_label }}
+                    {% if item.switchport_mode == "trunk" %}
+                        TRUNK
+                    {% elif item.switchport_mode == "access" %}
+                        ACCESS
+                    {% elif item.mode_label == "ROUTED" %}
+                        ROUTED
+                    {% else %}
+                        --
+                    {% endif %}
+                </td>
+
+                <td>
+                    {% if item.switchport_mode == "trunk" %}
+                        {{ item.trunk_vlans or "--" }}
+                    {% elif item.switchport_mode == "access" %}
+                        {{ item.access_vlan or item.vlan or "--" }}
+                    {% else %}
+                        --
+                    {% endif %}
                 </td>
 
                 <td>
                     {{ item.voice_vlan_label or "--" }}
+                </td>
+
+                <td>
+                    {{ item.port_channel_label or "--" }}
                 </td>
 
                 <td>
@@ -1014,6 +1235,397 @@ pre {
         </div>
 
     </form>
+</div>
+
+
+<div class="card">
+    <h2>Troubleshooting</h2>
+
+    <div class="help">
+        Execute testes de conectividade diretamente pelo switch,
+        utilizando uma interface L3 operacional como origem.
+    </div>
+
+    {% if troubleshooting_error %}
+    <div class="error troubleshooting-result">
+        <strong>ERRO</strong><br>
+        {{ troubleshooting_error }}
+    </div>
+    {% endif %}
+
+    <div class="troubleshooting-grid">
+
+        <div class="troubleshooting-tool">
+            <h3>Ping</h3>
+
+            <div class="help">
+                Aceita um IP, vários IPs separados por vírgula
+                ou um intervalo, por exemplo
+                192.168.10.1-192.168.10.5.
+            </div>
+
+            <form method="post" action="/troubleshooting/ping">
+                <div class="troubleshooting-fields">
+
+                    <div class="field">
+                        <label for="ping_source">
+                            Interface de origem
+                        </label>
+
+                        <select
+                            id="ping_source"
+                            name="ping_source"
+                            class="l3-source-select"
+                            required
+                        >
+                            <option value="">
+                                Carregando interfaces L3...
+                            </option>
+                        </select>
+                    </div>
+
+                    <div class="field">
+                        <label for="ping_targets">
+                            Destinos
+                        </label>
+
+                        <input
+                            id="ping_targets"
+                            name="ping_targets"
+                            placeholder="8.8.8.8, 1.1.1.1 ou 192.168.10.1-192.168.10.5"
+                            required
+                        >
+                    </div>
+
+                    <div class="ping-options">
+
+                        <div class="field">
+                            <label for="ping_repeat">
+                                Pacotes por destino
+                            </label>
+
+                            <input
+                                id="ping_repeat"
+                                name="ping_repeat"
+                                type="number"
+                                min="1"
+                                step="1"
+                                value="5"
+                                required
+                            >
+                        </div>
+
+                        <div class="field">
+                            <label for="ping_timeout">
+                                Timeout por pacote
+                            </label>
+
+                            <input
+                                id="ping_timeout"
+                                name="ping_timeout"
+                                type="number"
+                                min="1"
+                                step="1"
+                                value="2"
+                                required
+                            >
+
+                            <div class="help">
+                                Segundos.
+                            </div>
+                        </div>
+
+                        <div class="field">
+                            <label for="ping_size">
+                                Tamanho do pacote
+                            </label>
+
+                            <input
+                                id="ping_size"
+                                name="ping_size"
+                                type="number"
+                                min="1"
+                                step="1"
+                                value="100"
+                                required
+                            >
+
+                            <div class="help">
+                                Bytes.
+                            </div>
+                        </div>
+
+                        <div class="field">
+                            <label for="ping_concurrency">
+                                Paralelismo
+                            </label>
+
+                            <input
+                                id="ping_concurrency"
+                                name="ping_concurrency"
+                                type="number"
+                                min="1"
+                                max="8"
+                                step="1"
+                                value="4"
+                                required
+                            >
+
+                            <div class="help">
+                                Execuções simultâneas para acelerar
+                                testes em lote. Máximo: 8.
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <label class="checkbox-option">
+                        <input
+                            type="checkbox"
+                            id="ping_df_bit"
+                            name="ping_df_bit"
+                        >
+                        Não fragmentar (DF)
+                    </label>
+
+                    <div
+                        id="ping-estimate"
+                        class="ping-estimate"
+                    >
+                        Informe os destinos para calcular
+                        o tamanho estimado do teste.
+                    </div>
+
+                </div>
+
+                <div class="actions">
+                    <button type="submit">
+                        Executar Ping
+                    </button>
+                </div>
+            </form>
+        </div>
+
+
+        <div class="troubleshooting-tool">
+            <h3>Traceroute</h3>
+
+            <div class="help">
+                Executa Extended Traceroute usando o endereço IP
+                da interface L3 selecionada como source.
+            </div>
+
+            <form
+                method="post"
+                action="/troubleshooting/traceroute"
+            >
+                <div class="troubleshooting-fields">
+
+                    <div class="field">
+                        <label for="trace_source">
+                            Interface de origem
+                        </label>
+
+                        <select
+                            id="trace_source"
+                            name="trace_source"
+                            class="l3-source-select"
+                            required
+                        >
+                            <option value="">
+                                Carregando interfaces L3...
+                            </option>
+                        </select>
+                    </div>
+
+                    <div class="field">
+                        <label for="trace_destination">
+                            Destino
+                        </label>
+
+                        <input
+                            id="trace_destination"
+                            name="trace_destination"
+                            placeholder="Ex.: 8.8.8.8"
+                            required
+                        >
+                    </div>
+
+                    <div class="traceroute-options">
+
+                        <div class="field">
+                            <label for="trace_timeout">
+                                Timeout por probe
+                            </label>
+
+                            <input
+                                id="trace_timeout"
+                                name="trace_timeout"
+                                type="number"
+                                min="1"
+                                step="1"
+                                value="1"
+                                required
+                            >
+
+                            <div class="help">
+                                Segundos de espera por probe.
+                            </div>
+                        </div>
+
+                        <div class="field">
+                            <label for="trace_probe_count">
+                                Probes por salto
+                            </label>
+
+                            <input
+                                id="trace_probe_count"
+                                name="trace_probe_count"
+                                type="number"
+                                min="1"
+                                step="1"
+                                value="3"
+                                required
+                            >
+
+                            <div class="help">
+                                Use 1 para um traceroute mais rápido.
+                            </div>
+                        </div>
+
+                        <div class="field">
+                            <label for="trace_max_ttl">
+                                TTL máximo
+                            </label>
+
+                            <input
+                                id="trace_max_ttl"
+                                name="trace_max_ttl"
+                                type="number"
+                                min="1"
+                                step="1"
+                                value="20"
+                                required
+                            >
+
+                            <div class="help">
+                                Número máximo de saltos.
+                            </div>
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <div class="actions">
+                    <button type="submit">
+                        Executar Traceroute
+                    </button>
+                </div>
+            </form>
+        </div>
+
+    </div>
+
+
+    {% if troubleshooting_result %}
+    <div class="subsection troubleshooting-result">
+
+        {% if troubleshooting_result.type == "ping" %}
+        <h3>Resultado do Ping</h3>
+
+        <div class="troubleshooting-meta">
+            Source:
+            {{ troubleshooting_result.source.name }}
+            ({{ troubleshooting_result.source.ip_address }})
+            ·
+            {{ troubleshooting_result.count }}
+            destino{% if troubleshooting_result.count != 1 %}s{% endif %}
+            ·
+            <span class="ping-result-success">
+                {{ troubleshooting_result.reachable }} respondendo
+            </span>
+            ·
+            <span class="ping-result-failure">
+                {{ troubleshooting_result.unreachable }} sem resposta
+            </span>
+        </div>
+
+        <div class="table-wrap">
+            <table class="ping-result-table">
+                <thead>
+                <tr>
+                    <th>Destino</th>
+                    <th>Resultado</th>
+                    <th>Recebidos</th>
+                    <th>RTT Min</th>
+                    <th>RTT Médio</th>
+                    <th>RTT Máx</th>
+                </tr>
+                </thead>
+
+                <tbody>
+                {% for item in troubleshooting_result.results %}
+                <tr>
+                    <td>{{ item.destination }}</td>
+
+                    <td class="{{
+                        'ping-result-success'
+                        if item.success
+                        else 'ping-result-failure'
+                    }}">
+                        {% if item.success_rate is not none %}
+                            {{ item.success_rate }}%
+                        {% else %}
+                            Falha
+                        {% endif %}
+                    </td>
+
+                    <td>
+                        {% if item.received is not none %}
+                        {{ item.received }}/{{ item.sent }}
+                        {% else %}
+                        --
+                        {% endif %}
+                    </td>
+
+                    <td>
+                        {{ item.rtt_min_ms if item.rtt_min_ms is not none else '--' }}
+                    </td>
+
+                    <td>
+                        {{ item.rtt_avg_ms if item.rtt_avg_ms is not none else '--' }}
+                    </td>
+
+                    <td>
+                        {{ item.rtt_max_ms if item.rtt_max_ms is not none else '--' }}
+                    </td>
+                </tr>
+
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% elif troubleshooting_result.type == "traceroute" %}
+        <h3>Resultado do Traceroute</h3>
+
+        <div class="troubleshooting-meta">
+            Source:
+            {{ troubleshooting_result.source_interface }}
+            ({{ troubleshooting_result.source_ip }})
+            ·
+            Destino:
+            {{ troubleshooting_result.destination }}
+        </div>
+
+        <div class="trace-result">
+            <pre class="trace-output">{{ troubleshooting_result.output }}</pre>
+        </div>
+        {% endif %}
+
+    </div>
+    {% endif %}
 </div>
 
 
@@ -1414,6 +2026,274 @@ removeVoice.addEventListener(
 );
 
 
+function countPingTargets(value) {
+    if (!value.trim()) {
+        return 0;
+    }
+
+    let total = 0;
+
+    for (const rawEntry of value.split(",")) {
+        const entry = rawEntry.trim();
+
+        if (!entry) {
+            continue;
+        }
+
+        if (!entry.includes("-")) {
+            total += 1;
+            continue;
+        }
+
+        const parts = entry.split("-");
+
+        if (parts.length !== 2) {
+            continue;
+        }
+
+        const toNumber = ip => {
+            const octets = ip
+                .trim()
+                .split(".")
+                .map(Number);
+
+            if (
+                octets.length !== 4
+                || octets.some(
+                    value => (
+                        !Number.isInteger(value)
+                        || value < 0
+                        || value > 255
+                    )
+                )
+            ) {
+                return null;
+            }
+
+            return (
+                (
+                    (
+                        (
+                            octets[0] * 256
+                            + octets[1]
+                        ) * 256
+                        + octets[2]
+                    ) * 256
+                    + octets[3]
+                )
+            );
+        };
+
+        const start = toNumber(parts[0]);
+        const end = toNumber(parts[1]);
+
+        if (
+            start !== null
+            && end !== null
+            && end >= start
+        ) {
+            total += (
+                end - start + 1
+            );
+        }
+    }
+
+    return total;
+}
+
+
+function updatePingEstimate() {
+    const targetsInput = document.getElementById(
+        "ping_targets"
+    );
+
+    const repeatInput = document.getElementById(
+        "ping_repeat"
+    );
+
+    const timeoutInput = document.getElementById(
+        "ping_timeout"
+    );
+
+    const estimate = document.getElementById(
+        "ping-estimate"
+    );
+
+    if (
+        !targetsInput
+        || !repeatInput
+        || !timeoutInput
+        || !estimate
+    ) {
+        return;
+    }
+
+    const count = countPingTargets(
+        targetsInput.value
+    );
+
+    const repeat = Math.max(
+        1,
+        Number(repeatInput.value) || 1
+    );
+
+    const timeout = Math.max(
+        1,
+        Number(timeoutInput.value) || 1
+    );
+
+    if (!count) {
+        estimate.textContent =
+            "Informe os destinos para calcular "
+            + "o tamanho estimado do teste.";
+
+        estimate.classList.remove(
+            "ping-estimate-large"
+        );
+
+        return;
+    }
+
+    const worstSeconds = (
+        count
+        * repeat
+        * timeout
+    );
+
+    estimate.textContent =
+        `${count} destino${count === 1 ? "" : "s"} · `
+        + `pior caso aproximado: ${worstSeconds}s `
+        + `(hosts sem resposta).`;
+
+    estimate.classList.toggle(
+        "ping-estimate-large",
+        count >= 64
+    );
+}
+
+
+async function loadTroubleshootingInterfaces() {
+    const selects = Array.from(
+        document.querySelectorAll(
+            ".l3-source-select"
+        )
+    );
+
+    if (!selects.length) {
+        return;
+    }
+
+    try {
+        const response = await fetch(
+            "/api/troubleshooting/interfaces"
+        );
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            throw new Error(
+                data.error || "Falha ao consultar interfaces L3."
+            );
+        }
+
+        const operationalInterfaces = data.interfaces.filter(
+            interface => interface.operational
+        );
+
+        selects.forEach(
+            select => {
+                select.innerHTML = "";
+
+                const emptyOption =
+                    document.createElement(
+                        "option"
+                    );
+
+                emptyOption.value = "";
+                emptyOption.textContent =
+                    operationalInterfaces.length
+                        ? "Selecione uma interface"
+                        : "Nenhuma interface L3 operacional";
+
+                select.appendChild(
+                    emptyOption
+                );
+
+                operationalInterfaces.forEach(
+                    interface => {
+                        const option =
+                            document.createElement(
+                                "option"
+                            );
+
+                        option.value = interface.name;
+                        option.textContent =
+                            `${interface.name} - ${interface.ip_address}`;
+
+                        select.appendChild(
+                            option
+                        );
+                    }
+                );
+            }
+        );
+
+    } catch (error) {
+        selects.forEach(
+            select => {
+                select.innerHTML =
+                    '<option value="">Erro ao carregar interfaces</option>';
+            }
+        );
+
+        console.error(
+            "Erro ao carregar interfaces:",
+            error
+        );
+    }
+}
+
+
+[
+    "ping_targets",
+    "ping_repeat",
+    "ping_timeout",
+].forEach(
+    id => {
+        const element =
+            document.getElementById(id);
+
+        if (element) {
+            element.addEventListener(
+                "input",
+                updatePingEstimate
+            );
+        }
+    }
+);
+
+updatePingEstimate();
+[
+    "ping_targets",
+    "ping_repeat",
+    "ping_timeout",
+    "ping_concurrency",
+].forEach(
+    id => {
+        const element =
+            document.getElementById(id);
+
+        if (element) {
+            element.addEventListener(
+                "input",
+                updatePingEstimate
+            );
+        }
+    }
+);
+
+updatePingEstimate();
+loadTroubleshootingInterfaces();
 updateSelection();
 </script>
 

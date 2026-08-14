@@ -2,13 +2,17 @@ import pytest
 
 from src.switch.cisco import (
     enrich_interfaces_with_descriptions,
+    enrich_interfaces_with_etherchannel,
     enrich_interfaces_with_portfast,
+    enrich_interfaces_with_switchport_details,
     enrich_interfaces_with_voice_vlan,
     normalize_interface_name,
+    parse_etherchannel_members,
     parse_interface_descriptions,
     parse_interface_portfast,
     parse_interface_status,
     parse_stp_capabilities,
+    parse_switchport_details,
     parse_voice_vlans,
     validate_interface_description,
     validate_switchport_change,
@@ -493,3 +497,140 @@ def test_enrich_interfaces_uses_description_command_as_source():
     )
 
     assert result[1]["description"] == ""
+
+
+def test_parse_switchport_details_detects_trunk():
+    output = """\
+Name: Po1
+Switchport: Enabled
+Administrative Mode: trunk
+Operational Mode: down
+Access Mode VLAN: unassigned
+Voice VLAN: none
+Trunking VLANs Enabled: 10,20
+Pruning VLANs Enabled: 2-1001
+"""
+
+    result = parse_switchport_details(
+        output
+    )
+
+    item = result[
+        normalize_interface_name("Po1")
+    ]
+
+    assert item["mode"] == "trunk"
+    assert item["access_vlan"] is None
+    assert item["voice_vlan"] is None
+    assert item["trunk_vlans"] == "10,20"
+
+
+def test_enrich_interface_displays_trunk_vlans():
+    interfaces = [
+        {
+            "name": "Po1",
+            "description": "",
+            "status": "notconnect",
+            "status_label": "Not Connected",
+            "vlan": "unassigned",
+            "mode_label": "--",
+        }
+    ]
+
+    details = {
+        normalize_interface_name("Po1"): {
+            "mode": "trunk",
+            "access_vlan": None,
+            "voice_vlan": None,
+            "trunk_vlans": "10,20",
+        }
+    }
+
+    result = enrich_interfaces_with_switchport_details(
+        interfaces,
+        details,
+    )
+
+    assert (
+        result[0]["mode_label"]
+        == "TRUNK · VLANs 10,20"
+    )
+
+    assert result[0]["switchport_mode"] == "trunk"
+
+
+def test_enrich_interface_displays_access_vlan():
+    interfaces = [
+        {
+            "name": "Gi0/1",
+            "description": "",
+            "status": "connected",
+            "status_label": "Up",
+            "vlan": "10",
+            "mode_label": "VLAN 10",
+        }
+    ]
+
+    details = {
+        normalize_interface_name("Gi0/1"): {
+            "mode": "access",
+            "access_vlan": "10",
+            "voice_vlan": "20",
+            "trunk_vlans": None,
+        }
+    }
+
+    result = enrich_interfaces_with_switchport_details(
+        interfaces,
+        details,
+    )
+
+    assert (
+        result[0]["mode_label"]
+        == "ACCESS · VLAN 10"
+    )
+
+
+def test_parse_etherchannel_members():
+    output = """\
+Group  Port-channel  Protocol    Ports
+------+-------------+-----------+-----------------------------------------------
+1      Po1(SD)       LACP        Gi1/2(D)    Gi1/3(D)
+"""
+
+    result = parse_etherchannel_members(
+        output
+    )
+
+    assert result == {
+        normalize_interface_name("Gi1/2"): "Po1",
+        normalize_interface_name("Gi1/3"): "Po1",
+    }
+
+
+def test_enrich_interfaces_with_etherchannel():
+    interfaces = [
+        {
+            "name": "Gi1/2",
+        },
+        {
+            "name": "Gi1/3",
+        },
+        {
+            "name": "Gi0/1",
+        },
+    ]
+
+    members = {
+        normalize_interface_name("Gi1/2"): "Po1",
+        normalize_interface_name("Gi1/3"): "Po1",
+    }
+
+    result = enrich_interfaces_with_etherchannel(
+        interfaces,
+        members,
+    )
+
+    assert result[0]["port_channel_label"] == "Po1"
+    assert result[1]["port_channel_label"] == "Po1"
+    assert result[2]["port_channel_label"] == "--"

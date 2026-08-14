@@ -1519,3 +1519,470 @@ def test_interface_description_empty_uses_double_dash(
     html = response.data.decode()
 
     assert "description-empty" in html
+
+
+def test_index_shows_troubleshooting_section(
+    monkeypatch,
+):
+    configure_test_environment(monkeypatch)
+
+    client = web_app.app.test_client()
+    response = client.get("/")
+
+    html = response.data.decode()
+
+    assert "Troubleshooting" in html
+    assert "Executar Ping" in html
+    assert "Executar Traceroute" in html
+    assert "ping_source" in html
+    assert "trace_source" in html
+
+
+def test_troubleshooting_interfaces_api(
+    monkeypatch,
+):
+    configure_test_environment(monkeypatch)
+
+    monkeypatch.setattr(
+        web_app,
+        "get_switch_l3_interfaces",
+        lambda **kwargs: {
+            "interfaces": [
+                {
+                    "name": "Vlan10",
+                    "ip_address": "192.168.10.254",
+                    "status": "up",
+                    "protocol": "up",
+                    "operational": True,
+                    "label": "Vlan10 - 192.168.10.254",
+                }
+            ],
+            "raw": "",
+        },
+    )
+
+    client = web_app.app.test_client()
+    response = client.get(
+        "/api/troubleshooting/interfaces"
+    )
+
+    data = response.get_json()
+
+    assert response.status_code == 200
+    assert data["success"] is True
+    assert data["interfaces"][0]["name"] == "Vlan10"
+
+
+def test_web_runs_ping(
+    monkeypatch,
+):
+    configure_test_environment(monkeypatch)
+
+    captured = {}
+
+    def fake_ping(**kwargs):
+        captured.update(kwargs)
+
+        return {
+            "source": {
+                "name": "Vlan10",
+                "ip_address": "192.168.10.254",
+            },
+            "count": 1,
+            "results": [
+                {
+                    "destination": "8.8.8.8",
+                    "source_interface": "Vlan10",
+                    "source_ip": "192.168.10.254",
+                    "command": "ping",
+                    "output": "!!!!!",
+                    "success": True,
+                    "success_rate": 100,
+                    "received": 5,
+                    "sent": 5,
+                    "rtt_min_ms": 1,
+                    "rtt_avg_ms": 2,
+                    "rtt_max_ms": 3,
+                }
+            ],
+        }
+
+    monkeypatch.setattr(
+        web_app,
+        "run_switch_ping",
+        fake_ping,
+    )
+
+    client = web_app.app.test_client()
+
+    response = client.post(
+        "/troubleshooting/ping",
+        data={
+            "ping_source": "Vlan10",
+            "ping_targets": "8.8.8.8",
+            "ping_repeat": "5",
+            "ping_timeout": "2",
+            "ping_size": "100",
+            "ping_df_bit": "on",
+        },
+    )
+
+    html = response.data.decode()
+
+    assert response.status_code == 200
+    assert captured["source_interface"] == "Vlan10"
+    assert captured["targets"] == "8.8.8.8"
+    assert captured["repeat"] == 5
+
+    assert "Resultado do Ping" in html
+    assert "100%" in html
+    assert "8.8.8.8" in html
+
+
+def test_web_runs_traceroute(
+    monkeypatch,
+):
+    configure_test_environment(monkeypatch)
+
+    captured = {}
+
+    def fake_trace(**kwargs):
+        captured.update(kwargs)
+
+        return {
+            "destination": "8.8.8.8",
+            "source_interface": "Vlan10",
+            "source_ip": "192.168.10.254",
+            "mode": "extended",
+            "timeout": 1,
+            "max_ttl": 20,
+            "output": (
+                "VRF info: (vrf in name/id, vrf out name/id)\n"
+                "  1 192.168.10.1 1 msec"
+            ),
+            "raw_output": (
+                "traceroute\n"
+                "Protocol [ip]:\n"
+                "Tracing the route to 8.8.8.8\n"
+                "  1 192.168.10.1 1 msec"
+            ),
+        }
+
+    monkeypatch.setattr(
+        web_app,
+        "run_switch_traceroute",
+        fake_trace,
+    )
+
+    client = web_app.app.test_client()
+
+    response = client.post(
+        "/troubleshooting/traceroute",
+        data={
+            "trace_source": "Vlan10",
+            "trace_destination": "8.8.8.8",
+            "trace_timeout": "1",
+            "trace_max_ttl": "20",
+        },
+    )
+
+    html = response.data.decode()
+
+    assert response.status_code == 200
+    assert captured["source_interface"] == "Vlan10"
+    assert captured["destination"] == "8.8.8.8"
+
+    assert "Resultado do Traceroute" in html
+    assert "VRF info:" in html
+
+
+def test_web_rejects_zero_ping_repeat(
+    monkeypatch,
+):
+    configure_test_environment(monkeypatch)
+
+    client = web_app.app.test_client()
+
+    response = client.post(
+        "/troubleshooting/ping",
+        data={
+            "ping_source": "Vlan10",
+            "ping_targets": "8.8.8.8",
+            "ping_repeat": "0",
+        },
+    )
+
+    html = response.data.decode()
+
+    assert response.status_code == 200
+    assert (
+        "maior que zero"
+        in html
+    )
+
+
+def test_troubleshooting_ping_has_advanced_options(
+    monkeypatch,
+):
+    configure_test_environment(monkeypatch)
+
+    client = web_app.app.test_client()
+    response = client.get("/")
+
+    html = response.data.decode()
+
+    assert 'name="ping_repeat"' in html
+    assert 'name="ping_timeout"' in html
+    assert 'name="ping_size"' in html
+    assert 'name="ping_df_bit"' in html
+
+
+def test_troubleshooting_traceroute_has_advanced_options(
+    monkeypatch,
+):
+    configure_test_environment(monkeypatch)
+
+    client = web_app.app.test_client()
+    response = client.get("/")
+
+    html = response.data.decode()
+
+    assert 'name="trace_timeout"' in html
+    assert 'name="trace_probe_count"' in html
+    assert 'name="trace_max_ttl"' in html
+
+
+def test_troubleshooting_ping_repeat_is_numeric_input(
+    monkeypatch,
+):
+    configure_test_environment(monkeypatch)
+
+    client = web_app.app.test_client()
+    response = client.get("/")
+
+    html = response.data.decode()
+
+    position = html.index(
+        'id="ping_repeat"'
+    )
+
+    fragment = html[
+        position:position + 250
+    ]
+
+    assert 'type="number"' in fragment
+
+
+def test_ping_ui_shows_all_operational_options(
+    monkeypatch,
+):
+    configure_test_environment(monkeypatch)
+
+    client = web_app.app.test_client()
+    response = client.get("/")
+
+    html = response.data.decode()
+
+    assert 'name="ping_timeout"' in html
+    assert 'name="ping_size"' in html
+    assert 'name="ping_df_bit"' in html
+
+    assert "Timeout por pacote" in html
+    assert "Tamanho do pacote" in html
+    assert "Não fragmentar (DF)" in html
+
+
+def test_traceroute_ui_shows_probe_count(
+    monkeypatch,
+):
+    configure_test_environment(monkeypatch)
+
+    client = web_app.app.test_client()
+    response = client.get("/")
+
+    html = response.data.decode()
+
+    assert 'name="trace_probe_count"' in html
+    assert "Probes por salto" in html
+
+
+def test_ui_has_no_svi_troubleshooting_wording(
+    monkeypatch,
+):
+    configure_test_environment(monkeypatch)
+
+    client = web_app.app.test_client()
+    response = client.get("/")
+
+    html = response.data.decode()
+
+    assert "Carregando SVIs" not in html
+    assert "SVI selecionada" not in html
+
+
+def test_ping_ui_has_concurrency_control(
+    monkeypatch,
+):
+    configure_test_environment(monkeypatch)
+
+    client = web_app.app.test_client()
+    response = client.get("/")
+
+    html = response.data.decode()
+
+    assert 'name="ping_concurrency"' in html
+    assert "Paralelismo" in html
+    assert (
+        "Execuções simultâneas para acelerar"
+        in html
+    )
+    assert 'max="8"' in html
+
+
+def test_traceroute_ui_has_probe_count(
+    monkeypatch,
+):
+    configure_test_environment(monkeypatch)
+
+    client = web_app.app.test_client()
+    response = client.get("/")
+
+    html = response.data.decode()
+
+    assert 'name="trace_probe_count"' in html
+    assert "Probes por salto" in html
+
+
+def test_ping_result_has_no_raw_cisco_output_control(
+    monkeypatch,
+):
+    configure_test_environment(monkeypatch)
+
+    client = web_app.app.test_client()
+    response = client.get("/")
+
+    html = response.data.decode()
+
+    assert "Ver output Cisco" not in html
+
+
+def test_traceroute_result_has_no_raw_terminal_control(
+    monkeypatch,
+):
+    configure_test_environment(monkeypatch)
+
+    client = web_app.app.test_client()
+    response = client.get("/")
+
+    html = response.data.decode()
+
+    assert (
+        "Ver sessão completa do Extended Traceroute"
+        not in html
+    )
+
+
+def test_ping_uses_parallelism_wording(
+    monkeypatch,
+):
+    configure_test_environment(monkeypatch)
+
+    client = web_app.app.test_client()
+    response = client.get("/")
+
+    html = response.data.decode()
+
+    assert "Paralelismo" in html
+    assert (
+        "Execuções simultâneas para acelerar"
+        in html
+    )
+
+
+def test_interface_inventory_has_mode_vlan_and_port_channel_columns(
+    monkeypatch,
+):
+    configure_test_environment(monkeypatch)
+
+    client = web_app.app.test_client()
+    response = client.get("/")
+
+    html = response.data.decode()
+
+    assert "<th>Modo</th>" in html
+    assert "<th>VLAN</th>" in html
+    assert "<th>Port-Channel</th>" in html
+    assert "VLAN / Modo" not in html
+
+
+def test_traceroute_uses_compact_light_result(
+    monkeypatch,
+):
+    configure_test_environment(monkeypatch)
+
+    def fake_trace(**kwargs):
+        return {
+            "destination": "8.8.8.8",
+            "source_interface": (
+                "GigabitEthernet0/0"
+            ),
+            "source_ip": "172.28.255.210",
+            "mode": "extended",
+            "timeout": 1,
+            "probe_count": 1,
+            "max_ttl": 20,
+            "output": (
+                "VRF info: "
+                "(vrf in name/id, vrf out name/id)\n"
+                "  1 172.28.255.254 1 msec\n"
+                "  2 *\n"
+                "  3 201.1.233.93 5 msec\n"
+                "  4 152.255.193.153 "
+                "[MPLS: Label 1048410 Exp 0] "
+                "24 msec\n"
+                "  5 8.8.8.8 25 msec\n"
+            ),
+            "raw_output": "raw should not be shown",
+        }
+
+    monkeypatch.setattr(
+        web_app,
+        "run_switch_traceroute",
+        fake_trace,
+    )
+
+    client = web_app.app.test_client()
+
+    response = client.post(
+        "/troubleshooting/traceroute",
+        data={
+            "trace_source": (
+                "GigabitEthernet0/0"
+            ),
+            "trace_destination": "8.8.8.8",
+            "trace_timeout": "1",
+            "trace_probe_count": "1",
+            "trace_max_ttl": "20",
+        },
+    )
+
+    html = response.data.decode()
+
+    assert response.status_code == 200
+
+    assert 'class="trace-result"' in html
+    assert 'class="trace-output"' in html
+
+    assert "172.28.255.254" in html
+    assert "201.1.233.93" in html
+    assert "MPLS: Label 1048410" in html
+    assert "8.8.8.8" in html
+
+    assert "raw should not be shown" not in html
+
+    assert "Ver output Cisco" not in html
+
+    assert (
+        "Ver sessão completa do Extended Traceroute"
+        not in html
+    )

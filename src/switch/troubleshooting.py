@@ -1,12 +1,14 @@
 from ipaddress import IPv4Address
 
-DEFAULT_MAX_TARGETS = 64
 
-
-def parse_svi_interfaces(output):
+def parse_l3_interfaces(output):
     """
-    Parseia 'show ip interface brief' e retorna somente SVIs
-    com endereço IPv4 configurado.
+    Parseia 'show ip interface brief' e retorna interfaces
+    Layer 3 IPv4 com endereço configurado.
+
+    Inclui interfaces físicas routed, SVIs e outros tipos
+    que possuam IPv4 válido. O estado operacional é
+    preservado para permitir filtragem posterior.
     """
     interfaces = []
 
@@ -24,9 +26,6 @@ def parse_svi_interfaces(output):
         interface = fields[0]
         ip_address = fields[1]
 
-        if not interface.lower().startswith("vlan"):
-            continue
-
         if ip_address.lower() == "unassigned":
             continue
 
@@ -35,9 +34,13 @@ def parse_svi_interfaces(output):
         except ValueError:
             continue
 
-        # O campo Status pode conter "administratively down".
         protocol = fields[-1]
         status = " ".join(fields[4:-1])
+
+        operational = (
+            status.lower() == "up"
+            and protocol.lower() == "up"
+        )
 
         interfaces.append(
             {
@@ -45,10 +48,7 @@ def parse_svi_interfaces(output):
                 "ip_address": ip_address,
                 "status": status,
                 "protocol": protocol,
-                "operational": (
-                    status.lower() == "up"
-                    and protocol.lower() == "up"
-                ),
+                "operational": operational,
                 "label": (
                     f"{interface} - {ip_address}"
                 ),
@@ -56,6 +56,7 @@ def parse_svi_interfaces(output):
         )
 
     return interfaces
+
 
 
 def _parse_ipv4(value):
@@ -95,9 +96,57 @@ def _expand_ipv4_range(value):
     ]
 
 
+def split_targets_for_workers(
+    targets,
+    workers,
+):
+    """
+    Divide destinos em lotes contíguos e equilibrados.
+
+    A ordem original é preservada quando os resultados
+    dos lotes são concatenados posteriormente.
+    """
+    if workers < 1:
+        raise ValueError(
+            "A concorrência deve ser maior que zero."
+        )
+
+    if not targets:
+        return []
+
+    worker_count = min(
+        workers,
+        len(targets),
+    )
+
+    base_size, remainder = divmod(
+        len(targets),
+        worker_count,
+    )
+
+    chunks = []
+    start = 0
+
+    for index in range(worker_count):
+        size = (
+            base_size
+            + (1 if index < remainder else 0)
+        )
+
+        end = start + size
+
+        chunks.append(
+            targets[start:end]
+        )
+
+        start = end
+
+    return chunks
+
+
 def parse_ipv4_targets(
     value,
-    max_targets=DEFAULT_MAX_TARGETS,
+    max_targets=None,
 ):
     """
     Aceita:
@@ -113,7 +162,10 @@ def parse_ipv4_targets(
             "Informe pelo menos um destino."
         )
 
-    if max_targets < 1:
+    if (
+        max_targets is not None
+        and max_targets < 1
+    ):
         raise ValueError(
             "O limite de destinos deve ser maior que zero."
         )
@@ -140,7 +192,10 @@ def parse_ipv4_targets(
             targets.append(target)
             seen.add(target)
 
-            if len(targets) > max_targets:
+            if (
+                max_targets is not None
+                and len(targets) > max_targets
+            ):
                 raise ValueError(
                     "Quantidade de destinos excede o limite "
                     f"de {max_targets} endereços."
@@ -149,29 +204,95 @@ def parse_ipv4_targets(
     return targets
 
 
-def find_svi_by_name(svis, interface_name):
-    for svi in svis:
-        if svi["name"].lower() == interface_name.lower():
-            return svi
+def find_l3_interface_by_name(
+    interfaces,
+    interface_name,
+):
+    for interface in interfaces:
+        if (
+            interface["name"].lower()
+            == interface_name.lower()
+        ):
+            return interface
 
     raise ValueError(
-        f"SVI {interface_name} não encontrada."
+        f"Interface L3 {interface_name} não encontrada."
     )
 
 
-def validate_source_svi(svis, interface_name):
-    svi = find_svi_by_name(
-        svis,
+def validate_source_interface(
+    interfaces,
+    interface_name,
+):
+    interface = find_l3_interface_by_name(
+        interfaces,
         interface_name,
     )
 
-    if not svi["operational"]:
+    if not interface["operational"]:
         raise ValueError(
-            f"A SVI {svi['name']} não está operacional "
-            "(up/up)."
+            f"A interface L3 {interface['name']} "
+            "não está operacional (up/up)."
         )
 
-    return svi
+    return interface
+
+
+def extract_traceroute_result(output):
+    if not output:
+        return ""
+
+    lines = output.splitlines()
+
+    # Preferimos começar no bloco efetivamente operacional.
+    start_index = None
+
+    for index, line in enumerate(lines):
+        if line.strip().startswith("VRF info:"):
+            start_index = index
+            break
+
+    # Alguns IOS não imprimem VRF info.
+    # Nesse caso procuramos o primeiro hop.
+    if start_index is None:
+        for index, line in enumerate(lines):
+            stripped = line.strip()
+
+            if (
+                stripped
+                and stripped[0].isdigit()
+                and "Protocol [" not in stripped
+            ):
+                start_index = index
+                break
+
+    # Fallback: a partir de "Tracing the route".
+    if start_index is None:
+        for index, line in enumerate(lines):
+            if "Tracing the route" in line:
+                start_index = index
+                break
+
+    if start_index is None:
+        return output.strip()
+
+    useful_lines = lines[start_index:]
+
+    # Remove prompt final do equipamento, se vier junto.
+    while useful_lines:
+        last = useful_lines[-1].strip()
+
+        if not last:
+            useful_lines.pop()
+            continue
+
+        if last.endswith("#") or last.endswith(">"):
+            useful_lines.pop()
+            continue
+
+        break
+
+    return "\n".join(useful_lines).strip()
 
 
 def parse_ping_result(output):
