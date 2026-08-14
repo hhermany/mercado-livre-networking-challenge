@@ -1370,14 +1370,1192 @@ details.raw-output summary {
     }
 }
 
+
+.multi-device-card {
+    margin-bottom: 18px;
+}
+
+.multi-device-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.multi-device-header h2 {
+    margin-bottom: 4px;
+}
+
+.multi-device-subtitle {
+    margin: 0;
+    color: #687580;
+    font-size: 12px;
+}
+
+.device-input-list {
+    display: grid;
+    gap: 9px;
+    margin-top: 15px;
+}
+
+.device-input-row {
+    display: grid;
+    grid-template-columns:
+        minmax(170px, 1.25fr)
+        minmax(140px, 1fr)
+        minmax(150px, 1fr)
+        minmax(120px, 0.8fr)
+        36px;
+    gap: 9px;
+    align-items: end;
+}
+
+.device-input-row .field {
+    margin: 0;
+}
+
+.device-remove-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    padding: 0;
+}
+
+.device-manager-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 13px;
+}
+
+.device-manager-status {
+    color: #66737e;
+    font-size: 11px;
+}
+
+.managed-device-results {
+    display: grid;
+    gap: 16px;
+    margin-top: 17px;
+}
+
+.managed-switch {
+    overflow: hidden;
+    border: 1px solid #d2dbe3;
+    border-radius: 9px;
+    background: #fff;
+}
+
+.managed-switch-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 11px 14px;
+    background: #f4f7f9;
+    border-bottom: 1px solid #dbe2e8;
+}
+
+.managed-switch-identity {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.managed-switch-hostname {
+    font-size: 14px;
+    font-weight: 800;
+}
+
+.managed-switch-ip {
+    color: #6b7882;
+    font-family:
+        ui-monospace,
+        SFMono-Regular,
+        Menlo,
+        Monaco,
+        Consolas,
+        monospace;
+    font-size: 11px;
+}
+
+.device-status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 8px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 700;
+}
+
+.device-status-connected {
+    background: #e9f6ec;
+    color: #1e6d35;
+}
+
+.device-status-error {
+    background: #fdeeed;
+    color: #952f29;
+}
+
+.managed-switch-error {
+    padding: 12px 14px;
+    background: #fdf2f1;
+    color: #8b302a;
+    font-size: 12px;
+}
+
+.managed-interface-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.managed-interface-table th,
+.managed-interface-table td {
+    padding: 7px 10px;
+    border-bottom: 1px solid #edf0f2;
+    font-size: 11px;
+    text-align: center;
+    vertical-align: middle;
+}
+
+.managed-interface-table th {
+    background: #fafbfc;
+    color: #596671;
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.managed-interface-table tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.device-empty {
+    padding: 14px;
+    color: #7b8790;
+    font-size: 12px;
+    text-align: center;
+}
+
+@media (max-width: 900px) {
+    .device-input-row {
+        grid-template-columns:
+            1fr 1fr;
+    }
+
+    .device-remove-button {
+        align-self: end;
+    }
+}
+
+
+
+.managed-switch-actions {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+}
+
+.manage-device-button,
+.active-device-change {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 10px;
+    border-radius: 5px;
+    background: #1673b8;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.manage-device-button:hover,
+.active-device-change:hover {
+    background: #125f98;
+}
+
+.active-device-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 15px;
+    padding: 12px 15px;
+    border: 1px solid #a8cfb1;
+    border-radius: 8px;
+    background: #edf7ef;
+}
+
+.active-device-main {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 9px;
+}
+
+.active-device-label {
+    color: #607069;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: .06em;
+}
+
+.active-device-main strong {
+    color: #185a2c;
+    font-size: 15px;
+}
+
+.active-device-address {
+    color: #65736b;
+    font-family:
+        ui-monospace,
+        SFMono-Regular,
+        Menlo,
+        Monaco,
+        Consolas,
+        monospace;
+    font-size: 11px;
+}
+
+.no-active-device {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin: 18px auto;
+    max-width: 900px;
+    padding: 20px;
+    border: 1px dashed #bbc6cf;
+    border-radius: 8px;
+    background: #fafbfc;
+    color: #64717b;
+    font-size: 12px;
+    text-align: center;
+}
+
+
+.active-device-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 5px 9px;
+    border-radius: 999px;
+    background: #dff1e4;
+    color: #18602d;
+    font-size: 10px;
+    font-weight: 800;
+}
+
+.forget-device-button {
+    padding: 5px 9px;
+    border: 1px solid #ccd5dc;
+    border-radius: 5px;
+    background: #fff;
+    color: #65727b;
+    font-size: 10px;
+}
+
+.forget-device-button:hover {
+    background: #f5f7f8;
+    color: #96372f;
+}
+
+.managed-switch-active {
+    border-color: #2d8a4b;
+    box-shadow:
+        0 0 0 2px
+        rgba(45, 138, 75, 0.12);
+}
+
 </style>
 </head>
 
 <body>
+
+<div class="card multi-device-card">
+    <div class="multi-device-header">
+        <div>
+            <h2>Equipamentos Gerenciados</h2>
+            <p class="multi-device-subtitle">
+                Adicione switches com SSH habilitado para
+                inventário e operações centralizadas.
+            </p>
+        </div>
+
+        <button
+            type="button"
+            id="add-device-row"
+            class="button secondary"
+        >
+            + Adicionar equipamento
+        </button>
+    </div>
+
+
+    <div
+        id="device-input-list"
+        class="device-input-list"
+    >
+    </div>
+
+
+    <div class="device-manager-actions">
+        <button
+            type="button"
+            id="discover-devices"
+        >
+            Conectar / Descobrir
+        </button>
+
+        <span
+            id="device-manager-status"
+            class="device-manager-status"
+        ></span>
+    </div>
+
+
+    <div
+        id="managed-device-results"
+        class="managed-device-results"
+    >
+    </div>
+
+</div>
+
+<script>
+(function () {
+    "use strict";
+
+    const inputList =
+        document.getElementById(
+            "device-input-list"
+        );
+
+    const addButton =
+        document.getElementById(
+            "add-device-row"
+        );
+
+    const discoverButton =
+        document.getElementById(
+            "discover-devices"
+        );
+
+    const status =
+        document.getElementById(
+            "device-manager-status"
+        );
+
+    const results =
+        document.getElementById(
+            "managed-device-results"
+        );
+
+
+    if (
+        !inputList
+        || !addButton
+        || !discoverButton
+        || !status
+        || !results
+    ) {
+        console.error(
+            "Device Manager: elementos obrigatórios ausentes."
+        );
+
+        return;
+    }
+
+
+    function escapeDeviceHtml(
+        value
+    ) {
+        const div =
+            document.createElement(
+                "div"
+            );
+
+        div.textContent =
+            value ?? "";
+
+        return div.innerHTML;
+    }
+
+
+    function createDeviceRow() {
+        const row =
+            document.createElement(
+                "div"
+            );
+
+        row.className =
+            "device-input-row";
+
+        row.innerHTML = `
+            <div class="field">
+                <label>
+                    IP / Hostname
+                </label>
+
+                <input
+                    type="text"
+                    class="device-host"
+                    placeholder="Ex.: 172.28.255.210"
+                    autocomplete="off"
+                >
+            </div>
+
+            <div class="field">
+                <label>
+                    Usuário
+                </label>
+
+                <input
+                    type="text"
+                    class="device-username"
+                    autocomplete="username"
+                >
+            </div>
+
+            <div class="field">
+                <label>
+                    Senha
+                </label>
+
+                <input
+                    type="password"
+                    class="device-password"
+                    autocomplete="current-password"
+                >
+            </div>
+
+            <div class="field">
+                <label>
+                    Enable Secret
+                </label>
+
+                <input
+                    type="password"
+                    class="device-secret"
+                    autocomplete="off"
+                >
+            </div>
+
+            <button
+                type="button"
+                class="device-remove-button"
+                title="Remover equipamento"
+            >
+                ×
+            </button>
+        `;
+
+        row.querySelector(
+            ".device-remove-button"
+        ).addEventListener(
+            "click",
+            function () {
+                row.remove();
+            }
+        );
+
+        inputList.appendChild(
+            row
+        );
+    }
+
+
+    async function registerDeviceRow(
+        row
+    ) {
+        const payload = {
+            host:
+                row.querySelector(
+                    ".device-host"
+                ).value.trim(),
+
+            username:
+                row.querySelector(
+                    ".device-username"
+                ).value.trim(),
+
+            password:
+                row.querySelector(
+                    ".device-password"
+                ).value,
+
+            secret:
+                row.querySelector(
+                    ".device-secret"
+                ).value,
+        };
+
+
+        if (
+            !payload.host
+            || !payload.username
+            || !payload.password
+        ) {
+            throw new Error(
+                "Preencha IP, usuário e senha."
+            );
+        }
+
+
+        const response =
+            await fetch(
+                "/api/devices",
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json",
+                    },
+
+                    body:
+                        JSON.stringify(
+                            payload
+                        ),
+                }
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (!response.ok) {
+            throw new Error(
+                data.error
+                || "Falha ao cadastrar equipamento."
+            );
+        }
+
+
+        row.dataset.deviceId =
+            data.device.id;
+
+        return data.device;
+    }
+
+
+    function renderDevices(
+        items
+    ) {
+        results.innerHTML =
+            items.map(
+                function (item) {
+                    const device =
+                        item.device;
+
+                    const hostname =
+                        device.hostname
+                        || device.host;
+
+
+                    if (!item.success) {
+                        return `
+                            <div
+                                class="managed-switch"
+                            >
+                                <div
+                                    class="managed-switch-header"
+                                >
+                                    <div
+                                        class="managed-switch-identity"
+                                    >
+                                        <strong
+                                            class="managed-switch-hostname"
+                                        >
+                                            ${escapeDeviceHtml(hostname)}
+                                        </strong>
+
+                                        <span
+                                            class="managed-switch-ip"
+                                        >
+                                            ${escapeDeviceHtml(device.host)}
+                                        </span>
+                                    </div>
+
+                                    <span
+                                        class="
+                                            device-status-badge
+                                            device-status-error
+                                        "
+                                    >
+                                        Falha
+                                    </span>
+                                </div>
+
+                                <div
+                                    class="managed-switch-error"
+                                >
+                                    ${escapeDeviceHtml(item.error)}
+                                </div>
+                            </div>
+                        `;
+                    }
+
+
+                    const interfaces =
+                        item.interfaces
+                        || [];
+
+
+                    const rows =
+                        interfaces.map(
+                            function (iface) {
+                                const name =
+                                    iface.name
+                                    || iface.interface
+                                    || iface.port
+                                    || "--";
+
+                                const description =
+                                    iface.description
+                                    || "--";
+
+                                const state =
+                                    iface.status_label
+                                    || iface.state
+                                    || iface.status
+                                    || "--";
+
+                                const mode =
+                                    iface.mode_label
+                                    || iface.mode
+                                    || iface.vlan
+                                    || "--";
+
+                                const voice =
+                                    iface.voice_vlan
+                                    || "--";
+
+                                const portfast =
+                                    iface.portfast
+                                    || "--";
+
+                                const channel =
+                                    iface.port_channel
+                                    || iface.channel_group
+                                    || "--";
+
+
+                                return `
+                                    <tr>
+                                        <td>
+                                            ${escapeDeviceHtml(name)}
+                                        </td>
+
+                                        <td>
+                                            ${escapeDeviceHtml(description)}
+                                        </td>
+
+                                        <td>
+                                            ${escapeDeviceHtml(state)}
+                                        </td>
+
+                                        <td>
+                                            ${escapeDeviceHtml(mode)}
+                                        </td>
+
+                                        <td>
+                                            ${escapeDeviceHtml(voice)}
+                                        </td>
+
+                                        <td>
+                                            ${escapeDeviceHtml(portfast)}
+                                        </td>
+
+                                        <td>
+                                            ${escapeDeviceHtml(channel)}
+                                        </td>
+                                    </tr>
+                                `;
+                            }
+                        ).join("");
+
+
+                    return `
+                        <div
+                            class="managed-switch"
+                            data-device-id="${escapeDeviceHtml(device.id)}"
+                        >
+                            <div
+                                class="managed-switch-header"
+                            >
+                                <div
+                                    class="managed-switch-identity"
+                                >
+                                    <strong
+                                        class="managed-switch-hostname"
+                                    >
+                                        ${escapeDeviceHtml(hostname)}
+                                    </strong>
+
+                                    <span
+                                        class="managed-switch-ip"
+                                    >
+                                        ${escapeDeviceHtml(device.host)}
+                                    </span>
+                                </div>
+
+                                <div
+                                    class="managed-switch-actions"
+                                >
+                                    <span
+                                        class="
+                                            device-status-badge
+                                            device-status-connected
+                                        "
+                                    >
+                                        Conectado
+                                    </span>
+
+                                    <a
+                                        class="manage-device-button"
+                                        href="/?device_id=${encodeURIComponent(device.id)}"
+                                    >
+                                        Gerenciar
+                                    </a>
+                                </div>
+                            </div>
+
+                            ${
+                                rows
+                                ? `
+                                    <div
+                                        class="table-wrap"
+                                    >
+                                        <table
+                                            class="managed-interface-table"
+                                        >
+                                            <thead>
+                                                <tr>
+                                                    <th>Interface</th>
+                                                    <th>Descrição</th>
+                                                    <th>Estado</th>
+                                                    <th>VLAN / Modo</th>
+                                                    <th>Voice</th>
+                                                    <th>PortFast</th>
+                                                    <th>Po</th>
+                                                </tr>
+                                            </thead>
+
+                                            <tbody>
+                                                ${rows}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                `
+                                : `
+                                    <div
+                                        class="device-empty"
+                                    >
+                                        Nenhuma interface encontrada.
+                                    </div>
+                                `
+                            }
+                        </div>
+                    `;
+                }
+            ).join("");
+    }
+
+
+    function renderStoredDevices(
+        devices
+    ) {
+        if (!devices.length) {
+            return;
+        }
+
+        results.innerHTML =
+            devices.map(
+                function (device) {
+                    const hostname =
+                        device.hostname
+                        || device.host;
+
+                    const active =
+                        (
+                            typeof activeDeviceId
+                            !== "undefined"
+                            && activeDeviceId
+                            === device.id
+                        );
+
+                    return `
+                        <div
+                            class="
+                                managed-switch
+                                ${
+                                    active
+                                    ? "managed-switch-active"
+                                    : ""
+                                }
+                            "
+                            data-device-id="${escapeDeviceHtml(device.id)}"
+                        >
+                            <div
+                                class="managed-switch-header"
+                            >
+                                <div
+                                    class="managed-switch-identity"
+                                >
+                                    <strong
+                                        class="managed-switch-hostname"
+                                    >
+                                        ${escapeDeviceHtml(hostname)}
+                                    </strong>
+
+                                    <span
+                                        class="managed-switch-ip"
+                                    >
+                                        ${escapeDeviceHtml(device.host)}
+                                    </span>
+                                </div>
+
+                                <div
+                                    class="managed-switch-actions"
+                                >
+                                    <span
+                                        class="
+                                            device-status-badge
+                                            ${
+                                                device.status === "error"
+                                                ? "device-status-error"
+                                                : "device-status-connected"
+                                            }
+                                        "
+                                    >
+                                        ${
+                                            device.status === "error"
+                                            ? "Falha"
+                                            : "Cadastrado"
+                                        }
+                                    </span>
+
+                                    ${
+                                        active
+                                        ? `
+                                            <span
+                                                class="active-device-pill"
+                                            >
+                                                Em gerenciamento
+                                            </span>
+                                        `
+                                        : `
+                                            <a
+                                                class="manage-device-button"
+                                                href="/?device_id=${encodeURIComponent(device.id)}"
+                                            >
+                                                Gerenciar
+                                            </a>
+                                        `
+                                    }
+
+                                    <button
+                                        type="button"
+                                        class="forget-device-button"
+                                        data-device-id="${escapeDeviceHtml(device.id)}"
+                                        title="Remover equipamento da memória"
+                                    >
+                                        Remover
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+            ).join("");
+
+        results.querySelectorAll(
+            ".forget-device-button"
+        ).forEach(
+            function (button) {
+                button.addEventListener(
+                    "click",
+                    async function () {
+                        const deviceId =
+                            button.dataset.deviceId;
+
+                        if (
+                            !window.confirm(
+                                "Remover este equipamento da memória da aplicação?"
+                            )
+                        ) {
+                            return;
+                        }
+
+                        const response =
+                            await fetch(
+                                `/api/devices/${encodeURIComponent(deviceId)}`,
+                                {
+                                    method: "DELETE",
+                                }
+                            );
+
+                        if (!response.ok) {
+                            status.textContent =
+                                "Falha ao remover equipamento.";
+
+                            return;
+                        }
+
+                        await loadStoredDevices();
+
+                        if (
+                            typeof activeDeviceId
+                            !== "undefined"
+                            && activeDeviceId
+                            === deviceId
+                        ) {
+                            window.location.href =
+                                "/";
+                        }
+                    }
+                );
+            }
+        );
+    }
+
+
+    async function loadStoredDevices() {
+        try {
+            const response =
+                await fetch(
+                    "/api/devices"
+                );
+
+            if (!response.ok) {
+                throw new Error(
+                    "Falha ao consultar equipamentos cadastrados."
+                );
+            }
+
+            const data =
+                await response.json();
+
+            const devices =
+                data.devices
+                || [];
+
+            renderStoredDevices(
+                devices
+            );
+
+            if (devices.length) {
+                status.textContent =
+                    `${devices.length} equipamento(s) armazenado(s) na sessão do servidor.`;
+            }
+
+        } catch (error) {
+            console.error(
+                "Device Manager restore:",
+                error
+            );
+        }
+    }
+
+
+    async function connectDevices() {
+        const rows = [
+            ...inputList.querySelectorAll(
+                ".device-input-row"
+            ),
+        ];
+
+
+        if (!rows.length) {
+            status.textContent =
+                "Adicione pelo menos um equipamento.";
+
+            return;
+        }
+
+
+        discoverButton.disabled =
+            true;
+
+        status.textContent =
+            "Cadastrando equipamentos...";
+
+
+        try {
+            const devices = [];
+
+
+            for (
+                const row
+                of rows
+            ) {
+                const device =
+                    await registerDeviceRow(
+                        row
+                    );
+
+                devices.push(
+                    device
+                );
+            }
+
+
+            status.textContent =
+                `Descobrindo ${devices.length} equipamento(s) em paralelo...`;
+
+
+            const response =
+                await fetch(
+                    "/api/devices/discover",
+                    {
+                        method: "POST",
+
+                        headers: {
+                            "Content-Type":
+                                "application/json",
+                        },
+
+                        body:
+                            JSON.stringify({
+                                device_ids:
+                                    devices.map(
+                                        function (device) {
+                                            return device.id;
+                                        }
+                                    ),
+                            }),
+                    }
+                );
+
+
+            const data =
+                await response.json();
+
+
+            if (!response.ok) {
+                throw new Error(
+                    data.error
+                    || "Falha na descoberta."
+                );
+            }
+
+
+            renderDevices(
+                data.devices
+                || []
+            );
+
+
+            const success =
+                (
+                    data.devices
+                    || []
+                ).filter(
+                    function (item) {
+                        return item.success;
+                    }
+                ).length;
+
+
+            status.textContent =
+                `${success}/${data.devices.length} equipamento(s) conectado(s).`;
+
+            /*
+             * Discovery atualizou hostname/status no backend.
+             * Recarregamos os cards persistidos para que o
+             * usuário possa alternar entre os switches.
+             */
+            await loadStoredDevices();
+
+        } catch (error) {
+            console.error(
+                "Device Manager:",
+                error
+            );
+
+            status.textContent =
+                error.message;
+
+        } finally {
+            discoverButton.disabled =
+                false;
+        }
+    }
+
+
+    addButton.addEventListener(
+        "click",
+        function () {
+            createDeviceRow();
+        }
+    );
+
+
+    discoverButton.addEventListener(
+        "click",
+        connectDevices
+    );
+
+
+    /*
+     * Primeira linha sempre disponível.
+     */
+    if (
+        !inputList.querySelector(
+            ".device-input-row"
+        )
+    ) {
+        createDeviceRow();
+    }
+
+
+    loadStoredDevices();
+
+
+    console.log(
+        "Device Manager inicializado."
+    );
+})();
+</script>
+
+
 <div class="container">
 
 <header>
-    <h1>Automação de Switch Cisco</h1>
+    {% if active_device %}
+
+<div class="active-device-banner">
+    <div class="active-device-main">
+        <span class="active-device-label">
+            EQUIPAMENTO ATIVO
+        </span>
+
+        <strong>
+            {{ active_device.hostname or active_device.host }}
+        </strong>
+
+        <span class="active-device-address">
+            {{ active_device.host }}
+        </span>
+    </div>
+
+    <a
+        href="/"
+        class="active-device-change"
+    >
+        Trocar equipamento
+    </a>
+</div>
+
+<div id="device-workspace">
+
+<h1>Automação de Switch Cisco</h1>
     <p>Configuração e validação operacional do equipamento.</p>
 </header>
 
@@ -2974,7 +4152,27 @@ details.raw-output summary {
 {% endif %}
 
 
+
+</div><!-- /device-workspace -->
+
+{% else %}
+
+<div class="no-active-device">
+    <strong>Nenhum equipamento selecionado.</strong>
+    <span>
+        Adicione ou conecte um switch acima e escolha
+        <strong>Gerenciar</strong>.
+    </span>
+</div>
+
+{% endif %}
+
 <script>
+
+const activeDeviceId =
+    {{ active_device_id | default(none) | tojson }};
+
+
 const interfaceCheckboxes = Array.from(
     document.querySelectorAll(
         ".interface-checkbox"
@@ -3363,7 +4561,7 @@ async function loadTroubleshootingInterfaces() {
 
     try {
         const response = await fetch(
-            "/api/troubleshooting/interfaces"
+            `/api/troubleshooting/interfaces?device_id=${encodeURIComponent(activeDeviceId || "")}`
         );
 
         const data = await response.json();
@@ -3604,6 +4802,525 @@ document.querySelectorAll(
 );
 
 updateBackupProtocolFields();
+
+
+const managedDeviceState = {
+    rows: 0,
+};
+
+
+function escapeHtml(value) {
+    const div = document.createElement("div");
+    div.textContent = value ?? "";
+    return div.innerHTML;
+}
+
+
+function addDeviceInputRow(
+    values = {}
+) {
+    managedDeviceState.rows += 1;
+
+    const rowId =
+        `device-row-${managedDeviceState.rows}`;
+
+    const container = document.getElementById(
+        "device-input-list"
+    );
+
+    const row = document.createElement(
+        "div"
+    );
+
+    row.className = "device-input-row";
+    row.id = rowId;
+
+    row.innerHTML = `
+        <div class="field">
+            <label>IP / Hostname</label>
+            <input
+                class="device-host"
+                type="text"
+                value="${escapeHtml(values.host || "")}"
+                placeholder="Ex.: 172.28.255.210"
+                autocomplete="off"
+            >
+        </div>
+
+        <div class="field">
+            <label>Usuário</label>
+            <input
+                class="device-username"
+                type="text"
+                value="${escapeHtml(values.username || "")}"
+                autocomplete="username"
+            >
+        </div>
+
+        <div class="field">
+            <label>Senha</label>
+            <input
+                class="device-password"
+                type="password"
+                autocomplete="current-password"
+            >
+        </div>
+
+        <div class="field">
+            <label>Enable Secret</label>
+            <input
+                class="device-secret"
+                type="password"
+                autocomplete="off"
+            >
+        </div>
+
+        <button
+            type="button"
+            class="device-remove-button"
+            title="Remover equipamento"
+        >
+            ×
+        </button>
+    `;
+
+    row.querySelector(
+        ".device-remove-button"
+    ).addEventListener(
+        "click",
+        () => row.remove()
+    );
+
+    container.appendChild(
+        row
+    );
+}
+
+
+async function registerDevice(
+    row
+) {
+    const payload = {
+        host: row.querySelector(
+            ".device-host"
+        ).value.trim(),
+
+        username: row.querySelector(
+            ".device-username"
+        ).value.trim(),
+
+        password: row.querySelector(
+            ".device-password"
+        ).value,
+
+        secret: row.querySelector(
+            ".device-secret"
+        ).value,
+    };
+
+    if (
+        !payload.host
+        || !payload.username
+        || !payload.password
+    ) {
+        throw new Error(
+            "Preencha IP, usuário e senha de todos os equipamentos."
+        );
+    }
+
+    const response = await fetch(
+        "/api/devices",
+        {
+            method: "POST",
+            headers: {
+                "Content-Type":
+                    "application/json",
+            },
+            body: JSON.stringify(
+                payload
+            ),
+        }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+        throw new Error(
+            data.error
+            || "Falha ao cadastrar equipamento."
+        );
+    }
+
+    return data.device;
+}
+
+
+function interfaceValue(
+    iface,
+    ...keys
+) {
+    for (const key of keys) {
+        if (
+            iface[key] !== undefined
+            && iface[key] !== null
+            && iface[key] !== ""
+        ) {
+            return iface[key];
+        }
+    }
+
+    return "--";
+}
+
+
+function renderManagedDevices(
+    results
+) {
+    const container = document.getElementById(
+        "managed-device-results"
+    );
+
+    if (!results.length) {
+        container.innerHTML = `
+            <div class="device-empty">
+                Nenhum equipamento descoberto.
+            </div>
+        `;
+
+        return;
+    }
+
+    container.innerHTML = results.map(
+        result => {
+            const device = result.device;
+
+            const hostname =
+                device.hostname
+                || device.host;
+
+            if (!result.success) {
+                return `
+                    <div class="managed-switch">
+                        <div class="managed-switch-header">
+                            <div class="managed-switch-identity">
+                                <span class="managed-switch-hostname">
+                                    ${escapeHtml(hostname)}
+                                </span>
+
+                                <span class="managed-switch-ip">
+                                    ${escapeHtml(device.host)}
+                                </span>
+                            </div>
+
+                            <span
+                                class="
+                                    device-status-badge
+                                    device-status-error
+                                "
+                            >
+                                Falha
+                            </span>
+                        </div>
+
+                        <div class="managed-switch-error">
+                            ${escapeHtml(result.error)}
+                        </div>
+                    </div>
+                `;
+            }
+
+            const interfaces =
+                result.interfaces || [];
+
+            const rows = interfaces.map(
+                iface => `
+                    <tr>
+                        <td>
+                            ${escapeHtml(
+                                interfaceValue(
+                                    iface,
+                                    "interface",
+                                    "port",
+                                    "name"
+                                )
+                            )}
+                        </td>
+
+                        <td>
+                            ${escapeHtml(
+                                interfaceValue(
+                                    iface,
+                                    "description"
+                                )
+                            )}
+                        </td>
+
+                        <td>
+                            ${escapeHtml(
+                                interfaceValue(
+                                    iface,
+                                    "state",
+                                    "status"
+                                )
+                            )}
+                        </td>
+
+                        <td>
+                            ${escapeHtml(
+                                interfaceValue(
+                                    iface,
+                                    "mode",
+                                    "vlan_mode",
+                                    "vlan"
+                                )
+                            )}
+                        </td>
+
+                        <td>
+                            ${escapeHtml(
+                                interfaceValue(
+                                    iface,
+                                    "voice_vlan"
+                                )
+                            )}
+                        </td>
+
+                        <td>
+                            ${escapeHtml(
+                                interfaceValue(
+                                    iface,
+                                    "portfast"
+                                )
+                            )}
+                        </td>
+
+                        <td>
+                            ${escapeHtml(
+                                interfaceValue(
+                                    iface,
+                                    "port_channel",
+                                    "channel_group"
+                                )
+                            )}
+                        </td>
+                    </tr>
+                `
+            ).join("");
+
+            return `
+                <div
+                    class="managed-switch"
+                    data-device-id="${escapeHtml(device.id)}"
+                >
+                    <div class="managed-switch-header">
+                        <div class="managed-switch-identity">
+                            <span class="managed-switch-hostname">
+                                ${escapeHtml(hostname)}
+                            </span>
+
+                            <span class="managed-switch-ip">
+                                ${escapeHtml(device.host)}
+                            </span>
+                        </div>
+
+                        <div class="managed-switch-actions">
+                            <span
+                                class="
+                                    device-status-badge
+                                    device-status-connected
+                                "
+                            >
+                                Conectado
+                            </span>
+
+                            <a
+                                class="manage-device-button"
+                                href="/?device_id=${encodeURIComponent(device.id)}"
+                            >
+                                Gerenciar
+                            </a>
+                        </div>
+                    </div>
+
+                    ${
+                        rows
+                        ? `
+                            <div class="table-wrap">
+                                <table class="managed-interface-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Interface</th>
+                                            <th>Descrição</th>
+                                            <th>Estado</th>
+                                            <th>VLAN / Modo</th>
+                                            <th>Voice</th>
+                                            <th>PortFast</th>
+                                            <th>Po</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${rows}
+                                    </tbody>
+                                </table>
+                            </div>
+                        `
+                        : `
+                            <div class="device-empty">
+                                Nenhuma interface encontrada.
+                            </div>
+                        `
+                    }
+                </div>
+            `;
+        }
+    ).join("");
+}
+
+
+async function discoverAllDevices() {
+    const status = document.getElementById(
+        "device-manager-status"
+    );
+
+    const button = document.getElementById(
+        "discover-devices"
+    );
+
+    const rows = [
+        ...document.querySelectorAll(
+            ".device-input-row"
+        ),
+    ];
+
+    if (!rows.length) {
+        status.textContent =
+            "Adicione pelo menos um equipamento.";
+
+        return;
+    }
+
+    button.disabled = true;
+
+    status.textContent =
+        `Conectando a ${rows.length} equipamento(s) em paralelo...`;
+
+    try {
+        const devices = [];
+
+        for (const row of rows) {
+            const device =
+                await registerDevice(
+                    row
+                );
+
+            devices.push(
+                device
+            );
+        }
+
+        status.textContent =
+            "Descobrindo hostname e interfaces...";
+
+        const response = await fetch(
+            "/api/devices/discover",
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type":
+                        "application/json",
+                },
+                body: JSON.stringify({
+                    device_ids:
+                        devices.map(
+                            device =>
+                                device.id
+                        ),
+                }),
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                data.error
+                || "Falha na descoberta."
+            );
+        }
+
+        renderManagedDevices(
+            data.devices
+        );
+
+        const successful =
+            data.devices.filter(
+                item => item.success
+            ).length;
+
+        status.textContent =
+            `${successful}/${data.devices.length} equipamento(s) conectado(s).`;
+
+    } catch (error) {
+        status.textContent =
+            error.message;
+    } finally {
+        button.disabled = false;
+    }
+}
+
+
+/*
+ * Device Manager possui bootstrap próprio junto ao HTML.
+ * Mantemos as funções históricas abaixo apenas para
+ * compatibilidade temporária, sem registrar listeners.
+ */
+
+
+
+
+
+function attachActiveDeviceToForms() {
+    if (!activeDeviceId) {
+        return;
+    }
+
+    document.querySelectorAll(
+        "#device-workspace form"
+    ).forEach(
+        form => {
+            // Comparação arquivo x arquivo não acessa switch.
+            if (
+                form.action.endsWith(
+                    "/configuration/diff/files"
+                )
+            ) {
+                return;
+            }
+
+            let field = form.querySelector(
+                'input[name="device_id"]'
+            );
+
+            if (!field) {
+                field = document.createElement(
+                    "input"
+                );
+
+                field.type = "hidden";
+                field.name = "device_id";
+
+                form.appendChild(
+                    field
+                );
+            }
+
+            field.value = activeDeviceId;
+        }
+    );
+}
+
+
+attachActiveDeviceToForms();
 
 </script>
 

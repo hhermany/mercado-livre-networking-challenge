@@ -17,9 +17,11 @@ from src.switch.batch import (
     combine_interface_selection,
 )
 from src.switch.cisco import validate_switchport_change
+from src.switch.devices import DeviceManager
 from src.switch.service import (
     compare_config_texts,
     create_switch_backup,
+    discover_managed_switch,
     get_running_config,
     get_startup_config,
     get_switch_interfaces,
@@ -36,25 +38,125 @@ load_dotenv(".env")
 app = Flask(__name__)
 
 
-def switch_credentials():
+device_manager = DeviceManager(
+    max_workers=4
+)
+
+
+def selected_device_id():
+    return (
+        request.values.get(
+            "device_id"
+        )
+        or request.headers.get(
+            "X-Device-ID"
+        )
+    )
+
+
+def is_test_runtime():
+    return app.testing
+
+
+def legacy_test_device():
+    """Representa o switch legado somente durante testes."""
+    if not is_test_runtime():
+        return None
+
+    host = os.getenv("SWITCH_HOST")
+
+    if not host:
+        return None
+
     return {
-        "host": os.environ["SWITCH_HOST"],
-        "username": os.environ["SWITCH_USERNAME"],
-        "password": os.environ["SWITCH_PASSWORD"],
-        "secret": os.getenv("SWITCH_SECRET", ""),
+        "id": "__legacy_test_device__",
+        "host": host,
+        "hostname": host,
+        "username": os.getenv(
+            "SWITCH_USERNAME",
+            "",
+        ),
+        "connected": True,
+        "status": "connected",
     }
 
 
-def load_inventory():
+def switch_credentials(
+    device_id=None,
+):
+    device_id = (
+        device_id
+        or selected_device_id()
+    )
+
+    if (
+        device_id
+        and device_id != "__legacy_test_device__"
+    ):
+        try:
+            device = device_manager.get(
+                device_id
+            )
+
+        except KeyError as exc:
+            raise ValueError(
+                "O equipamento selecionado "
+                "não está cadastrado."
+            ) from exc
+
+        return device.credentials()
+
+    # Compatibilidade da suíte histórica.
+    # Nunca é usada no Flask operacional.
+    if is_test_runtime():
+        return {
+            "host": os.environ["SWITCH_HOST"],
+            "username": os.environ["SWITCH_USERNAME"],
+            "password": os.environ["SWITCH_PASSWORD"],
+            "secret": os.getenv(
+                "SWITCH_SECRET",
+                "",
+            ),
+        }
+
+    raise ValueError(
+        "Selecione um equipamento para executar esta operação."
+    )
+
+
+def load_inventory(
+    device_id=None,
+):
+    effective_device_id = device_id
+
+    if (
+        not effective_device_id
+        and is_test_runtime()
+    ):
+        effective_device_id = (
+            "__legacy_test_device__"
+        )
+
+    if not effective_device_id:
+        return [], "", {}, None
+
     try:
         inventory = get_switch_interfaces(
-            **switch_credentials()
+            **switch_credentials(
+                effective_device_id
+            )
         )
 
         return (
             inventory["interfaces"],
-            inventory.get("vlan_state", ""),
-            inventory.get("capabilities", {}),
+            inventory.get(
+                "vlan_state",
+                "",
+            ),
+            inventory.get(
+                "capabilities",
+                {},
+            ),
             None,
         )
 
@@ -71,12 +173,44 @@ def render_page(
     config_result=None,
     config_error=None,
 ):
+    active_device_id = (
+        selected_device_id()
+    )
+
+    active_device = None
+
+    if active_device_id:
+        try:
+            active_device = (
+                device_manager.get(
+                    active_device_id
+                ).public()
+            )
+
+        except KeyError:
+            active_device_id = None
+
+    if (
+        active_device is None
+        and is_test_runtime()
+    ):
+        active_device = (
+            legacy_test_device()
+        )
+
+        if active_device:
+            active_device_id = (
+                "__legacy_test_device__"
+            )
+
     (
         interfaces,
         vlan_state,
         capabilities,
         inventory_error,
-    ) = load_inventory()
+    ) = load_inventory(
+        active_device_id
+    )
 
     return render_template(
         "index.html",
@@ -91,7 +225,32 @@ def render_page(
         troubleshooting_error=troubleshooting_error,
         config_result=config_result,
         config_error=config_error,
+        active_device_id=active_device_id,
+        active_device=active_device,
     )
+
+
+@app.context_processor
+def inject_device_template_context():
+    """
+    Garante contexto de device também para rotas históricas
+    que ainda renderizam index.html diretamente.
+    """
+
+    if is_test_runtime():
+        return {
+            "active_device": (
+                legacy_test_device()
+            ),
+            "active_device_id": (
+                "__legacy_test_device__"
+            ),
+        }
+
+    return {
+        "active_device": None,
+        "active_device_id": None,
+    }
 
 
 def parse_vlans():
@@ -217,6 +376,125 @@ def parse_interface_configuration(
         "remove_description": remove_description,
         "admin_state": admin_state,
         "portfast_state": portfast_state,
+    }
+
+
+@app.get("/api/devices")
+def api_list_devices():
+    return {
+        "devices": (
+            device_manager.list()
+        ),
+    }
+
+
+@app.post("/api/devices")
+def api_add_device():
+    payload = (
+        request.get_json(
+            silent=True
+        )
+        or request.form
+    )
+
+    try:
+        device = device_manager.upsert(
+            host=payload.get(
+                "host"
+            ),
+            username=payload.get(
+                "username"
+            ),
+            password=payload.get(
+                "password"
+            ),
+            secret=payload.get(
+                "secret",
+                "",
+            ),
+        )
+
+        return {
+            "success": True,
+            "device": device.public(),
+        }, 201
+
+    except ValueError as exc:
+        return {
+            "success": False,
+            "error": str(exc),
+        }, 400
+
+
+@app.get("/api/devices/<device_id>")
+def api_get_device(
+    device_id,
+):
+    try:
+        device = device_manager.get(
+            device_id
+        )
+
+        return {
+            "success": True,
+            "device": device.public(),
+        }
+
+    except KeyError:
+        return {
+            "success": False,
+            "error": "Equipamento não encontrado.",
+        }, 404
+
+
+@app.delete("/api/devices/<device_id>")
+def api_remove_device(
+    device_id,
+):
+    try:
+        device = (
+            device_manager.remove(
+                device_id
+            )
+        )
+
+        return {
+            "success": True,
+            "device": device.public(),
+        }
+
+    except KeyError:
+        return {
+            "success": False,
+            "error": (
+                "Equipamento não encontrado."
+            ),
+        }, 404
+
+
+@app.post("/api/devices/discover")
+def api_discover_devices():
+    payload = (
+        request.get_json(
+            silent=True
+        )
+        or {}
+    )
+
+    device_ids = payload.get(
+        "device_ids"
+    )
+
+    results = (
+        device_manager.discover_many(
+            discover_managed_switch,
+            device_ids=device_ids,
+        )
+    )
+
+    return {
+        "success": True,
+        "devices": results,
     }
 
 

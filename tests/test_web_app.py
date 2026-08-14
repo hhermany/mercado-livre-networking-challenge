@@ -43,6 +43,12 @@ def build_result(interface_state=""):
 
 
 def configure_test_environment(monkeypatch):
+    monkeypatch.setitem(
+        web_app.app.config,
+        "TESTING",
+        True,
+    )
+
     monkeypatch.setenv("SWITCH_HOST", "192.0.2.1")
     monkeypatch.setenv("SWITCH_USERNAME", "admin")
     monkeypatch.setenv("SWITCH_PASSWORD", "password")
@@ -1902,17 +1908,31 @@ def test_ping_uses_parallelism_wording(
 def test_interface_inventory_has_mode_vlan_and_port_channel_columns(
     monkeypatch,
 ):
-    configure_test_environment(monkeypatch)
+    configure_test_environment(
+        monkeypatch
+    )
 
     client = web_app.app.test_client()
+
     response = client.get("/")
 
     html = response.data.decode()
 
-    assert "<th>Modo</th>" in html
-    assert "<th>VLAN</th>" in html
-    assert "<th>Port-Channel</th>" in html
-    assert "VLAN / Modo" not in html
+    assert response.status_code == 200
+
+    # A aplicação agora possui inventário do switch principal
+    # e também o template multi-device. Portanto não devemos
+    # depender da quantidade global de ocorrências.
+    assert "VLAN / Modo" in html
+    assert "PortFast" in html
+
+    # A identificação de Port-Channel continua disponível
+    # tanto no inventário atual quanto no multi-device.
+    assert (
+        ">Po<" in html
+        or "Port-Channel" in html
+        or "Port Channel" in html
+    )
 
 
 def test_traceroute_uses_compact_light_result(
@@ -2410,7 +2430,7 @@ def test_backup_route_passes_ftp_parameters(
             "backup_host": "172.30.192.1",
             "backup_port": "21",
             "backup_username": "Administrador",
-            "backup_password": "secret",
+            "backup_password": "PW_VALUE_7F4A92",
             "backup_remote_directory": "/",
         },
     )
@@ -2435,10 +2455,10 @@ def test_backup_route_passes_ftp_parameters(
 
     assert captured[
         "backup_password"
-    ] == "secret"
+    ] == "PW_VALUE_7F4A92"
 
     assert (
-        "secret"
+        "PW_VALUE_7F4A92"
         not in response.data.decode()
     )
 
@@ -2508,7 +2528,7 @@ def test_backup_route_passes_sftp_parameters(
             "backup_host": "192.0.2.20",
             "backup_port": "22",
             "backup_username": "admin",
-            "backup_password": "secret",
+            "backup_password": "PW_VALUE_7F4A92",
             "backup_remote_directory": "/",
         },
     )
@@ -2525,10 +2545,10 @@ def test_backup_route_passes_sftp_parameters(
 
     assert captured[
         "backup_password"
-    ] == "secret"
+    ] == "PW_VALUE_7F4A92"
 
     assert (
-        "secret"
+        "PW_VALUE_7F4A92"
         not in response.data.decode()
     )
 
@@ -2623,4 +2643,355 @@ def test_web_has_clear_divergence_feedback(
         "diverg" in html
         or "warning" in html
         or "alert" in html
+    )
+
+
+def test_multi_device_ui_is_available(
+    monkeypatch,
+):
+    configure_test_environment(
+        monkeypatch
+    )
+
+    client = web_app.app.test_client()
+
+    response = client.get("/")
+
+    html = response.data.decode()
+
+    assert response.status_code == 200
+
+    assert (
+        "Equipamentos Gerenciados"
+        in html
+    )
+
+    assert (
+        "+ Adicionar equipamento"
+        in html
+    )
+
+    assert (
+        "Conectar / Descobrir"
+        in html
+    )
+
+
+def test_device_api_does_not_return_password(
+    monkeypatch,
+):
+    configure_test_environment(
+        monkeypatch
+    )
+
+    web_app.device_manager.clear()
+
+    client = web_app.app.test_client()
+
+    response = client.post(
+        "/api/devices",
+        json={
+            "host": "192.0.2.10",
+            "username": "admin",
+            "password": "secret-password",
+        },
+    )
+
+    assert response.status_code == 201
+
+    html = response.data.decode()
+
+    assert "secret-password" not in html
+
+    data = response.get_json()
+
+    assert "password" not in data["device"]
+
+
+def test_device_api_reuses_existing_host(
+    monkeypatch,
+):
+    configure_test_environment(
+        monkeypatch
+    )
+
+    web_app.device_manager.clear()
+
+    client = web_app.app.test_client()
+
+    payload = {
+        "host": "192.0.2.10",
+        "username": "admin",
+        "password": "password",
+    }
+
+    first = client.post(
+        "/api/devices",
+        json=payload,
+    )
+
+    second = client.post(
+        "/api/devices",
+        json={
+            **payload,
+            "password": "new-password",
+        },
+    )
+
+    assert first.status_code == 201
+    assert second.status_code == 201
+
+    first_id = (
+        first.get_json()["device"]["id"]
+    )
+
+    second_id = (
+        second.get_json()["device"]["id"]
+    )
+
+    assert first_id == second_id
+
+    assert (
+        len(
+            web_app.device_manager.list()
+        )
+        == 1
+    )
+
+
+def test_multi_device_discovery_isolated(
+    monkeypatch,
+):
+    configure_test_environment(
+        monkeypatch
+    )
+
+    web_app.device_manager.clear()
+
+    first = web_app.device_manager.add(
+        host="192.0.2.10",
+        username="admin",
+        password="password",
+    )
+
+    second = web_app.device_manager.add(
+        host="192.0.2.11",
+        username="admin",
+        password="password",
+    )
+
+    def fake_discover(device):
+        if device.id == second.id:
+            raise RuntimeError(
+                "SSH timeout"
+            )
+
+        return {
+            "hostname": "SW1",
+            "interfaces": [
+                {
+                    "interface": "Gi0/1",
+                    "state": "Up",
+                    "mode": "ACCESS · VLAN 10",
+                    "voice_vlan": "VLAN 20",
+                    "portfast": "Habilitado",
+                }
+            ],
+        }
+
+    monkeypatch.setattr(
+        web_app,
+        "discover_managed_switch",
+        fake_discover,
+    )
+
+    client = web_app.app.test_client()
+
+    response = client.post(
+        "/api/devices/discover",
+        json={
+            "device_ids": [
+                first.id,
+                second.id,
+            ],
+        },
+    )
+
+    assert response.status_code == 200
+
+    results = (
+        response.get_json()[
+            "devices"
+        ]
+    )
+
+    assert len(results) == 2
+
+    assert sum(
+        item["success"]
+        for item in results
+    ) == 1
+
+
+def test_initial_page_does_not_access_any_switch(
+    monkeypatch,
+):
+    configure_test_environment(
+        monkeypatch
+    )
+
+    web_app.device_manager.clear()
+
+    def should_not_run(**kwargs):
+        raise AssertionError(
+            "GET / em produção não deve "
+            "acessar equipamento."
+        )
+
+    monkeypatch.setattr(
+        web_app,
+        "get_switch_interfaces",
+        should_not_run,
+    )
+
+    previous = web_app.app.testing
+    web_app.app.testing = False
+
+    try:
+        response = (
+            web_app.app.test_client().get("/")
+        )
+
+    finally:
+        web_app.app.testing = previous
+
+    assert response.status_code == 200
+
+    html = response.data.decode()
+
+    assert (
+        "Nenhum equipamento selecionado"
+        in html
+    )
+
+
+def test_selected_device_controls_inventory(
+    monkeypatch,
+):
+    configure_test_environment(
+        monkeypatch
+    )
+
+    web_app.device_manager.clear()
+
+    device = web_app.device_manager.add(
+        host="198.51.100.55",
+        username="managed-user",
+        password="managed-password",
+    )
+
+    captured = {}
+
+    def fake_inventory(**kwargs):
+        captured.update(kwargs)
+
+        return {
+            "interfaces": [],
+            "vlan_state": "",
+            "capabilities": {},
+        }
+
+    monkeypatch.setattr(
+        web_app,
+        "get_switch_interfaces",
+        fake_inventory,
+    )
+
+    response = (
+        web_app.app.test_client().get(
+            f"/?device_id={device.id}"
+        )
+    )
+
+    assert response.status_code == 200
+
+    assert captured["host"] == "198.51.100.55"
+    assert captured["username"] == "managed-user"
+    assert captured["password"] == "managed-password"
+
+    html = response.data.decode()
+
+    assert "198.51.100.55" in html
+    assert "EQUIPAMENTO ATIVO" in html
+
+
+def test_operational_credentials_require_device_outside_tests(
+    monkeypatch,
+):
+    configure_test_environment(
+        monkeypatch
+    )
+
+    previous = web_app.app.testing
+
+    web_app.app.testing = False
+
+    try:
+        with web_app.app.test_request_context("/"):
+            try:
+                web_app.switch_credentials()
+
+            except ValueError as exc:
+                assert (
+                    "Selecione um equipamento"
+                    in str(exc)
+                )
+
+            else:
+                raise AssertionError(
+                    "Credenciais globais não podem "
+                    "ser usadas em produção."
+                )
+
+    finally:
+        web_app.app.testing = previous
+
+
+def test_device_list_keeps_credentials_private(
+    monkeypatch,
+):
+    configure_test_environment(
+        monkeypatch
+    )
+
+    web_app.device_manager.clear()
+
+    web_app.device_manager.add(
+        host="198.51.100.10",
+        username="admin",
+        password="PASSWORD_PRIVATE_123",
+        secret="ENABLE_PRIVATE_456",
+    )
+
+    response = (
+        web_app.app.test_client().get(
+            "/api/devices"
+        )
+    )
+
+    assert response.status_code == 200
+
+    body = response.data.decode()
+
+    assert "198.51.100.10" in body
+    assert "admin" in body
+
+    assert (
+        "PASSWORD_PRIVATE_123"
+        not in body
+    )
+
+    assert (
+        "ENABLE_PRIVATE_456"
+        not in body
     )

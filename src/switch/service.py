@@ -1386,3 +1386,51 @@ def create_switch_backup(
         "destination": stored.destination,
         "size": stored.size,
     }
+
+
+def discover_managed_switch(
+    device,
+):
+    """
+    Descobre hostname e inventário de interfaces usando
+    exclusivamente a camada Cisco já existente.
+    """
+    from src.switch.configuration import (
+        extract_hostname,
+    )
+
+    credentials = (
+        device.credentials()
+    )
+
+    running = get_running_config(
+        **credentials
+    )
+
+    hostname = extract_hostname(
+        running
+    )
+
+    # Reutiliza o inventário operacional existente.
+    inventory = get_switch_interfaces(
+        **credentials
+    )
+
+    if isinstance(
+        inventory,
+        dict,
+    ):
+        interfaces = inventory.get(
+            "interfaces",
+            inventory.get(
+                "items",
+                [],
+            ),
+        )
+    else:
+        interfaces = inventory
+
+    return {
+        "hostname": hostname,
+        "interfaces": interfaces or [],
+    }
