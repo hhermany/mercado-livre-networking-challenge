@@ -37,11 +37,12 @@ def load_inventory():
         return (
             inventory["interfaces"],
             inventory.get("vlan_state", ""),
+            inventory.get("capabilities", {}),
             None,
         )
 
     except Exception as exc:
-        return [], "", str(exc)
+        return [], "", {}, str(exc)
 
 
 def render_page(
@@ -49,9 +50,12 @@ def render_page(
     error=None,
     batch_preview=None,
 ):
-    interfaces, vlan_state, inventory_error = (
-        load_inventory()
-    )
+    (
+        interfaces,
+        vlan_state,
+        capabilities,
+        inventory_error,
+    ) = load_inventory()
 
     return render_template(
         "index.html",
@@ -60,6 +64,7 @@ def render_page(
         interfaces=interfaces,
         vlan_state=vlan_state,
         inventory_error=inventory_error,
+        capabilities=capabilities,
         batch_preview=batch_preview,
     )
 
@@ -147,6 +152,20 @@ def parse_interface_configuration(
         or None
     )
 
+    portfast_state = (
+        field("portfast_state")
+        or None
+    )
+
+    if portfast_state not in (
+        None,
+        "enable",
+        "disable",
+    ):
+        raise ValueError(
+            "PortFast inválido."
+        )
+
     if (
         description is not None
         and remove_description
@@ -172,6 +191,7 @@ def parse_interface_configuration(
         "description": description,
         "remove_description": remove_description,
         "admin_state": admin_state,
+        "portfast_state": portfast_state,
     }
 
 
@@ -245,7 +265,7 @@ def apply_vlans():
 
 @app.post("/apply-ports")
 def apply_ports():
-    interfaces, _, inventory_error = (
+    interfaces, _, capabilities, inventory_error = (
         load_inventory()
     )
 
@@ -290,6 +310,7 @@ def apply_ports():
             config["access_vlan"] is not None
             or config["voice_vlan"] is not None
             or config["remove_voice_vlan"]
+            or config["portfast_state"] is not None
         )
 
         if has_switchport_config:
@@ -305,6 +326,9 @@ def apply_ports():
                     ],
                     remove_voice_vlan=config[
                         "remove_voice_vlan"
+                    ],
+                    portfast_state=config[
+                        "portfast_state"
                     ],
                 )
 
@@ -331,9 +355,12 @@ def apply_ports():
 # do incremento anterior. Não é mais usado pela UX.
 @app.post("/batch-preview")
 def batch_preview():
-    interfaces, vlan_state, inventory_error = (
-        load_inventory()
-    )
+    (
+        interfaces,
+        vlan_state,
+        capabilities,
+        inventory_error,
+    ) = load_inventory()
 
     try:
         if inventory_error:
@@ -414,6 +441,16 @@ def batch_preview():
                 "Estado administrativo: Admin Down"
             )
 
+        if config["portfast_state"] == "enable":
+            desired_changes.append(
+                "PortFast: habilitar Edge"
+            )
+
+        if config["portfast_state"] == "disable":
+            desired_changes.append(
+                "PortFast: desabilitar"
+            )
+
         preview["desired_changes"] = (
             desired_changes
         )
@@ -432,6 +469,7 @@ def batch_preview():
             interfaces=interfaces,
             vlan_state=vlan_state,
             inventory_error=inventory_error,
+            capabilities=capabilities,
             batch_preview=preview,
         )
 
@@ -443,6 +481,7 @@ def batch_preview():
             interfaces=interfaces,
             vlan_state=vlan_state,
             inventory_error=inventory_error,
+            capabilities=capabilities,
             batch_preview=None,
         )
 
@@ -450,7 +489,7 @@ def batch_preview():
 # Compatibilidade com os testes e chamadas anteriores.
 @app.post("/apply")
 def apply_configuration():
-    interfaces, _, inventory_error = (
+    interfaces, _, capabilities, inventory_error = (
         load_inventory()
     )
 
@@ -508,12 +547,18 @@ def apply_configuration():
                 ],
             )
 
+        legacy_config = {
+            key: value
+            for key, value in config.items()
+            if key != "portfast_state"
+        }
+
         result = provision_switch(
             **switch_credentials(),
             hostname=hostname,
             vlans=vlans,
             interface=interface,
-            **config,
+            **legacy_config,
         )
 
         return render_page(

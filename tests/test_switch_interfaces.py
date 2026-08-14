@@ -1,7 +1,13 @@
 import pytest
 
 from src.switch.cisco import (
+    enrich_interfaces_with_portfast,
+    enrich_interfaces_with_voice_vlan,
+    normalize_interface_name,
+    parse_interface_portfast,
     parse_interface_status,
+    parse_stp_capabilities,
+    parse_voice_vlans,
     validate_interface_description,
     validate_switchport_change,
 )
@@ -149,3 +155,272 @@ def test_description_validation_does_not_depend_on_switchport_mode():
     validate_interface_description(
         "UPLINK ROUTED"
     )
+
+
+def test_stp_capabilities_detect_rapid_pvst_and_edge():
+    capabilities = parse_stp_capabilities(
+        "Switch is in rapid-pvst mode",
+        " spanning-tree portfast edge",
+    )
+
+    assert capabilities["stp_mode"] == "rapid-pvst"
+    assert capabilities["portfast_supported"] is True
+    assert capabilities["portfast_mode"] == "edge"
+    assert (
+        capabilities["portfast_enable_command"]
+        == "spanning-tree portfast edge"
+    )
+    assert (
+        capabilities["portfast_disable_command"]
+        == "spanning-tree portfast disable"
+    )
+
+
+def test_portfast_rejects_routed_interface():
+    interfaces = [
+        {
+            "name": "Gi0/0",
+            "description": "",
+            "status": "connected",
+            "status_label": "Up",
+            "vlan": "routed",
+            "mode_label": "Routed",
+        }
+    ]
+
+    with pytest.raises(
+        ValueError,
+        match="Layer 3",
+    ):
+        validate_switchport_change(
+            interfaces=interfaces,
+            interface="Gi0/0",
+            portfast_state="enable",
+        )
+
+
+def test_portfast_edge_rejects_trunk_interface():
+    interfaces = [
+        {
+            "name": "Gi0/1",
+            "description": "",
+            "status": "connected",
+            "status_label": "Up",
+            "vlan": "trunk",
+            "mode_label": "Trunk",
+        }
+    ]
+
+    with pytest.raises(
+        ValueError,
+        match="trunk",
+    ):
+        validate_switchport_change(
+            interfaces=interfaces,
+            interface="Gi0/1",
+            portfast_state="enable",
+        )
+
+
+def test_parse_voice_vlans():
+    output = """\
+Name: Gi0/1
+Switchport: Enabled
+Administrative Mode: static access
+Access Mode VLAN: 10 (VLAN_DADOS)
+Voice VLAN: 20 (VLAN_VOZ)
+
+Name: Gi0/2
+Switchport: Enabled
+Administrative Mode: static access
+Access Mode VLAN: 50 (VLAN_SEGURANCA)
+Voice VLAN: none
+"""
+
+    result = parse_voice_vlans(output)
+
+    assert result == {
+        "Gi0/1": 20,
+        "Gi0/2": None,
+    }
+
+
+def test_enrich_interfaces_with_voice_vlan():
+    interfaces = [
+        {
+            "name": "Gi0/1",
+            "description": "HOST",
+            "status": "connected",
+            "status_label": "Up",
+            "vlan": "10",
+            "mode_label": "VLAN 10",
+        },
+        {
+            "name": "Gi0/2",
+            "description": "",
+            "status": "disabled",
+            "status_label": "Admin Down",
+            "vlan": "50",
+            "mode_label": "VLAN 50",
+        },
+    ]
+
+    result = enrich_interfaces_with_voice_vlan(
+        interfaces,
+        {
+            "Gi0/1": 20,
+            "Gi0/2": None,
+        },
+    )
+
+    assert result[0]["voice_vlan"] == 20
+    assert result[0]["voice_vlan_label"] == "VLAN 20"
+
+    assert result[1]["voice_vlan"] is None
+    assert result[1]["voice_vlan_label"] == "--"
+
+
+
+def test_parse_interface_portfast():
+    output = """\
+interface GigabitEthernet0/1
+ description HOST
+ spanning-tree portfast edge
+!
+interface GigabitEthernet0/2
+ switchport mode access
+ spanning-tree portfast disable
+!
+interface GigabitEthernet0/3
+ switchport mode access
+!
+interface GigabitEthernet1/0
+ spanning-tree portfast network
+"""
+
+    result = parse_interface_portfast(output)
+
+    assert result == {
+        "GigabitEthernet0/1": "Habilitado",
+        "GigabitEthernet0/2": "Desabilitado",
+        "GigabitEthernet0/3": None,
+        "GigabitEthernet1/0": "Network",
+    }
+
+
+def test_enrich_interfaces_with_portfast():
+    interfaces = [
+        {
+            "name": "Gi0/1",
+            "description": "",
+            "status": "connected",
+            "status_label": "Up",
+            "vlan": "10",
+            "mode_label": "VLAN 10",
+        },
+        {
+            "name": "Gi0/2",
+            "description": "",
+            "status": "disabled",
+            "status_label": "Admin Down",
+            "vlan": "101",
+            "mode_label": "VLAN 101",
+        },
+    ]
+
+    result = enrich_interfaces_with_portfast(
+        interfaces,
+        {
+            "Gi0/1": "Habilitado",
+        },
+    )
+
+    assert result[0]["portfast"] == "Habilitado"
+    assert result[0]["portfast_label"] == "Habilitado"
+
+    assert result[1]["portfast"] is None
+    assert result[1]["portfast_label"] == "--"
+
+
+def test_normalize_interface_name_matches_cisco_long_and_short_names():
+    assert normalize_interface_name(
+        "Gi0/1"
+    ) == normalize_interface_name(
+        "GigabitEthernet0/1"
+    )
+
+    assert normalize_interface_name(
+        "Gi1/0/24"
+    ) == normalize_interface_name(
+        "GigabitEthernet1/0/24"
+    )
+
+
+def test_portfast_matches_long_running_config_name_to_short_inventory_name():
+    running_config = """\
+interface GigabitEthernet0/1
+ description HOST
+ spanning-tree portfast edge
+!
+interface GigabitEthernet0/2
+ spanning-tree portfast disable
+"""
+
+    interfaces = [
+        {
+            "name": "Gi0/1",
+            "description": "HOST",
+            "status": "connected",
+            "status_label": "Up",
+            "vlan": "10",
+            "mode_label": "VLAN 10",
+        },
+        {
+            "name": "Gi0/2",
+            "description": "",
+            "status": "disabled",
+            "status_label": "Admin Down",
+            "vlan": "101",
+            "mode_label": "VLAN 101",
+        },
+    ]
+
+    portfast = parse_interface_portfast(
+        running_config
+    )
+
+    result = enrich_interfaces_with_portfast(
+        interfaces,
+        portfast,
+    )
+
+    assert result[0]["name"] == "Gi0/1"
+    assert result[0]["portfast"] == "Habilitado"
+    assert result[0]["portfast_label"] == "Habilitado"
+
+    assert result[1]["name"] == "Gi0/2"
+    assert result[1]["portfast"] == "Desabilitado"
+    assert result[1]["portfast_label"] == "Desabilitado"
+
+
+def test_voice_vlan_matches_long_and_short_interface_names():
+    interfaces = [
+        {
+            "name": "Gi1/0/1",
+            "description": "",
+            "status": "connected",
+            "status_label": "Up",
+            "vlan": "10",
+            "mode_label": "VLAN 10",
+        },
+    ]
+
+    result = enrich_interfaces_with_voice_vlan(
+        interfaces,
+        {
+            "GigabitEthernet1/0/1": 20,
+        },
+    )
+
+    assert result[0]["voice_vlan"] == 20
+    assert result[0]["voice_vlan_label"] == "VLAN 20"

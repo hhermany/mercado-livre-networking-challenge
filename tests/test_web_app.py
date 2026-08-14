@@ -53,6 +53,17 @@ def configure_test_environment(monkeypatch):
         lambda **kwargs: {
             "interfaces": INTERFACES,
             "raw": "",
+            "capabilities": {
+                "stp_mode": "rapid-pvst",
+                "portfast_supported": True,
+                "portfast_mode": "edge",
+                "portfast_enable_command": (
+                    "spanning-tree portfast edge"
+                ),
+                "portfast_disable_command": (
+                    "spanning-tree portfast disable"
+                ),
+            },
             "vlan_state": (
                 "VLAN Name                             Status\n"
                 "---- -------------------------------- ---------\n"
@@ -682,9 +693,9 @@ def test_index_shows_batch_configuration(monkeypatch):
 
     assert response.status_code == 200
     assert b"Configura\xc3\xa7\xc3\xa3o de Portas" in response.data
-    assert b"Interface inicial" in response.data
-    assert b"Interface final" in response.data
-    assert b"Aplicar Configura\xc3\xa7\xc3\xa3o de Portas" in response.data
+    assert b"Intervalo de interfaces" in response.data
+    assert b"Defina a configura\xc3\xa7\xc3\xa3o" in response.data
+    assert b"Selecione pelo menos uma porta" in response.data
 
 
 def test_batch_preview_shows_selected_interfaces(monkeypatch):
@@ -1046,10 +1057,7 @@ def test_index_has_one_port_configuration_area(
         not in html
     )
 
-    assert (
-        "Aplicar Configuração de Portas"
-        in html
-    )
+    assert "Selecione pelo menos uma porta" in html
 
 
 def test_batch_success_groups_changes_by_interface(
@@ -1264,3 +1272,237 @@ def test_interface_health_displays_physical_alert(
         "Possível problema físico ou de cabeamento"
         in html
     )
+
+
+def test_index_shows_detected_portfast_capability(
+    monkeypatch,
+):
+    configure_test_environment(
+        monkeypatch
+    )
+
+    client = web_app.app.test_client()
+    response = client.get("/")
+
+    html = response.data.decode()
+
+    assert "PortFast" in html
+    assert "Habilitar Edge" in html
+    assert "Desabilitar" in html
+    assert "RAPID-PVST" in html
+    assert "spanning-tree portfast edge" in html
+
+
+def test_ports_apply_portfast_enable(
+    monkeypatch,
+):
+    configure_test_environment(
+        monkeypatch
+    )
+
+    captured = {}
+
+    def fake_batch(**kwargs):
+        captured.update(kwargs)
+
+        return {
+            "success": True,
+            "missing": [],
+            "changes": [
+                "Gi1/0/1: PortFast Edge habilitado",
+            ],
+            "change_groups": [],
+            "backup": "backups/test.cfg",
+            "interface_results": {},
+            "interfaces": kwargs["interfaces"],
+        }
+
+    monkeypatch.setattr(
+        web_app,
+        "provision_interfaces_batch",
+        fake_batch,
+    )
+
+    client = web_app.app.test_client()
+
+    response = client.post(
+        "/apply-ports",
+        data={
+            "interfaces": [
+                "Gi1/0/1",
+            ],
+            "portfast_state": "enable",
+        },
+    )
+
+    assert response.status_code == 200
+    assert captured["portfast_state"] == "enable"
+
+
+def test_ports_apply_portfast_disable(
+    monkeypatch,
+):
+    configure_test_environment(
+        monkeypatch
+    )
+
+    captured = {}
+
+    def fake_batch(**kwargs):
+        captured.update(kwargs)
+
+        return {
+            "success": True,
+            "missing": [],
+            "changes": [
+                "Gi1/0/1: PortFast desabilitado",
+            ],
+            "change_groups": [],
+            "backup": "backups/test.cfg",
+            "interface_results": {},
+            "interfaces": kwargs["interfaces"],
+        }
+
+    monkeypatch.setattr(
+        web_app,
+        "provision_interfaces_batch",
+        fake_batch,
+    )
+
+    client = web_app.app.test_client()
+
+    response = client.post(
+        "/apply-ports",
+        data={
+            "interfaces": [
+                "Gi1/0/1",
+            ],
+            "portfast_state": "disable",
+        },
+    )
+
+    assert response.status_code == 200
+    assert captured["portfast_state"] == "disable"
+
+
+def test_interface_inventory_contains_port_selection(
+    monkeypatch,
+):
+    configure_test_environment(monkeypatch)
+
+    client = web_app.app.test_client()
+    response = client.get("/")
+
+    html = response.data.decode()
+
+    inventory_position = html.index(
+        "Interfaces do Equipamento"
+    )
+
+    port_config_position = html.index(
+        "Configuração de Portas"
+    )
+
+    checkbox_position = html.index(
+        'class="interface-checkbox"'
+    )
+
+    assert (
+        inventory_position
+        < checkbox_position
+        < port_config_position
+    )
+
+    assert 'form="ports-form"' in html
+
+
+def test_port_configuration_does_not_duplicate_interface_grid(
+    monkeypatch,
+):
+    configure_test_environment(monkeypatch)
+
+    client = web_app.app.test_client()
+    response = client.get("/")
+
+    html = response.data.decode()
+
+    assert "interface-selector" not in html
+    assert "interface-name-selector" in html
+    assert "<th>Selecionar</th>" not in html
+    assert 'id="apply-ports-button"' in html
+
+
+def test_port_configuration_uses_two_step_workflow(
+    monkeypatch,
+):
+    configure_test_environment(monkeypatch)
+
+    client = web_app.app.test_client()
+    response = client.get("/")
+
+    html = response.data.decode()
+
+    assert "Escolha as interfaces" in html
+    assert "Defina a configuração" in html
+    assert "Intervalo de interfaces" in html
+
+    assert html.index(
+        "Escolha as interfaces"
+    ) < html.index(
+        "Defina a configuração"
+    )
+
+
+def test_port_apply_button_starts_disabled(
+    monkeypatch,
+):
+    configure_test_environment(monkeypatch)
+
+    client = web_app.app.test_client()
+    response = client.get("/")
+
+    html = response.data.decode()
+
+    assert 'id="apply-ports-button"' in html
+    assert "Selecione pelo menos uma porta" in html
+
+
+def test_interface_checkbox_is_next_to_interface_name(
+    monkeypatch,
+):
+    configure_test_environment(monkeypatch)
+
+    client = web_app.app.test_client()
+    response = client.get("/")
+
+    html = response.data.decode()
+
+    assert "interface-name-selector" in html
+    assert "<th>Selecionar</th>" not in html
+
+
+def test_interface_inventory_shows_voice_vlan_column(
+    monkeypatch,
+):
+    configure_test_environment(monkeypatch)
+
+    client = web_app.app.test_client()
+    response = client.get("/")
+
+    html = response.data.decode()
+
+    assert "VLAN de Voz" in html
+
+
+
+def test_interface_inventory_shows_portfast_column(
+    monkeypatch,
+):
+    configure_test_environment(monkeypatch)
+
+    client = web_app.app.test_client()
+    response = client.get("/")
+
+    html = response.data.decode()
+
+    assert "<th>PortFast</th>" in html

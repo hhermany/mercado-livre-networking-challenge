@@ -32,7 +32,7 @@ body {
 }
 
 .container {
-    max-width: 1180px;
+    max-width: 1380px;
     margin: 0 auto;
     padding: 28px 24px 60px;
 }
@@ -143,6 +143,60 @@ button:hover {
     overflow-x: auto;
 }
 
+/* Inventário de interfaces */
+.interface-inventory-row th,
+.interface-inventory-row td {
+    vertical-align: middle;
+}
+
+table thead th {
+    text-align: center;
+}
+
+.interface-inventory-row td {
+    text-align: center;
+}
+
+.interface-inventory-row td:nth-child(2) {
+    text-align: left;
+}
+
+.interface-name-selector {
+    justify-content: center;
+    width: 100%;
+}
+
+.description-column {
+    min-width: 250px;
+}
+
+.interface-inventory-row td:nth-child(2) {
+    min-width: 250px;
+    max-width: 420px;
+    overflow-wrap: anywhere;
+}
+
+.counter-highlight {
+    display: inline-block;
+    padding: 0 3px;
+    margin: 0;
+    border-radius: 3px;
+    font-weight: 600;
+    line-height: 1.2;
+}
+
+.counter-highlight-danger {
+    color: #f1b8b8;
+    background: rgba(190, 55, 55, 0.12);
+    border: 1px solid rgba(220, 105, 105, 0.38);
+}
+
+.counter-highlight-warning {
+    color: #ead7a4;
+    background: rgba(205, 145, 25, 0.10);
+    border: 1px solid rgba(220, 185, 95, 0.32);
+}
+
 table {
     width: 100%;
     border-collapse: collapse;
@@ -176,42 +230,6 @@ tbody tr:hover {
     font-weight: 600;
 }
 
-.interface-selector {
-    display: grid;
-    grid-template-columns:
-        repeat(auto-fit, minmax(245px, 1fr));
-    gap: 8px;
-}
-
-.interface-option {
-    display: grid;
-    grid-template-columns: auto 60px 1fr;
-    align-items: center;
-    gap: 8px;
-    padding: 9px 10px;
-    border: 1px solid var(--border);
-    border-radius: 7px;
-    cursor: pointer;
-}
-
-.interface-option:hover {
-    background: #f8fafb;
-}
-
-.interface-option input {
-    width: auto;
-    margin: 0;
-}
-
-.interface-name {
-    font-weight: 600;
-}
-
-.interface-meta {
-    color: var(--muted);
-    font-size: 12px;
-}
-
 .range-grid {
     display: grid;
     grid-template-columns:
@@ -222,10 +240,11 @@ tbody tr:hover {
 .port-grid {
     display: grid;
     grid-template-columns:
-        minmax(210px, 1.4fr)
-        minmax(130px, 0.8fr)
-        minmax(130px, 0.8fr)
-        minmax(190px, 1fr);
+        minmax(190px, 1.25fr)
+        minmax(115px, 0.75fr)
+        minmax(115px, 0.75fr)
+        minmax(170px, 1fr)
+        minmax(160px, 0.9fr);
     gap: 12px;
     align-items: end;
 }
@@ -246,6 +265,84 @@ tbody tr:hover {
 .checkbox input {
     width: auto;
     margin: 0;
+}
+
+.interface-name-selector {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+}
+
+.interface-name-selector input {
+    width: auto;
+    margin: 0;
+    cursor: pointer;
+}
+
+.interface-inventory-row {
+    cursor: pointer;
+    transition:
+        background 0.15s ease,
+        box-shadow 0.15s ease;
+}
+
+.interface-inventory-row.interface-row-selected {
+    background: #eef6fc;
+    box-shadow: inset 3px 0 0 var(--primary);
+}
+
+.workflow-step {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.workflow-step-number {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    flex: 0 0 28px;
+    border-radius: 50%;
+    background: var(--primary);
+    color: white;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.workflow-step-content h3 {
+    margin: 4px 0 0;
+}
+
+.workflow-step-content .help {
+    margin-top: 5px;
+}
+
+.range-selection {
+    margin-top: 16px;
+    padding: 14px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #fafbfc;
+}
+
+.range-selection-title {
+    margin-bottom: 10px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #3f4a54;
+}
+
+.configuration-step {
+    margin-top: 18px;
+}
+
+.actions button:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+    filter: none;
 }
 
 .selection-summary {
@@ -581,17 +678,31 @@ pre {
             <thead>
             <tr>
                 <th>Interface</th>
-                <th>Descrição</th>
+                <th class="description-column">Descrição</th>
                 <th>Estado</th>
                 <th>VLAN / Modo</th>
+                <th>VLAN de Voz</th>
+                <th>PortFast</th>
             </tr>
             </thead>
 
             <tbody>
             {% for item in interfaces %}
-            <tr>
+            <tr class="interface-inventory-row">
                 <td>
-                    <strong>{{ item.name }}</strong>
+                    <label class="interface-name-selector">
+                        <input
+                            type="checkbox"
+                            class="interface-checkbox"
+                            name="interfaces"
+                            value="{{ item.name }}"
+                            data-index="{{ loop.index0 }}"
+                            form="ports-form"
+                            aria-label="Selecionar {{ item.name }}"
+                        >
+
+                        <strong>{{ item.name }}</strong>
+                    </label>
                 </td>
 
                 <td>
@@ -610,12 +721,21 @@ pre {
                 <td>
                     {{ item.mode_label }}
                 </td>
+
+                <td>
+                    {{ item.voice_vlan_label or "--" }}
+                </td>
+
+                <td>
+                    {{ item.portfast_label or "--" }}
+                </td>
             </tr>
             {% endfor %}
             </tbody>
         </table>
 
     </div>
+
     {% endif %}
 </div>
 
@@ -629,42 +749,26 @@ pre {
         action="/apply-ports"
     >
 
-        <h3>Selecione as interfaces</h3>
+        <div class="workflow-step">
+            <div class="workflow-step-number">1</div>
 
-        <div class="interface-selector">
+            <div class="workflow-step-content">
+                <h3>Escolha as interfaces</h3>
 
-            {% for item in interfaces %}
-            <label class="interface-option">
-
-                <input
-                    type="checkbox"
-                    class="interface-checkbox"
-                    name="interfaces"
-                    value="{{ item.name }}"
-                    data-index="{{ loop.index0 }}"
-                >
-
-                <span class="interface-name">
-                    {{ item.name }}
-                </span>
-
-                <span class="interface-meta">
-                    {{ item.status_label }}
-                    · {{ item.mode_label }}
-
-                    {% if item.description %}
-                    · {{ item.description }}
-                    {% endif %}
-                </span>
-
-            </label>
-            {% endfor %}
-
+                <div class="help port-selection-help">
+                    Selecione portas individualmente na tabela
+                    <strong>Interfaces do Equipamento</strong>,
+                    utilize um intervalo contínuo ou combine
+                    as duas formas de seleção.
+                </div>
+            </div>
         </div>
 
 
-        <div class="subsection">
-            <h3>Range Contínuo de Portas</h3>
+        <div class="range-selection">
+            <div class="range-selection-title">
+                Intervalo de interfaces
+            </div>
 
             <div class="range-grid">
 
@@ -718,30 +822,36 @@ pre {
 
             </div>
 
-            <div class="help">
-                Selecione um intervalo de interfaces ou combine-o
-                com portas escolhidas individualmente.
-                Interfaces repetidas são consideradas apenas uma vez.
-            </div>
-
-
             <div
                 id="selection-summary"
                 class="selection-summary"
             >
                 <strong>
-                    Interfaces selecionadas: 0
+                    Nenhuma interface selecionada
                 </strong>
 
                 <span id="selection-list">
-                    Nenhuma
+                    Selecione portas na tabela ou informe um intervalo.
                 </span>
             </div>
+
         </div>
 
 
-        <div class="subsection">
-            <h3>Configuração desejada</h3>
+        <div class="subsection configuration-step">
+
+            <div class="workflow-step">
+                <div class="workflow-step-number">2</div>
+
+                <div class="workflow-step-content">
+                    <h3>Defina a configuração</h3>
+
+                    <div class="help">
+                        Os parâmetros abaixo serão aplicados em todas
+                        as interfaces selecionadas.
+                    </div>
+                </div>
+            </div>
 
             <div class="port-grid">
 
@@ -805,6 +915,32 @@ pre {
                     </select>
                 </div>
 
+                <div class="field">
+                    <label for="portfast_state">
+                        PortFast
+                    </label>
+
+                    <select
+                        id="portfast_state"
+                        name="portfast_state"
+                        {% if not capabilities.portfast_supported %}
+                        disabled
+                        {% endif %}
+                    >
+                        <option value="">
+                            Não alterar
+                        </option>
+
+                        <option value="enable">
+                            Habilitar Edge
+                        </option>
+
+                        <option value="disable">
+                            Desabilitar
+                        </option>
+                    </select>
+                </div>
+
             </div>
 
 
@@ -838,14 +974,29 @@ pre {
 
             <div class="help">
                 Campos vazios significam não alterar aquele parâmetro.
+
+                {% if capabilities.portfast_supported %}
+                PortFast detectado neste equipamento:
+                {{ capabilities.stp_mode | upper }} /
+                Edge. A automação usa
+                <code>spanning-tree portfast edge</code>
+                para habilitar.
+                {% else %}
+                PortFast Edge não foi identificado automaticamente
+                neste equipamento e permanece indisponível.
+                {% endif %}
             </div>
 
         </div>
 
 
         <div class="actions">
-            <button type="submit">
-                Aplicar Configuração de Portas
+            <button
+                id="apply-ports-button"
+                type="submit"
+                disabled
+            >
+                Selecione pelo menos uma porta
             </button>
         </div>
 
@@ -907,7 +1058,11 @@ pre {
 
         {% if info.summary %}
         <div class="interface-operational-info">
+            {% if info.summary_highlighted is defined %}
+            <pre>{{ info.summary_highlighted | safe }}</pre>
+            {% else %}
             <pre>{{ info.summary }}</pre>
+            {% endif %}
         </div>
         {% endif %}
 
@@ -1088,18 +1243,63 @@ function selectedInterfaces() {
 }
 
 
+const applyPortsButton = document.getElementById(
+    "apply-ports-button"
+);
+
+
 function updateSelection() {
     const selected = selectedInterfaces();
 
-    selectionSummary.querySelector(
-        "strong"
-    ).textContent =
-        `Interfaces selecionadas: ${selected.length}`;
+    if (selected.length === 0) {
+        selectionSummary.querySelector(
+            "strong"
+        ).textContent =
+            "Nenhuma interface selecionada";
 
-    selectionList.textContent =
-        selected.length
-            ? selected.join(", ")
-            : "Nenhuma";
+        selectionList.textContent =
+            "Selecione portas na tabela ou informe um intervalo.";
+
+        applyPortsButton.textContent =
+            "Selecione pelo menos uma porta";
+
+        applyPortsButton.disabled = true;
+
+    } else {
+        selectionSummary.querySelector(
+            "strong"
+        ).textContent =
+            selected.length === 1
+                ? "1 interface selecionada"
+                : `${selected.length} interfaces selecionadas`;
+
+        selectionList.textContent =
+            selected.join(", ");
+
+        applyPortsButton.textContent =
+            selected.length === 1
+                ? `Aplicar na porta ${selected[0]}`
+                : `Aplicar nas ${selected.length} portas selecionadas`;
+
+        applyPortsButton.disabled = false;
+    }
+
+    interfaceCheckboxes.forEach(
+        checkbox => {
+            const row = checkbox.closest(
+                ".interface-inventory-row"
+            );
+
+            if (!row) {
+                return;
+            }
+
+            row.classList.toggle(
+                "interface-row-selected",
+                selected.includes(checkbox.value)
+            );
+        }
+    );
 }
 
 
@@ -1111,6 +1311,38 @@ interfaceCheckboxes.forEach(
         );
     }
 );
+
+interfaceCheckboxes.forEach(
+    checkbox => {
+        const row = checkbox.closest(
+            ".interface-inventory-row"
+        );
+
+        if (!row) {
+            return;
+        }
+
+        row.addEventListener(
+            "click",
+            event => {
+                if (
+                    event.target === checkbox
+                    || event.target.closest(
+                        ".interface-name-selector"
+                    )
+                ) {
+                    return;
+                }
+
+                checkbox.checked =
+                    !checkbox.checked;
+
+                updateSelection();
+            }
+        );
+    }
+);
+
 
 rangeStart.addEventListener(
     "change",

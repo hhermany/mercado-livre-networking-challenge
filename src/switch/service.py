@@ -63,6 +63,54 @@ def _format_counters(counters):
     )
 
 
+def highlight_interface_counters(summary):
+    if not summary:
+        return ""
+
+    counter_classes = {
+        "lost carrier": "danger",
+        "no carrier": "danger",
+        "CRC": "warning",
+        "frame": "warning",
+        "runts": "warning",
+        "giants": "warning",
+        "late collision": "warning",
+        "collisions": "warning",
+        "overrun": "warning",
+        "ignored": "warning",
+        "throttles": "warning",
+        "output errors": "warning",
+        "underruns": "warning",
+        "output buffer failures": "warning",
+        "input errors": "warning",
+    }
+
+    highlighted = summary
+
+    for counter_name, level in counter_classes.items():
+        pattern = re.compile(
+            rf"(?<!\d)([1-9]\d*)\s+"
+            rf"({re.escape(counter_name)})(?![A-Za-z])",
+            re.IGNORECASE,
+        )
+
+        css_class = (
+            "counter-highlight "
+            f"counter-highlight-{level}"
+        )
+
+        highlighted = pattern.sub(
+            lambda match, css_class=css_class: (
+                f'<span class="{css_class}">'
+                f"{match.group(1)} {match.group(2)}"
+                "</span>"
+            ),
+            highlighted,
+        )
+
+    return highlighted
+
+
 def classify_interface_health(interface_state):
     if not interface_state:
         return {
@@ -607,6 +655,7 @@ def provision_interfaces_batch(
     description=None,
     remove_description=False,
     admin_state=None,
+    portfast_state=None,
 ):
     interfaces = interfaces or []
 
@@ -640,6 +689,16 @@ def provision_interfaces_batch(
             "Estado administrativo deve ser 'up' ou 'down'."
         )
 
+    if portfast_state not in (
+        None,
+        "enable",
+        "disable",
+    ):
+        raise ValueError(
+            "PortFast deve ser 'enable', 'disable' ou não informado."
+        )
+
+
     has_configuration = (
         access_vlan is not None
         or voice_vlan is not None
@@ -647,6 +706,7 @@ def provision_interfaces_batch(
         or description is not None
         or remove_description
         or admin_state is not None
+        or portfast_state is not None
     )
 
     if not has_configuration:
@@ -671,6 +731,7 @@ def provision_interfaces_batch(
             description=description,
             remove_description=remove_description,
             admin_state=admin_state,
+            portfast_state=portfast_state,
         )
     )
 
@@ -686,6 +747,10 @@ def provision_interfaces_batch(
         running_interface = validation[
             interface
         ]["running_config"]
+
+        stp_detail = validation[
+            interface
+        ].get("stp_detail", "")
 
         interface_missing = []
 
@@ -774,16 +839,69 @@ def provision_interfaces_batch(
                     "admin-up"
                 )
 
+        interface_admin_down = (
+            "administratively down"
+            in state.lower()
+        )
+
+        if portfast_state == "enable":
+            if (
+                "spanning-tree portfast edge"
+                not in running_interface.lower()
+            ):
+                interface_missing.append(
+                    "portfast-edge"
+                )
+
+            # Com a interface administrativamente desativada,
+            # o running-config confirma a intenção configurada.
+            # A ausência de estado operacional STP não é divergência.
+            if (
+                not interface_admin_down
+                and stp_detail
+                and "portfast edge mode"
+                not in stp_detail.lower()
+            ):
+                interface_missing.append(
+                    "portfast-edge-operational"
+                )
+
+        if portfast_state == "disable":
+            if (
+                "spanning-tree portfast disable"
+                not in running_interface.lower()
+            ):
+                interface_missing.append(
+                    "portfast-disable"
+                )
+
+            if (
+                not interface_admin_down
+                and stp_detail
+                and "portfast edge mode"
+                in stp_detail.lower()
+            ):
+                interface_missing.append(
+                    "portfast-disable-operational"
+                )
+
         for item in interface_missing:
             missing.append(
                 f"interface:{interface}:{item}"
             )
 
+        summary = summarize_interface_state(
+            state
+        )
+
         interface_results[interface] = {
             "success": not interface_missing,
             "missing": interface_missing,
-            "summary": summarize_interface_state(
-                state
+            "summary": summary,
+            "summary_highlighted": (
+                highlight_interface_counters(
+                    summary
+                )
             ),
             "health": classify_interface_health(
                 state
@@ -823,6 +941,16 @@ def provision_interfaces_batch(
         if admin_state == "down":
             changes.append(
                 f"{interface}: Admin Down"
+            )
+
+        if portfast_state == "enable":
+            changes.append(
+                f"{interface}: PortFast Edge habilitado"
+            )
+
+        if portfast_state == "disable":
+            changes.append(
+                f"{interface}: PortFast desabilitado"
             )
 
     backup = save_backup(

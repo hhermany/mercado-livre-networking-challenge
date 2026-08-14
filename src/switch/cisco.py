@@ -17,6 +17,55 @@ STATUS_LABELS = {
 }
 
 
+INTERFACE_TYPE_ALIASES = {
+    "gi": "gigabitethernet",
+    "gigabitethernet": "gigabitethernet",
+    "fa": "fastethernet",
+    "fastethernet": "fastethernet",
+    "te": "tengigabitethernet",
+    "tengigabitethernet": "tengigabitethernet",
+    "tengige": "tengigabitethernet",
+    "eth": "ethernet",
+    "ethernet": "ethernet",
+    "fo": "fortygigabitethernet",
+    "fortygigabitethernet": "fortygigabitethernet",
+    "tw": "twentyfivegige",
+    "twentyfivegige": "twentyfivegige",
+    "hu": "hundredgige",
+    "hundredgige": "hundredgige",
+    "po": "port-channel",
+    "port-channel": "port-channel",
+}
+
+
+def normalize_interface_name(interface):
+    if not interface:
+        return ""
+
+    value = interface.strip()
+
+    match = re.match(
+        r"^([A-Za-z-]+)([0-9].*)$",
+        value,
+    )
+
+    if not match:
+        return value.lower()
+
+    interface_type = match.group(1).lower()
+    interface_number = match.group(2)
+
+    normalized_type = INTERFACE_TYPE_ALIASES.get(
+        interface_type,
+        interface_type,
+    )
+
+    return (
+        f"{normalized_type}"
+        f"{interface_number}"
+    ).lower()
+
+
 def parse_interface_status(output):
     interfaces = []
 
@@ -80,6 +129,164 @@ def parse_interface_status(output):
     return interfaces
 
 
+def parse_voice_vlans(output):
+    voice_vlans = {}
+    current_interface = None
+
+    for raw_line in output.splitlines():
+        line = raw_line.strip()
+
+        if line.startswith("Name:"):
+            current_interface = line.split(
+                ":",
+                1,
+            )[1].strip()
+
+            if current_interface:
+                voice_vlans.setdefault(
+                    current_interface,
+                    None,
+                )
+
+            continue
+
+        if (
+            current_interface
+            and line.startswith("Voice VLAN:")
+        ):
+            value = line.split(
+                ":",
+                1,
+            )[1].strip()
+
+            if value.lower() == "none":
+                voice_vlans[
+                    current_interface
+                ] = None
+                continue
+
+            vlan_id = value.split(
+                None,
+                1,
+            )[0]
+
+            if vlan_id.isdigit():
+                voice_vlans[
+                    current_interface
+                ] = int(vlan_id)
+
+    return voice_vlans
+
+
+def enrich_interfaces_with_voice_vlan(
+    interfaces,
+    voice_vlans,
+):
+    normalized_voice_vlans = {
+        normalize_interface_name(name): value
+        for name, value in voice_vlans.items()
+    }
+
+    enriched = []
+
+    for item in interfaces:
+        normalized_name = normalize_interface_name(
+            item["name"]
+        )
+
+        voice_vlan = normalized_voice_vlans.get(
+            normalized_name
+        )
+
+        enriched.append(
+            {
+                **item,
+                "voice_vlan": voice_vlan,
+                "voice_vlan_label": (
+                    f"VLAN {voice_vlan}"
+                    if voice_vlan is not None
+                    else "--"
+                ),
+            }
+        )
+
+    return enriched
+
+
+
+def parse_interface_portfast(output):
+    portfast = {}
+    current_interface = None
+
+    for raw_line in output.splitlines():
+        line = raw_line.strip()
+
+        if line.startswith("interface "):
+            current_interface = line.split(
+                None,
+                1,
+            )[1].strip()
+
+            portfast.setdefault(
+                current_interface,
+                None,
+            )
+            continue
+
+        if current_interface is None:
+            continue
+
+        if line == "spanning-tree portfast edge":
+            portfast[current_interface] = "Habilitado"
+
+        elif line == "spanning-tree portfast":
+            portfast[current_interface] = "Habilitado"
+
+        elif line == "spanning-tree portfast network":
+            portfast[current_interface] = "Network"
+
+        elif line == "spanning-tree portfast disable":
+            portfast[current_interface] = "Desabilitado"
+
+    return portfast
+
+
+def enrich_interfaces_with_portfast(
+    interfaces,
+    portfast,
+):
+    normalized_portfast = {
+        normalize_interface_name(name): value
+        for name, value in portfast.items()
+    }
+
+    enriched = []
+
+    for item in interfaces:
+        normalized_name = normalize_interface_name(
+            item["name"]
+        )
+
+        value = normalized_portfast.get(
+            normalized_name
+        )
+
+        enriched.append(
+            {
+                **item,
+                "portfast": value,
+                "portfast_label": (
+                    value
+                    if value is not None
+                    else "--"
+                ),
+            }
+        )
+
+    return enriched
+
+
+
 def validate_interface_description(description):
     if description is None:
         return
@@ -91,17 +298,58 @@ def validate_interface_description(description):
         )
 
 
+def parse_stp_capabilities(summary, running_config):
+    mode_match = re.search(
+        r"Switch is in (\S+) mode",
+        summary,
+        re.IGNORECASE,
+    )
+
+    stp_mode = (
+        mode_match.group(1).lower()
+        if mode_match
+        else "unknown"
+    )
+
+    edge_detected = (
+        "spanning-tree portfast edge"
+        in running_config.lower()
+    )
+
+    return {
+        "stp_mode": stp_mode,
+        "portfast_supported": edge_detected,
+        "portfast_mode": (
+            "edge"
+            if edge_detected
+            else None
+        ),
+        "portfast_enable_command": (
+            "spanning-tree portfast edge"
+            if edge_detected
+            else None
+        ),
+        "portfast_disable_command": (
+            "spanning-tree portfast disable"
+            if edge_detected
+            else None
+        ),
+    }
+
+
 def validate_switchport_change(
     interfaces,
     interface,
     access_vlan=None,
     voice_vlan=None,
     remove_voice_vlan=False,
+    portfast_state=None,
 ):
     has_switchport_change = (
         access_vlan is not None
         or voice_vlan is not None
         or remove_voice_vlan
+        or portfast_state is not None
     )
 
     if not has_switchport_change:
@@ -124,7 +372,17 @@ def validate_switchport_change(
     if selected["vlan"].lower() == "routed":
         raise ValueError(
             f"A interface {interface} é uma interface Layer 3 "
-            "(routed). Alterações de Access/Voice VLAN não serão aplicadas."
+            "(routed). Alterações de Access/Voice VLAN ou PortFast "
+            "não serão aplicadas."
+        )
+
+    if (
+        portfast_state is not None
+        and selected["vlan"].lower() == "trunk"
+    ):
+        raise ValueError(
+            f"A interface {interface} está operando como trunk. "
+            "PortFast Edge não será aplicado automaticamente."
         )
 
 
@@ -147,12 +405,47 @@ class CiscoSwitch:
                 conn.enable()
 
             output = conn.send_command("show interfaces status")
+            switchport_output = conn.send_command(
+                "show interfaces switchport"
+            )
             vlan_state = conn.send_command("show vlan brief")
+            stp_summary = conn.send_command(
+                "show spanning-tree summary"
+            )
+            stp_running = conn.send_command(
+                "show running-config | section ^interface|spanning-tree portfast"
+            )
+
+        interfaces = parse_interface_status(
+            output
+        )
+
+        voice_vlans = parse_voice_vlans(
+            switchport_output
+        )
+
+        interfaces = enrich_interfaces_with_voice_vlan(
+            interfaces,
+            voice_vlans,
+        )
+
+        portfast = parse_interface_portfast(
+            stp_running
+        )
+
+        interfaces = enrich_interfaces_with_portfast(
+            interfaces,
+            portfast,
+        )
 
         return {
-            "interfaces": parse_interface_status(output),
+            "interfaces": interfaces,
             "raw": output,
             "vlan_state": vlan_state,
+            "capabilities": parse_stp_capabilities(
+                stp_summary,
+                stp_running,
+            ),
         }
 
     def configure_interfaces(
@@ -164,6 +457,7 @@ class CiscoSwitch:
         description=None,
         remove_description=False,
         admin_state=None,
+        portfast_state=None,
     ):
         has_switchport_config = (
             access_vlan is not None
@@ -218,6 +512,16 @@ class CiscoSwitch:
                     "shutdown"
                 )
 
+            if portfast_state == "enable":
+                commands.append(
+                    "spanning-tree portfast edge"
+                )
+
+            if portfast_state == "disable":
+                commands.append(
+                    "spanning-tree portfast disable"
+                )
+
         validation = {}
 
         with self._connect() as conn:
@@ -250,11 +554,20 @@ class CiscoSwitch:
                     f"show running-config interface {interface}"
                 )
 
+                stp_detail = ""
+
+                if portfast_state is not None:
+                    stp_detail = conn.send_command(
+                        f"show spanning-tree interface "
+                        f"{interface} detail"
+                    )
+
                 validation[interface] = {
                     "interface_state": "\n\n".join(
                         interface_outputs
                     ),
                     "running_config": running_interface,
+                    "stp_detail": stp_detail,
                 }
 
             running_config = conn.send_command(

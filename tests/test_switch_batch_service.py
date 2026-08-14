@@ -14,6 +14,7 @@ class FakeBatchCiscoSwitch:
         description=None,
         remove_description=False,
         admin_state=None,
+        portfast_state=None,
     ):
         validation = {}
 
@@ -54,6 +55,28 @@ class FakeBatchCiscoSwitch:
                     f"description {description}"
                 )
 
+            if portfast_state == "enable":
+                running_lines.append(
+                    "spanning-tree portfast edge"
+                )
+
+            if portfast_state == "disable":
+                running_lines.append(
+                    "spanning-tree portfast disable"
+                )
+
+            stp_detail = ""
+
+            if portfast_state == "enable":
+                stp_detail = (
+                    "The port is in the portfast edge mode"
+                )
+
+            if portfast_state == "disable":
+                stp_detail = (
+                    "Link type is point-to-point by default"
+                )
+
             validation[interface] = {
                 "interface_state": "\n".join(
                     state_lines
@@ -61,6 +84,7 @@ class FakeBatchCiscoSwitch:
                 "running_config": "\n".join(
                     running_lines
                 ),
+                "stp_detail": stp_detail,
             }
 
         return (
@@ -336,3 +360,206 @@ GigabitEthernet0/1 is administratively down, line protocol is down
         health["label"]
         == "Administrativamente desativada"
     )
+
+
+def test_batch_enables_portfast_edge(
+    monkeypatch,
+    tmp_path,
+):
+    monkeypatch.setattr(
+        service,
+        "CiscoSwitch",
+        FakeBatchCiscoSwitch,
+    )
+
+    fake_backup(
+        monkeypatch,
+        tmp_path,
+    )
+
+    result = service.provision_interfaces_batch(
+        host="192.0.2.1",
+        username="admin",
+        password="password",
+        interfaces=[
+            "Gi0/1",
+            "Gi0/3",
+        ],
+        portfast_state="enable",
+    )
+
+    assert result["success"] is True
+    assert (
+        "Gi0/1: PortFast Edge habilitado"
+        in result["changes"]
+    )
+    assert (
+        "Gi0/3: PortFast Edge habilitado"
+        in result["changes"]
+    )
+
+
+def test_batch_disables_portfast(
+    monkeypatch,
+    tmp_path,
+):
+    monkeypatch.setattr(
+        service,
+        "CiscoSwitch",
+        FakeBatchCiscoSwitch,
+    )
+
+    fake_backup(
+        monkeypatch,
+        tmp_path,
+    )
+
+    result = service.provision_interfaces_batch(
+        host="192.0.2.1",
+        username="admin",
+        password="password",
+        interfaces=[
+            "Gi0/1",
+        ],
+        portfast_state="disable",
+    )
+
+    assert result["success"] is True
+    assert (
+        "Gi0/1: PortFast desabilitado"
+        in result["changes"]
+    )
+
+
+def test_batch_rejects_invalid_portfast_state():
+    try:
+        service.provision_interfaces_batch(
+            host="192.0.2.1",
+            username="admin",
+            password="password",
+            interfaces=[
+                "Gi0/1",
+            ],
+            portfast_state="banana",
+        )
+    except ValueError as exc:
+        assert "PortFast" in str(exc)
+    else:
+        raise AssertionError(
+            "ValueError esperado"
+        )
+
+
+def test_portfast_admin_down_does_not_require_operational_stp(
+    monkeypatch,
+    tmp_path,
+):
+    class FakeAdminDownPortFastSwitch:
+        def __init__(self, **kwargs):
+            pass
+
+        def configure_interfaces(
+            self,
+            interfaces,
+            access_vlan=None,
+            voice_vlan=None,
+            remove_voice_vlan=False,
+            description=None,
+            remove_description=False,
+            admin_state=None,
+            portfast_state=None,
+        ):
+            validation = {}
+
+            for interface in interfaces:
+                validation[interface] = {
+                    "interface_state": (
+                        "GigabitEthernet0/2 is "
+                        "administratively down, "
+                        "line protocol is down"
+                    ),
+                    "running_config": (
+                        f"interface {interface}\\n"
+                        " spanning-tree portfast edge"
+                    ),
+                    "stp_detail": "",
+                }
+
+            return (
+                "",
+                validation,
+                "hostname SW-TEST",
+            )
+
+    monkeypatch.setattr(
+        service,
+        "CiscoSwitch",
+        FakeAdminDownPortFastSwitch,
+    )
+
+    fake_backup(
+        monkeypatch,
+        tmp_path,
+    )
+
+    result = service.provision_interfaces_batch(
+        host="192.0.2.1",
+        username="admin",
+        password="password",
+        interfaces=["Gi0/2"],
+        admin_state="down",
+        portfast_state="enable",
+    )
+
+    assert result["success"] is True
+    assert result["missing"] == []
+
+
+def test_highlights_lost_carrier_as_danger():
+    summary = (
+        "0 babbles, 0 late collision, 0 deferred\\n"
+        "1 lost carrier, 0 no carrier, 0 pause output"
+    )
+
+    result = service.highlight_interface_counters(
+        summary
+    )
+
+    assert (
+        'counter-highlight-danger'
+        in result
+    )
+
+    assert ">1 lost carrier</span>" in result
+
+
+def test_highlights_crc_as_warning():
+    summary = (
+        "3 input errors, 2 CRC, 0 frame, "
+        "0 overrun, 0 ignored"
+    )
+
+    result = service.highlight_interface_counters(
+        summary
+    )
+
+    assert (
+        'counter-highlight-warning'
+        in result
+    )
+
+    assert ">2 CRC</span>" in result
+
+
+def test_does_not_highlight_zero_counters():
+    summary = (
+        "0 input errors, 0 CRC, "
+        "0 lost carrier"
+    )
+
+    result = service.highlight_interface_counters(
+        summary
+    )
+
+    assert "counter-highlight" not in result
+    assert result == summary
