@@ -4,6 +4,8 @@ from pathlib import Path
 
 from netmiko import ConnectHandler
 
+from src.switch.provisioning.deploy import split_candidate_blocks
+
 DESCRIPTION_PATTERN = re.compile(r"^[A-Za-z0-9 _/#():-]{1,80}$")
 
 
@@ -1458,6 +1460,149 @@ class CiscoSwitch:
             validation,
             running_config,
         )
+
+    def deploy_config(
+        self,
+        config_text,
+    ):
+        """
+        Aplica um Candidate na running-config.
+
+        Regras:
+        - usa os blocos produzidos pelo Provision;
+        - cada bloco é enviado separadamente;
+        - para no primeiro erro explícito do IOS;
+        - não executa write memory;
+        - captura running-config após o deploy.
+        """
+        blocks = split_candidate_blocks(
+            config_text
+        )
+
+        if not blocks:
+            raise ValueError(
+                "Candidate vazio ou sem comandos aplicáveis."
+            )
+
+        error_markers = (
+            "% invalid input",
+            "% incomplete command",
+            "% ambiguous command",
+            "% error",
+            "authorization failed",
+            "command authorization failed",
+            "permission denied",
+        )
+
+        block_results = []
+        commands_sent = 0
+
+        with self._connect() as conn:
+            if self.device["secret"]:
+                conn.enable()
+
+            for block in blocks:
+                output = conn.send_config_set(
+                    list(
+                        block.commands
+                    ),
+                    cmd_verify=False,
+                    read_timeout=120,
+                )
+
+                commands_sent += len(
+                    block.commands
+                )
+
+                lowered = str(
+                    output
+                    or ""
+                ).lower()
+
+                matching_lines = [
+                    line.strip()
+                    for line in str(
+                        output
+                        or ""
+                    ).splitlines()
+                    if any(
+                        marker in line.lower()
+                        for marker in error_markers
+                    )
+                ]
+
+                block_results.append(
+                    {
+                        "index":
+                            block.index,
+
+                        "first_command":
+                            block.first_command,
+
+                        "commands":
+                            list(
+                                block.commands
+                            ),
+
+                        "output":
+                            output,
+
+                        "success":
+                            not any(
+                                marker in lowered
+                                for marker
+                                in error_markers
+                            ),
+                    }
+                )
+
+                if any(
+                    marker in lowered
+                    for marker in error_markers
+                ):
+                    detail = (
+                        " | ".join(
+                            matching_lines[:8]
+                        )
+                        or "IOS rejeitou o bloco."
+                    )
+
+                    raise RuntimeError(
+                        "Falha no bloco "
+                        f"{block.index} "
+                        f"({block.first_command}): "
+                        f"{detail}"
+                    )
+
+                if block.first_command.startswith(
+                    "hostname "
+                ):
+                    try:
+                        conn.set_base_prompt()
+
+                    except Exception:
+                        pass
+
+            running_config = conn.send_command(
+                "show running-config",
+                read_timeout=60,
+            )
+
+        return {
+            "success": True,
+            "blocks_sent": len(
+                blocks
+            ),
+            "commands_sent":
+                commands_sent,
+            "blocks":
+                block_results,
+            "running_config":
+                running_config,
+            "saved":
+                False,
+        }
+
 
     def configure(
         self,

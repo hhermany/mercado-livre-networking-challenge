@@ -1,4 +1,7 @@
 import src.web.app as web_app
+from src.switch.provisioning import (
+    ProvisionCapabilities,
+)
 
 INTERFACES = [
     {
@@ -63,12 +66,8 @@ def configure_test_environment(monkeypatch):
                 "stp_mode": "rapid-pvst",
                 "portfast_supported": True,
                 "portfast_mode": "edge",
-                "portfast_enable_command": (
-                    "spanning-tree portfast edge"
-                ),
-                "portfast_disable_command": (
-                    "spanning-tree portfast disable"
-                ),
+                "portfast_enable_command": ("spanning-tree portfast edge"),
+                "portfast_disable_command": ("spanning-tree portfast disable"),
             },
             "vlan_state": (
                 "VLAN Name                             Status\n"
@@ -160,8 +159,7 @@ def test_web_allows_access_only(monkeypatch):
         captured.update(kwargs)
         return build_result(
             interface_state=(
-                "Administrative Mode: static access\n"
-                "Access Mode VLAN: 10\n"
+                "Administrative Mode: static access\nAccess Mode VLAN: 10\n"
             )
         )
 
@@ -198,10 +196,7 @@ def test_web_allows_voice_only(monkeypatch):
     def fake_provision_switch(**kwargs):
         captured.update(kwargs)
         return build_result(
-            interface_state=(
-                "Administrative Mode: static access\n"
-                "Voice VLAN: 20\n"
-            )
+            interface_state=("Administrative Mode: static access\nVoice VLAN: 20\n")
         )
 
     monkeypatch.setattr(
@@ -237,9 +232,7 @@ def test_web_allows_admin_down_only(monkeypatch):
     def fake_provision_switch(**kwargs):
         captured.update(kwargs)
         return build_result(
-            interface_state=(
-                "GigabitEthernet1/0/1 is administratively down"
-            )
+            interface_state=("GigabitEthernet1/0/1 is administratively down")
         )
 
     monkeypatch.setattr(
@@ -276,10 +269,7 @@ def test_web_allows_admin_up_only(monkeypatch):
     def fake_provision_switch(**kwargs):
         captured.update(kwargs)
         return build_result(
-            interface_state=(
-                "GigabitEthernet1/0/2 is down, "
-                "line protocol is down"
-            )
+            interface_state=("GigabitEthernet1/0/2 is down, line protocol is down")
         )
 
     monkeypatch.setattr(
@@ -310,9 +300,7 @@ def test_web_rejects_unknown_interface(monkeypatch):
     configure_test_environment(monkeypatch)
 
     def should_not_run(**kwargs):
-        raise AssertionError(
-            "provision_switch não deveria ser chamado."
-        )
+        raise AssertionError("provision_switch não deveria ser chamado.")
 
     monkeypatch.setattr(
         web_app,
@@ -417,9 +405,7 @@ def test_web_rejects_access_vlan_on_routed_interface(monkeypatch):
     )
 
     def should_not_run(**kwargs):
-        raise AssertionError(
-            "provision_switch não deveria ser chamado."
-        )
+        raise AssertionError("provision_switch não deveria ser chamado.")
 
     monkeypatch.setattr(
         web_app,
@@ -448,12 +434,8 @@ def test_web_allows_remove_voice_vlan(monkeypatch):
 
     def fake_provision_switch(**kwargs):
         captured.update(kwargs)
-        result = build_result(
-            interface_state="Voice VLAN: none"
-        )
-        result["changes"] = [
-            "Gi0/0: Voice VLAN removida"
-        ]
+        result = build_result(interface_state="Voice VLAN: none")
+        result["changes"] = ["Gi0/0: Voice VLAN removida"]
         return result
 
     monkeypatch.setattr(
@@ -505,9 +487,7 @@ def test_web_allows_interface_description(monkeypatch):
     def fake_provision_switch(**kwargs):
         captured.update(kwargs)
         result = build_result()
-        result["changes"] = [
-            "Gi0/0: Description alterada para HOST TESTE"
-        ]
+        result["changes"] = ["Gi0/0: Description alterada para HOST TESTE"]
         return result
 
     monkeypatch.setattr(
@@ -540,9 +520,7 @@ def test_web_allows_remove_description(monkeypatch):
     def fake_provision_switch(**kwargs):
         captured.update(kwargs)
         result = build_result()
-        result["changes"] = [
-            "Gi0/0: Description removida"
-        ]
+        result["changes"] = ["Gi0/0: Description removida"]
         return result
 
     monkeypatch.setattr(
@@ -636,9 +614,7 @@ def test_interface_inventory_precedes_port_configuration(monkeypatch):
 
     html = response.data.decode()
 
-    assert html.index("Interfaces do Equipamento") < html.index(
-        "Configuração de Porta"
-    )
+    assert html.index("Interfaces do Equipamento") < html.index("Configuração de Porta")
 
 
 def test_success_is_after_interface_information(monkeypatch):
@@ -652,9 +628,7 @@ def test_success_is_after_interface_information(monkeypatch):
                 "MTU 1500 bytes, BW 1000000 Kbit/sec\\n"
             )
         )
-        result["changes"] = [
-            "Gi1/0/1: Admin Up"
-        ]
+        result["changes"] = ["Gi1/0/1: Admin Up"]
         return result
 
     monkeypatch.setattr(
@@ -676,19 +650,7 @@ def test_success_is_after_interface_information(monkeypatch):
     html = response.data.decode()
 
     assert "Informações da Interface" in html
-    assert html.index("Informações da Interface") < html.index(
-        "SUCESSO"
-    )
-
-
-
-
-
-
-
-
-
-
+    assert html.index("Informações da Interface") < html.index("SUCESSO")
 
 
 def test_index_shows_batch_configuration(monkeypatch):
@@ -748,9 +710,7 @@ def test_batch_preview_does_not_apply_configuration(monkeypatch):
     configure_test_environment(monkeypatch)
 
     def should_not_run(**kwargs):
-        raise AssertionError(
-            "provision_switch nao deveria ser chamado no preview."
-        )
+        raise AssertionError("provision_switch nao deveria ser chamado no preview.")
 
     monkeypatch.setattr(
         web_app,
@@ -888,9 +848,7 @@ def test_hostname_has_independent_apply(monkeypatch):
     def fake_provision_switch(**kwargs):
         captured.update(kwargs)
         result = build_result()
-        result["changes"] = [
-            "Hostname: SW-NOVO"
-        ]
+        result["changes"] = ["Hostname: SW-NOVO"]
         return result
 
     monkeypatch.setattr(
@@ -960,9 +918,7 @@ def test_ports_apply_multiple_interfaces(monkeypatch):
             ],
             "backup": "backups/test.cfg",
             "interface_results": {},
-            "interfaces": kwargs[
-                "interfaces"
-            ],
+            "interfaces": kwargs["interfaces"],
         }
 
     monkeypatch.setattr(
@@ -1008,9 +964,7 @@ def test_ports_apply_combines_range_and_checkboxes(monkeypatch):
             "changes": [],
             "backup": "backups/test.cfg",
             "interface_results": {},
-            "interfaces": kwargs[
-                "interfaces"
-            ],
+            "interfaces": kwargs["interfaces"],
         }
 
     monkeypatch.setattr(
@@ -1045,23 +999,16 @@ def test_ports_apply_combines_range_and_checkboxes(monkeypatch):
 def test_index_has_one_port_configuration_area(
     monkeypatch,
 ):
-    configure_test_environment(
-        monkeypatch
-    )
+    configure_test_environment(monkeypatch)
 
     client = web_app.app.test_client()
     response = client.get("/")
 
     html = response.data.decode()
 
-    assert html.count(
-        "<h2>Configuração de Portas</h2>"
-    ) == 1
+    assert html.count("<h2>Configuração de Portas</h2>") == 1
 
-    assert (
-        "Visualizar Alterações"
-        not in html
-    )
+    assert "Visualizar Alterações" not in html
 
     assert "Selecione pelo menos uma porta" in html
 
@@ -1069,9 +1016,7 @@ def test_index_has_one_port_configuration_area(
 def test_batch_success_groups_changes_by_interface(
     monkeypatch,
 ):
-    configure_test_environment(
-        monkeypatch
-    )
+    configure_test_environment(monkeypatch)
 
     def fake_batch(**kwargs):
         return {
@@ -1137,9 +1082,7 @@ def test_batch_success_groups_changes_by_interface(
 def test_interface_health_uses_descriptive_status_not_ok_badge(
     monkeypatch,
 ):
-    configure_test_environment(
-        monkeypatch
-    )
+    configure_test_environment(monkeypatch)
 
     def fake_batch(**kwargs):
         return {
@@ -1164,10 +1107,7 @@ def test_interface_health_uses_descriptive_status_not_ok_badge(
                 "Gi0/0": {
                     "success": True,
                     "missing": [],
-                    "summary": (
-                        "GigabitEthernet0/0 is up, "
-                        "line protocol is up"
-                    ),
+                    "summary": ("GigabitEthernet0/0 is up, line protocol is up"),
                     "health": {
                         "level": "healthy",
                         "label": "Porta funcional",
@@ -1205,9 +1145,7 @@ def test_interface_health_uses_descriptive_status_not_ok_badge(
 def test_interface_health_displays_physical_alert(
     monkeypatch,
 ):
-    configure_test_environment(
-        monkeypatch
-    )
+    configure_test_environment(monkeypatch)
 
     def fake_batch(**kwargs):
         return {
@@ -1225,27 +1163,16 @@ def test_interface_health_displays_physical_alert(
                 "Gi0/0": {
                     "success": True,
                     "missing": [],
-                    "summary": (
-                        "2 lost carrier, "
-                        "1 no carrier"
-                    ),
+                    "summary": ("2 lost carrier, 1 no carrier"),
                     "health": {
                         "level": "danger",
-                        "label": (
-                            "Alerta físico/cabeamento"
-                        ),
+                        "label": ("Alerta físico/cabeamento"),
                         "issues": [
                             {
                                 "level": "danger",
                                 "category": "physical",
-                                "title": (
-                                    "Possível problema físico "
-                                    "ou de cabeamento"
-                                ),
-                                "detail": (
-                                    "lost carrier: 2, "
-                                    "no carrier: 1."
-                                ),
+                                "title": ("Possível problema físico ou de cabeamento"),
+                                "detail": ("lost carrier: 2, no carrier: 1."),
                             },
                         ],
                     },
@@ -1274,18 +1201,13 @@ def test_interface_health_displays_physical_alert(
     html = response.data.decode()
 
     assert "Alerta físico/cabeamento" in html
-    assert (
-        "Possível problema físico ou de cabeamento"
-        in html
-    )
+    assert "Possível problema físico ou de cabeamento" in html
 
 
 def test_index_shows_detected_portfast_capability(
     monkeypatch,
 ):
-    configure_test_environment(
-        monkeypatch
-    )
+    configure_test_environment(monkeypatch)
 
     client = web_app.app.test_client()
     response = client.get("/")
@@ -1302,9 +1224,7 @@ def test_index_shows_detected_portfast_capability(
 def test_ports_apply_portfast_enable(
     monkeypatch,
 ):
-    configure_test_environment(
-        monkeypatch
-    )
+    configure_test_environment(monkeypatch)
 
     captured = {}
 
@@ -1348,9 +1268,7 @@ def test_ports_apply_portfast_enable(
 def test_ports_apply_portfast_disable(
     monkeypatch,
 ):
-    configure_test_environment(
-        monkeypatch
-    )
+    configure_test_environment(monkeypatch)
 
     captured = {}
 
@@ -1401,23 +1319,13 @@ def test_interface_inventory_contains_port_selection(
 
     html = response.data.decode()
 
-    inventory_position = html.index(
-        "Interfaces do Equipamento"
-    )
+    inventory_position = html.index("Interfaces do Equipamento")
 
-    port_config_position = html.index(
-        "Configuração de Portas"
-    )
+    port_config_position = html.index("Configuração de Portas")
 
-    checkbox_position = html.index(
-        'class="interface-checkbox"'
-    )
+    checkbox_position = html.index('class="interface-checkbox"')
 
-    assert (
-        inventory_position
-        < checkbox_position
-        < port_config_position
-    )
+    assert inventory_position < checkbox_position < port_config_position
 
     assert 'form="ports-form"' in html
 
@@ -1452,11 +1360,7 @@ def test_port_configuration_uses_two_step_workflow(
     assert "Defina a configuração" in html
     assert "Intervalo de interfaces" in html
 
-    assert html.index(
-        "Escolha as interfaces"
-    ) < html.index(
-        "Defina a configuração"
-    )
+    assert html.index("Escolha as interfaces") < html.index("Defina a configuração")
 
 
 def test_port_apply_button_starts_disabled(
@@ -1498,7 +1402,6 @@ def test_interface_inventory_shows_voice_vlan_column(
     html = response.data.decode()
 
     assert "VLAN de Voz" in html
-
 
 
 def test_interface_inventory_shows_portfast_column(
@@ -1568,9 +1471,7 @@ def test_troubleshooting_interfaces_api(
     )
 
     client = web_app.app.test_client()
-    response = client.get(
-        "/api/troubleshooting/interfaces"
-    )
+    response = client.get("/api/troubleshooting/interfaces")
 
     data = response.get_json()
 
@@ -1663,8 +1564,7 @@ def test_web_runs_traceroute(
             "timeout": 1,
             "max_ttl": 20,
             "output": (
-                "VRF info: (vrf in name/id, vrf out name/id)\n"
-                "  1 192.168.10.1 1 msec"
+                "VRF info: (vrf in name/id, vrf out name/id)\n  1 192.168.10.1 1 msec"
             ),
             "raw_output": (
                 "traceroute\n"
@@ -1721,10 +1621,7 @@ def test_web_rejects_zero_ping_repeat(
     html = response.data.decode()
 
     assert response.status_code == 200
-    assert (
-        "maior que zero"
-        in html
-    )
+    assert "maior que zero" in html
 
 
 def test_troubleshooting_ping_has_advanced_options(
@@ -1768,13 +1665,9 @@ def test_troubleshooting_ping_repeat_is_numeric_input(
 
     html = response.data.decode()
 
-    position = html.index(
-        'id="ping_repeat"'
-    )
+    position = html.index('id="ping_repeat"')
 
-    fragment = html[
-        position:position + 250
-    ]
+    fragment = html[position : position + 250]
 
     assert 'type="number"' in fragment
 
@@ -1838,10 +1731,7 @@ def test_ping_ui_has_concurrency_control(
 
     assert 'name="ping_concurrency"' in html
     assert "Paralelismo" in html
-    assert (
-        "Execuções simultâneas para acelerar"
-        in html
-    )
+    assert "Execuções simultâneas para acelerar" in html
     assert 'max="8"' in html
 
 
@@ -1882,10 +1772,7 @@ def test_traceroute_result_has_no_raw_terminal_control(
 
     html = response.data.decode()
 
-    assert (
-        "Ver sessão completa do Extended Traceroute"
-        not in html
-    )
+    assert "Ver sessão completa do Extended Traceroute" not in html
 
 
 def test_ping_uses_parallelism_wording(
@@ -1899,18 +1786,13 @@ def test_ping_uses_parallelism_wording(
     html = response.data.decode()
 
     assert "Paralelismo" in html
-    assert (
-        "Execuções simultâneas para acelerar"
-        in html
-    )
+    assert "Execuções simultâneas para acelerar" in html
 
 
 def test_interface_inventory_has_mode_vlan_and_port_channel_columns(
     monkeypatch,
 ):
-    configure_test_environment(
-        monkeypatch
-    )
+    configure_test_environment(monkeypatch)
 
     client = web_app.app.test_client()
 
@@ -1928,11 +1810,7 @@ def test_interface_inventory_has_mode_vlan_and_port_channel_columns(
 
     # A identificação de Port-Channel continua disponível
     # tanto no inventário atual quanto no multi-device.
-    assert (
-        ">Po<" in html
-        or "Port-Channel" in html
-        or "Port Channel" in html
-    )
+    assert ">Po<" in html or "Port-Channel" in html or "Port Channel" in html
 
 
 def test_traceroute_uses_compact_light_result(
@@ -1943,9 +1821,7 @@ def test_traceroute_uses_compact_light_result(
     def fake_trace(**kwargs):
         return {
             "destination": "8.8.8.8",
-            "source_interface": (
-                "GigabitEthernet0/0"
-            ),
+            "source_interface": ("GigabitEthernet0/0"),
             "source_ip": "172.28.255.210",
             "mode": "extended",
             "timeout": 1,
@@ -1976,9 +1852,7 @@ def test_traceroute_uses_compact_light_result(
     response = client.post(
         "/troubleshooting/traceroute",
         data={
-            "trace_source": (
-                "GigabitEthernet0/0"
-            ),
+            "trace_source": ("GigabitEthernet0/0"),
             "trace_destination": "8.8.8.8",
             "trace_timeout": "1",
             "trace_probe_count": "1",
@@ -2002,10 +1876,7 @@ def test_traceroute_uses_compact_light_result(
 
     assert "Ver output Cisco" not in html
 
-    assert (
-        "Ver sessão completa do Extended Traceroute"
-        not in html
-    )
+    assert "Ver sessão completa do Extended Traceroute" not in html
 
 
 def test_index_shows_configuration_management(
@@ -2037,40 +1908,24 @@ def test_download_running_config_returns_attachment(
     monkeypatch.setattr(
         web_app,
         "get_running_config",
-        lambda **kwargs: (
-            "hostname SW-TESTE1\n"
-            "interface GigabitEthernet0/1\n"
-        ),
+        lambda **kwargs: "hostname SW-TESTE1\ninterface GigabitEthernet0/1\n",
     )
 
     client = web_app.app.test_client()
 
-    response = client.get(
-        "/configuration/download/running"
-    )
+    response = client.get("/configuration/download/running")
 
     assert response.status_code == 200
 
-    assert (
-        response.mimetype
-        == "text/plain"
-    )
+    assert response.mimetype == "text/plain"
 
-    disposition = response.headers[
-        "Content-Disposition"
-    ]
+    disposition = response.headers["Content-Disposition"]
 
     assert "attachment" in disposition
 
-    assert (
-        "SW-TESTE1_running_"
-        in disposition
-    )
+    assert "SW-TESTE1_running_" in disposition
 
-    assert (
-        b"hostname SW-TESTE1"
-        in response.data
-    )
+    assert b"hostname SW-TESTE1" in response.data
 
 
 def test_download_startup_config_returns_attachment(
@@ -2081,26 +1936,16 @@ def test_download_startup_config_returns_attachment(
     monkeypatch.setattr(
         web_app,
         "get_startup_config",
-        lambda **kwargs: (
-            "hostname SW-TESTE1\n"
-            "interface GigabitEthernet0/1\n"
-        ),
+        lambda **kwargs: "hostname SW-TESTE1\ninterface GigabitEthernet0/1\n",
     )
 
     client = web_app.app.test_client()
 
-    response = client.get(
-        "/configuration/download/startup"
-    )
+    response = client.get("/configuration/download/startup")
 
     assert response.status_code == 200
 
-    assert (
-        "SW-TESTE1_startup_"
-        in response.headers[
-            "Content-Disposition"
-        ]
-    )
+    assert "SW-TESTE1_startup_" in response.headers["Content-Disposition"]
 
 
 def test_config_diff_uses_structured_comparison(
@@ -2111,51 +1956,44 @@ def test_config_diff_uses_structured_comparison(
     monkeypatch.setattr(
         web_app,
         "get_startup_config",
-        lambda **kwargs: """\
+        lambda **kwargs: (
+            """\
 interface GigabitEthernet0/1
  switchport access vlan 10
 !
-""",
+"""
+        ),
     )
 
     monkeypatch.setattr(
         web_app,
         "get_running_config",
-        lambda **kwargs: """\
+        lambda **kwargs: (
+            """\
 interface GigabitEthernet0/1
  switchport access vlan 20
 !
-""",
+"""
+        ),
     )
 
     client = web_app.app.test_client()
 
-    response = client.post(
-        "/configuration/diff/live"
-    )
+    response = client.post("/configuration/diff/live")
 
     html = response.data.decode()
 
     assert response.status_code == 200
 
-    assert (
-        "interface GigabitEthernet0/1"
-        in html
-    )
+    assert "interface GigabitEthernet0/1" in html
 
     assert "Alterada" in html
     assert "Startup" in html
     assert "Running" in html
 
-    assert (
-        "switchport access vlan 10"
-        in html
-    )
+    assert "switchport access vlan 10" in html
 
-    assert (
-        "switchport access vlan 20"
-        in html
-    )
+    assert "switchport access vlan 20" in html
 
     assert "--- startup-config" not in html
     assert "@@" not in html
@@ -2164,9 +2002,7 @@ interface GigabitEthernet0/1
 def test_configuration_backup_route(
     monkeypatch,
 ):
-    configure_test_environment(
-        monkeypatch
-    )
+    configure_test_environment(monkeypatch)
 
     monkeypatch.setattr(
         web_app,
@@ -2174,48 +2010,30 @@ def test_configuration_backup_route(
         lambda **kwargs: {
             "hostname": "SW-TESTE1",
             "config_type": "running",
-            "filename": (
-                "SW-TESTE1_running_"
-                "20260814_103000.cfg"
-            ),
+            "filename": ("SW-TESTE1_running_20260814_103000.cfg"),
             "protocol": "local",
-            "destination": (
-                "backups/"
-                "SW-TESTE1_running_"
-                "20260814_103000.cfg"
-            ),
+            "destination": ("backups/SW-TESTE1_running_20260814_103000.cfg"),
             "size": 3000,
         },
     )
 
     client = web_app.app.test_client()
 
-    response = client.post(
-        "/configuration/backup"
-    )
+    response = client.post("/configuration/backup")
 
     html = response.data.decode()
 
     assert response.status_code == 200
 
-    assert (
-        "Backup criado com sucesso"
-        in html
-    )
+    assert "Backup criado com sucesso" in html
 
-    assert (
-        "SW-TESTE1_running_"
-        "20260814_103000.cfg"
-        in html
-    )
+    assert "SW-TESTE1_running_20260814_103000.cfg" in html
 
 
 def test_configuration_page_has_backup_button(
     monkeypatch,
 ):
-    configure_test_environment(
-        monkeypatch
-    )
+    configure_test_environment(monkeypatch)
 
     client = web_app.app.test_client()
 
@@ -2225,10 +2043,7 @@ def test_configuration_page_has_backup_button(
 
     assert response.status_code == 200
 
-    assert (
-        'action="/configuration/backup"'
-        in html
-    )
+    assert 'action="/configuration/backup"' in html
 
     assert "Criar Backup" in html
 
@@ -2236,9 +2051,7 @@ def test_configuration_page_has_backup_button(
 def test_configuration_download_uses_single_selector(
     monkeypatch,
 ):
-    configure_test_environment(
-        monkeypatch
-    )
+    configure_test_environment(monkeypatch)
 
     client = web_app.app.test_client()
 
@@ -2248,38 +2061,21 @@ def test_configuration_download_uses_single_selector(
 
     assert response.status_code == 200
 
-    assert (
-        'action="/configuration/download"'
-        in html
-    )
+    assert 'action="/configuration/download"' in html
 
-    assert (
-        'name="config_type"'
-        in html
-    )
+    assert 'name="config_type"' in html
 
-    assert (
-        'value="running"'
-        in html
-    )
+    assert 'value="running"' in html
 
-    assert (
-        'value="startup"'
-        in html
-    )
+    assert 'value="startup"' in html
 
-    assert (
-        "Baixar Configuração"
-        in html
-    )
+    assert "Baixar Configuração" in html
 
 
 def test_backup_has_explanatory_text(
     monkeypatch,
 ):
-    configure_test_environment(
-        monkeypatch
-    )
+    configure_test_environment(monkeypatch)
 
     client = web_app.app.test_client()
 
@@ -2289,87 +2085,55 @@ def test_backup_has_explanatory_text(
 
     assert "Backup de Configuração" in html
 
-    assert (
-        "Cria uma cópia da running-config"
-        in html
-    )
+    assert "Cria uma cópia da running-config" in html
 
-    assert (
-        "servidor da aplicação"
-        in html
-    )
+    assert "servidor da aplicação" in html
 
 
 def test_unified_download_running(
     monkeypatch,
 ):
-    configure_test_environment(
-        monkeypatch
-    )
+    configure_test_environment(monkeypatch)
 
     monkeypatch.setattr(
         web_app,
         "get_running_config",
-        lambda **kwargs: (
-            "hostname SW-TESTE1\n"
-        ),
+        lambda **kwargs: "hostname SW-TESTE1\n",
     )
 
     client = web_app.app.test_client()
 
-    response = client.get(
-        "/configuration/download"
-        "?config_type=running"
-    )
+    response = client.get("/configuration/download?config_type=running")
 
     assert response.status_code == 200
 
-    assert (
-        "SW-TESTE1_running_"
-        in response.headers[
-            "Content-Disposition"
-        ]
-    )
+    assert "SW-TESTE1_running_" in response.headers["Content-Disposition"]
 
 
 def test_unified_download_startup(
     monkeypatch,
 ):
-    configure_test_environment(
-        monkeypatch
-    )
+    configure_test_environment(monkeypatch)
 
     monkeypatch.setattr(
         web_app,
         "get_startup_config",
-        lambda **kwargs: (
-            "hostname SW-TESTE1\n"
-        ),
+        lambda **kwargs: "hostname SW-TESTE1\n",
     )
 
     client = web_app.app.test_client()
 
-    response = client.get(
-        "/configuration/download"
-        "?config_type=startup"
-    )
+    response = client.get("/configuration/download?config_type=startup")
 
     assert response.status_code == 200
 
-    assert (
-        "SW-TESTE1_startup_"
-        in response.headers[
-            "Content-Disposition"
-        ]
-    )
+    assert "SW-TESTE1_startup_" in response.headers["Content-Disposition"]
 
 
 def test_backup_ui_offers_local_and_ftp(
     monkeypatch,
 ):
-    configure_test_environment(
-        monkeypatch
-    )
+    configure_test_environment(monkeypatch)
 
     client = web_app.app.test_client()
 
@@ -2379,10 +2143,7 @@ def test_backup_ui_offers_local_and_ftp(
 
     assert response.status_code == 200
 
-    assert (
-        'name="backup_protocol"'
-        in html
-    )
+    assert 'name="backup_protocol"' in html
 
     assert 'value="local"' in html
     assert 'value="ftp"' in html
@@ -2394,9 +2155,7 @@ def test_backup_ui_offers_local_and_ftp(
 def test_backup_route_passes_ftp_parameters(
     monkeypatch,
 ):
-    configure_test_environment(
-        monkeypatch
-    )
+    configure_test_environment(monkeypatch)
 
     captured = {}
 
@@ -2408,10 +2167,7 @@ def test_backup_route_passes_ftp_parameters(
             "config_type": "running",
             "protocol": "ftp",
             "filename": "SW-TESTE1.cfg",
-            "destination": (
-                "ftp://172.30.192.1:21/"
-                "SW-TESTE1.cfg"
-            ),
+            "destination": ("ftp://172.30.192.1:21/SW-TESTE1.cfg"),
             "size": 3000,
         }
 
@@ -2437,38 +2193,23 @@ def test_backup_route_passes_ftp_parameters(
 
     assert response.status_code == 200
 
-    assert captured[
-        "protocol"
-    ] == "ftp"
+    assert captured["protocol"] == "ftp"
 
-    assert captured[
-        "backup_host"
-    ] == "172.30.192.1"
+    assert captured["backup_host"] == "172.30.192.1"
 
-    assert captured[
-        "backup_port"
-    ] == "21"
+    assert captured["backup_port"] == "21"
 
-    assert captured[
-        "backup_username"
-    ] == "Administrador"
+    assert captured["backup_username"] == "Administrador"
 
-    assert captured[
-        "backup_password"
-    ] == "PW_VALUE_7F4A92"
+    assert captured["backup_password"] == "PW_VALUE_7F4A92"
 
-    assert (
-        "PW_VALUE_7F4A92"
-        not in response.data.decode()
-    )
+    assert "PW_VALUE_7F4A92" not in response.data.decode()
 
 
 def test_backup_ui_offers_sftp(
     monkeypatch,
 ):
-    configure_test_environment(
-        monkeypatch
-    )
+    configure_test_environment(monkeypatch)
 
     client = web_app.app.test_client()
 
@@ -2478,10 +2219,7 @@ def test_backup_ui_offers_sftp(
 
     assert response.status_code == 200
 
-    assert (
-        'name="backup_protocol"'
-        in html
-    )
+    assert 'name="backup_protocol"' in html
 
     assert 'value="sftp"' in html
     assert ">SFTP<" in html
@@ -2490,26 +2228,19 @@ def test_backup_ui_offers_sftp(
 def test_backup_route_passes_sftp_parameters(
     monkeypatch,
 ):
-    configure_test_environment(
-        monkeypatch
-    )
+    configure_test_environment(monkeypatch)
 
     captured = {}
 
     def fake_backup(**kwargs):
-        captured.update(
-            kwargs
-        )
+        captured.update(kwargs)
 
         return {
             "hostname": "SW-TESTE1",
             "config_type": "running",
             "protocol": "sftp",
             "filename": "SW-TESTE1.cfg",
-            "destination": (
-                "sftp://192.0.2.20:22/"
-                "SW-TESTE1.cfg"
-            ),
+            "destination": ("sftp://192.0.2.20:22/SW-TESTE1.cfg"),
             "size": 3000,
         }
 
@@ -2535,30 +2266,19 @@ def test_backup_route_passes_sftp_parameters(
 
     assert response.status_code == 200
 
-    assert captured[
-        "protocol"
-    ] == "sftp"
+    assert captured["protocol"] == "sftp"
 
-    assert captured[
-        "backup_port"
-    ] == "22"
+    assert captured["backup_port"] == "22"
 
-    assert captured[
-        "backup_password"
-    ] == "PW_VALUE_7F4A92"
+    assert captured["backup_password"] == "PW_VALUE_7F4A92"
 
-    assert (
-        "PW_VALUE_7F4A92"
-        not in response.data.decode()
-    )
+    assert "PW_VALUE_7F4A92" not in response.data.decode()
 
 
 def test_backup_ui_offers_tftp(
     monkeypatch,
 ):
-    configure_test_environment(
-        monkeypatch
-    )
+    configure_test_environment(monkeypatch)
 
     client = web_app.app.test_client()
 
@@ -2574,26 +2294,19 @@ def test_backup_ui_offers_tftp(
 def test_backup_route_passes_tftp_parameters(
     monkeypatch,
 ):
-    configure_test_environment(
-        monkeypatch
-    )
+    configure_test_environment(monkeypatch)
 
     captured = {}
 
     def fake_backup(**kwargs):
-        captured.update(
-            kwargs
-        )
+        captured.update(kwargs)
 
         return {
             "hostname": "SW-TESTE1",
             "config_type": "running",
             "protocol": "tftp",
             "filename": "SW-TESTE1.cfg",
-            "destination": (
-                "tftp://192.0.2.30:69/"
-                "SW-TESTE1.cfg"
-            ),
+            "destination": ("tftp://192.0.2.30:69/SW-TESTE1.cfg"),
             "size": 3000,
         }
 
@@ -2617,21 +2330,15 @@ def test_backup_route_passes_tftp_parameters(
 
     assert response.status_code == 200
 
-    assert captured[
-        "protocol"
-    ] == "tftp"
+    assert captured["protocol"] == "tftp"
 
-    assert captured[
-        "backup_port"
-    ] == "69"
+    assert captured["backup_port"] == "69"
 
 
 def test_web_has_clear_divergence_feedback(
     monkeypatch,
 ):
-    configure_test_environment(
-        monkeypatch
-    )
+    configure_test_environment(monkeypatch)
 
     client = web_app.app.test_client()
 
@@ -2639,19 +2346,13 @@ def test_web_has_clear_divergence_feedback(
 
     html = response.data.decode().lower()
 
-    assert (
-        "diverg" in html
-        or "warning" in html
-        or "alert" in html
-    )
+    assert "diverg" in html or "warning" in html or "alert" in html
 
 
 def test_multi_device_ui_is_available(
     monkeypatch,
 ):
-    configure_test_environment(
-        monkeypatch
-    )
+    configure_test_environment(monkeypatch)
 
     client = web_app.app.test_client()
 
@@ -2661,28 +2362,17 @@ def test_multi_device_ui_is_available(
 
     assert response.status_code == 200
 
-    assert (
-        "Equipamentos Gerenciados"
-        in html
-    )
+    assert "Equipamentos Gerenciados" in html
 
-    assert (
-        "+ Adicionar equipamento"
-        in html
-    )
+    assert "+ Adicionar equipamento" in html
 
-    assert (
-        "Conectar / Descobrir"
-        in html
-    )
+    assert "Conectar / Descobrir" in html
 
 
 def test_device_api_does_not_return_password(
     monkeypatch,
 ):
-    configure_test_environment(
-        monkeypatch
-    )
+    configure_test_environment(monkeypatch)
 
     web_app.device_manager.clear()
 
@@ -2711,9 +2401,7 @@ def test_device_api_does_not_return_password(
 def test_device_api_reuses_existing_host(
     monkeypatch,
 ):
-    configure_test_environment(
-        monkeypatch
-    )
+    configure_test_environment(monkeypatch)
 
     web_app.device_manager.clear()
 
@@ -2741,30 +2429,19 @@ def test_device_api_reuses_existing_host(
     assert first.status_code == 201
     assert second.status_code == 201
 
-    first_id = (
-        first.get_json()["device"]["id"]
-    )
+    first_id = first.get_json()["device"]["id"]
 
-    second_id = (
-        second.get_json()["device"]["id"]
-    )
+    second_id = second.get_json()["device"]["id"]
 
     assert first_id == second_id
 
-    assert (
-        len(
-            web_app.device_manager.list()
-        )
-        == 1
-    )
+    assert len(web_app.device_manager.list()) == 1
 
 
 def test_multi_device_discovery_isolated(
     monkeypatch,
 ):
-    configure_test_environment(
-        monkeypatch
-    )
+    configure_test_environment(monkeypatch)
 
     web_app.device_manager.clear()
 
@@ -2782,9 +2459,7 @@ def test_multi_device_discovery_isolated(
 
     def fake_discover(device):
         if device.id == second.id:
-            raise RuntimeError(
-                "SSH timeout"
-            )
+            raise RuntimeError("SSH timeout")
 
         return {
             "hostname": "SW1",
@@ -2819,34 +2494,22 @@ def test_multi_device_discovery_isolated(
 
     assert response.status_code == 200
 
-    results = (
-        response.get_json()[
-            "devices"
-        ]
-    )
+    results = response.get_json()["devices"]
 
     assert len(results) == 2
 
-    assert sum(
-        item["success"]
-        for item in results
-    ) == 1
+    assert sum(item["success"] for item in results) == 1
 
 
 def test_initial_page_does_not_access_any_switch(
     monkeypatch,
 ):
-    configure_test_environment(
-        monkeypatch
-    )
+    configure_test_environment(monkeypatch)
 
     web_app.device_manager.clear()
 
     def should_not_run(**kwargs):
-        raise AssertionError(
-            "GET / em produção não deve "
-            "acessar equipamento."
-        )
+        raise AssertionError("GET / em produção não deve acessar equipamento.")
 
     monkeypatch.setattr(
         web_app,
@@ -2858,9 +2521,7 @@ def test_initial_page_does_not_access_any_switch(
     web_app.app.testing = False
 
     try:
-        response = (
-            web_app.app.test_client().get("/")
-        )
+        response = web_app.app.test_client().get("/")
 
     finally:
         web_app.app.testing = previous
@@ -2869,18 +2530,13 @@ def test_initial_page_does_not_access_any_switch(
 
     html = response.data.decode()
 
-    assert (
-        "Nenhum equipamento selecionado"
-        in html
-    )
+    assert "Nenhum equipamento selecionado" in html
 
 
 def test_selected_device_controls_inventory(
     monkeypatch,
 ):
-    configure_test_environment(
-        monkeypatch
-    )
+    configure_test_environment(monkeypatch)
 
     web_app.device_manager.clear()
 
@@ -2907,11 +2563,7 @@ def test_selected_device_controls_inventory(
         fake_inventory,
     )
 
-    response = (
-        web_app.app.test_client().get(
-            f"/?device_id={device.id}"
-        )
-    )
+    response = web_app.app.test_client().get(f"/?device_id={device.id}")
 
     assert response.status_code == 200
 
@@ -2928,9 +2580,7 @@ def test_selected_device_controls_inventory(
 def test_operational_credentials_require_device_outside_tests(
     monkeypatch,
 ):
-    configure_test_environment(
-        monkeypatch
-    )
+    configure_test_environment(monkeypatch)
 
     previous = web_app.app.testing
 
@@ -2942,15 +2592,11 @@ def test_operational_credentials_require_device_outside_tests(
                 web_app.switch_credentials()
 
             except ValueError as exc:
-                assert (
-                    "Selecione um equipamento"
-                    in str(exc)
-                )
+                assert "Selecione um equipamento" in str(exc)
 
             else:
                 raise AssertionError(
-                    "Credenciais globais não podem "
-                    "ser usadas em produção."
+                    "Credenciais globais não podem ser usadas em produção."
                 )
 
     finally:
@@ -2960,9 +2606,7 @@ def test_operational_credentials_require_device_outside_tests(
 def test_device_list_keeps_credentials_private(
     monkeypatch,
 ):
-    configure_test_environment(
-        monkeypatch
-    )
+    configure_test_environment(monkeypatch)
 
     web_app.device_manager.clear()
 
@@ -2973,11 +2617,7 @@ def test_device_list_keeps_credentials_private(
         secret="ENABLE_PRIVATE_456",
     )
 
-    response = (
-        web_app.app.test_client().get(
-            "/api/devices"
-        )
-    )
+    response = web_app.app.test_client().get("/api/devices")
 
     assert response.status_code == 200
 
@@ -2986,23 +2626,15 @@ def test_device_list_keeps_credentials_private(
     assert "198.51.100.10" in body
     assert "admin" in body
 
-    assert (
-        "PASSWORD_PRIVATE_123"
-        not in body
-    )
+    assert "PASSWORD_PRIVATE_123" not in body
 
-    assert (
-        "ENABLE_PRIVATE_456"
-        not in body
-    )
+    assert "ENABLE_PRIVATE_456" not in body
 
 
 def test_multi_device_workspace_api(
     monkeypatch,
 ):
-    configure_test_environment(
-        monkeypatch
-    )
+    configure_test_environment(monkeypatch)
 
     web_app.device_manager.clear()
 
@@ -3020,23 +2652,15 @@ def test_multi_device_workspace_api(
 
     def fake_workspace(device):
         return {
-            "hostname": (
-                "SW1"
-                if device.id == first.id
-                else "SW2"
-            ),
+            "hostname": ("SW1" if device.id == first.id else "SW2"),
             "interfaces": [
                 {
                     "name": "Gi0/1",
                     "status_label": "Up",
-                    "mode_label": (
-                        "ACCESS · VLAN 10"
-                    ),
+                    "mode_label": ("ACCESS · VLAN 10"),
                 }
             ],
-            "vlan_state": (
-                "10 VLAN_DADOS active"
-            ),
+            "vlan_state": ("10 VLAN_DADOS active"),
             "capabilities": {},
         }
 
@@ -3046,16 +2670,14 @@ def test_multi_device_workspace_api(
         fake_workspace,
     )
 
-    response = (
-        web_app.app.test_client().post(
-            "/api/devices/workspace",
-            json={
-                "device_ids": [
-                    first.id,
-                    second.id,
-                ],
-            },
-        )
+    response = web_app.app.test_client().post(
+        "/api/devices/workspace",
+        json={
+            "device_ids": [
+                first.id,
+                second.id,
+            ],
+        },
     )
 
     assert response.status_code == 200
@@ -3064,15 +2686,9 @@ def test_multi_device_workspace_api(
 
     assert len(data["devices"]) == 2
 
-    assert all(
-        item["success"]
-        for item in data["devices"]
-    )
+    assert all(item["success"] for item in data["devices"])
 
-    hostnames = {
-        item["hostname"]
-        for item in data["devices"]
-    }
+    hostnames = {item["hostname"] for item in data["devices"]}
 
     assert hostnames == {
         "SW1",
@@ -3083,13 +2699,9 @@ def test_multi_device_workspace_api(
 def test_multi_switch_workspace_ui_exists(
     monkeypatch,
 ):
-    configure_test_environment(
-        monkeypatch
-    )
+    configure_test_environment(monkeypatch)
 
-    response = (
-        web_app.app.test_client().get("/")
-    )
+    response = web_app.app.test_client().get("/")
 
     html = response.data.decode()
 
@@ -3103,40 +2715,25 @@ def test_multi_switch_workspace_ui_exists(
 def test_multi_device_cards_have_direct_selection(
     monkeypatch,
 ):
-    configure_test_environment(
-        monkeypatch
-    )
+    configure_test_environment(monkeypatch)
 
-    response = (
-        web_app.app.test_client().get("/")
-    )
+    response = web_app.app.test_client().get("/")
 
     html = response.data.decode()
 
     assert response.status_code == 200
 
-    assert (
-        "managed-device-select-v2"
-        in html
-    )
+    assert "managed-device-select-v2" in html
 
-    assert (
-        "Gerenciar selecionados"
-        in html
-    )
+    assert "Gerenciar selecionados" in html
 
-    assert (
-        "function manageSelectedDevicesV2()"
-        in html
-    )
+    assert "function manageSelectedDevicesV2()" in html
 
 
 def test_multi_device_interface_configuration(
     monkeypatch,
 ):
-    configure_test_environment(
-        monkeypatch
-    )
+    configure_test_environment(monkeypatch)
 
     web_app.device_manager.clear()
 
@@ -3155,9 +2752,7 @@ def test_multi_device_interface_configuration(
     calls = []
 
     def fake_batch(**kwargs):
-        calls.append(
-            kwargs
-        )
+        calls.append(kwargs)
 
         return {
             "success": True,
@@ -3169,36 +2764,28 @@ def test_multi_device_interface_configuration(
         fake_batch,
     )
 
-    response = (
-        web_app.app.test_client().post(
-            "/api/devices/interfaces/configure",
-            json={
-                "selections": [
-                    {
-                        "device_id":
-                            first.id,
-                        "interface":
-                            "Gi0/1",
-                    },
-                    {
-                        "device_id":
-                            first.id,
-                        "interface":
-                            "Gi0/2",
-                    },
-                    {
-                        "device_id":
-                            second.id,
-                        "interface":
-                            "Gi1/0",
-                    },
-                ],
-                "access_vlan": "50",
-                "voice_vlan": "20",
-                "description": "CAMERAS",
-                "admin_state": "up",
-            },
-        )
+    response = web_app.app.test_client().post(
+        "/api/devices/interfaces/configure",
+        json={
+            "selections": [
+                {
+                    "device_id": first.id,
+                    "interface": "Gi0/1",
+                },
+                {
+                    "device_id": first.id,
+                    "interface": "Gi0/2",
+                },
+                {
+                    "device_id": second.id,
+                    "interface": "Gi1/0",
+                },
+            ],
+            "access_vlan": "50",
+            "voice_vlan": "20",
+            "description": "CAMERAS",
+            "admin_state": "up",
+        },
     )
 
     assert response.status_code == 200
@@ -3209,95 +2796,49 @@ def test_multi_device_interface_configuration(
 
     assert len(calls) == 2
 
-    by_host = {
-        call["host"]: call
-        for call in calls
-    }
+    by_host = {call["host"]: call for call in calls}
 
-    assert set(
-        by_host
-    ) == {
+    assert set(by_host) == {
         "192.0.2.10",
         "192.0.2.11",
     }
 
-    assert set(
-        by_host[
-            "192.0.2.10"
-        ]["interfaces"]
-    ) == {
+    assert set(by_host["192.0.2.10"]["interfaces"]) == {
         "Gi0/1",
         "Gi0/2",
     }
 
-    assert (
-        by_host[
-            "192.0.2.11"
-        ]["interfaces"]
-        == ["Gi1/0"]
-    )
+    assert by_host["192.0.2.11"]["interfaces"] == ["Gi1/0"]
 
-    assert all(
-        call["access_vlan"] == 50
-        for call in calls
-    )
+    assert all(call["access_vlan"] == 50 for call in calls)
 
-    assert all(
-        call["voice_vlan"] == 20
-        for call in calls
-    )
+    assert all(call["voice_vlan"] == 20 for call in calls)
 
 
 def test_multi_switch_configuration_ui_is_real(
     monkeypatch,
 ):
-    configure_test_environment(
-        monkeypatch
-    )
+    configure_test_environment(monkeypatch)
 
-    response = (
-        web_app.app.test_client().get("/")
-    )
+    response = web_app.app.test_client().get("/")
 
     html = response.data.decode()
 
     assert response.status_code == 200
 
-    assert (
-        'id="multi-access-vlan"'
-        in html
-    )
+    assert 'id="multi-access-vlan"' in html
 
-    assert (
-        'id="multi-voice-vlan"'
-        in html
-    )
+    assert 'id="multi-voice-vlan"' in html
 
-    assert (
-        'id="multi-description"'
-        in html
-    )
+    assert 'id="multi-description"' in html
 
-    assert (
-        'id="multi-admin-state"'
-        in html
-    )
+    assert 'id="multi-admin-state"' in html
 
-    assert (
-        "async function applyConfiguration()"
-        in html
-    )
+    assert "async function applyConfiguration()" in html
 
-    assert (
-        "/api/devices/interfaces/configure"
-        in html
-    )
+    assert "/api/devices/interfaces/configure" in html
 
-    assert (
-        "await refreshWorkspace("
-        in html
-    )
-
+    assert "await refreshWorkspace(" in html
 
 
 def test_multi_device_configuration_runs_in_parallel(
@@ -3305,9 +2846,7 @@ def test_multi_device_configuration_runs_in_parallel(
 ):
     import time
 
-    configure_test_environment(
-        monkeypatch
-    )
+    configure_test_environment(monkeypatch)
 
     web_app.device_manager.clear()
 
@@ -3338,33 +2877,24 @@ def test_multi_device_configuration_runs_in_parallel(
 
     started = time.monotonic()
 
-    response = (
-        web_app.app.test_client().post(
-            "/api/devices/interfaces/configure",
-            json={
-                "selections": [
-                    {
-                        "device_id":
-                            first.id,
-                        "interface":
-                            "Gi0/1",
-                    },
-                    {
-                        "device_id":
-                            second.id,
-                        "interface":
-                            "Gi0/1",
-                    },
-                ],
-                "access_vlan": 50,
-            },
-        )
+    response = web_app.app.test_client().post(
+        "/api/devices/interfaces/configure",
+        json={
+            "selections": [
+                {
+                    "device_id": first.id,
+                    "interface": "Gi0/1",
+                },
+                {
+                    "device_id": second.id,
+                    "interface": "Gi0/1",
+                },
+            ],
+            "access_vlan": 50,
+        },
     )
 
-    elapsed = (
-        time.monotonic()
-        - started
-    )
+    elapsed = time.monotonic() - started
 
     assert response.status_code == 200
 
@@ -3372,38 +2902,25 @@ def test_multi_device_configuration_runs_in_parallel(
 
     assert data["success"] is True
 
-    assert (
-        data["timing"]["workers"]
-        == 2
-    )
+    assert data["timing"]["workers"] == 2
 
     # Duas operações de 200 ms sequenciais
     # levariam aproximadamente 400 ms.
     assert elapsed < 0.34
 
-    timings = [
-        item["timing"]
-        for item in data["results"]
-    ]
+    timings = [item["timing"] for item in data["results"]]
 
     # Os dois workers devem começar praticamente
     # juntos, não depois de o primeiro terminar.
-    assert all(
-        timing["started_ms"] < 100
-        for timing in timings
-    )
+    assert all(timing["started_ms"] < 100 for timing in timings)
 
 
 def test_multi_switch_preserves_operational_interface_features(
     monkeypatch,
 ):
-    configure_test_environment(
-        monkeypatch
-    )
+    configure_test_environment(monkeypatch)
 
-    response = (
-        web_app.app.test_client().get("/")
-    )
+    response = web_app.app.test_client().get("/")
 
     html = response.data.decode()
 
@@ -3415,96 +2932,57 @@ def test_multi_switch_preserves_operational_interface_features(
     assert "Saúde" in html
     assert "Operacional" in html
 
-    assert (
-        "interfaceDiagnosticsV2"
-        in html
-    )
+    assert "interfaceDiagnosticsV2" in html
 
-    assert (
-        "lost carrier"
-        in html.lower()
-    )
+    assert "lost carrier" in html.lower()
 
 
 def test_multi_switch_uses_single_management_button(
     monkeypatch,
 ):
-    configure_test_environment(
-        monkeypatch
-    )
+    configure_test_environment(monkeypatch)
 
-    response = (
-        web_app.app.test_client().get("/")
-    )
+    response = web_app.app.test_client().get("/")
 
     html = response.data.decode()
 
-    assert (
-        'id="manage-selected-devices-v2"'
-        in html
-    )
+    assert 'id="manage-selected-devices-v2"' in html
 
-    assert (
-        "Gerenciar selecionado"
-        in html
-    )
+    assert "Gerenciar selecionado" in html
 
-    assert (
-        "Gerenciar selecionados"
-        in html
-    )
+    assert "Gerenciar selecionados" in html
 
 
 def test_multi_general_configuration_ui_is_present(
     monkeypatch,
 ):
-    configure_test_environment(
-        monkeypatch
-    )
+    configure_test_environment(monkeypatch)
 
-    response = (
-        web_app.app.test_client().get("/")
-    )
+    response = web_app.app.test_client().get("/")
 
     html = response.data.decode()
 
     assert response.status_code == 200
 
-    assert (
-        'id="multi-general-config"'
-        in html
-    )
+    assert 'id="multi-general-config"' in html
 
-    assert (
-        'id="multi-general-device-list"'
-        in html
-    )
+    assert 'id="multi-general-device-list"' in html
 
-    assert (
-        'id="multi-general-apply"'
-        in html
-    )
+    assert 'id="multi-general-apply"' in html
 
-    assert (
-        "/api/devices/general/configure"
-        in html
-    )
+    assert "/api/devices/general/configure" in html
 
 
 def test_multi_general_requires_operations(
     monkeypatch,
 ):
-    configure_test_environment(
-        monkeypatch
-    )
+    configure_test_environment(monkeypatch)
 
-    response = (
-        web_app.app.test_client().post(
-            "/api/devices/general/configure",
-            json={
-                "operations": [],
-            },
-        )
+    response = web_app.app.test_client().post(
+        "/api/devices/general/configure",
+        json={
+            "operations": [],
+        },
     )
 
     assert response.status_code == 400
@@ -3517,61 +2995,38 @@ def test_multi_general_requires_operations(
 def test_multi_configuration_management_ui_exists(
     monkeypatch,
 ):
-    configure_test_environment(
-        monkeypatch
-    )
+    configure_test_environment(monkeypatch)
 
-    response = (
-        web_app.app.test_client().get("/")
-    )
+    response = web_app.app.test_client().get("/")
 
     html = response.data.decode()
 
     assert response.status_code == 200
 
-    assert (
-        'id="multi-config-management"'
-        in html
-    )
+    assert 'id="multi-config-management"' in html
 
     assert "Running Config" in html
     assert "Startup Config" in html
 
-    assert (
-        'value="local"'
-        in html
-    )
+    assert 'value="local"' in html
 
-    assert (
-        'value="ftp"'
-        in html
-    )
+    assert 'value="ftp"' in html
 
-    assert (
-        'value="sftp"'
-        in html
-    )
+    assert 'value="sftp"' in html
 
-    assert (
-        'value="tftp"'
-        in html
-    )
+    assert 'value="tftp"' in html
 
 
 def test_multi_configuration_save_requires_devices(
     monkeypatch,
 ):
-    configure_test_environment(
-        monkeypatch
-    )
+    configure_test_environment(monkeypatch)
 
-    response = (
-        web_app.app.test_client().post(
-            "/api/devices/configuration/save",
-            json={
-                "device_ids": [],
-            },
-        )
+    response = web_app.app.test_client().post(
+        "/api/devices/configuration/save",
+        json={
+            "device_ids": [],
+        },
     )
 
     assert response.status_code == 400
@@ -3580,18 +3035,14 @@ def test_multi_configuration_save_requires_devices(
 def test_multi_configuration_backup_requires_devices(
     monkeypatch,
 ):
-    configure_test_environment(
-        monkeypatch
-    )
+    configure_test_environment(monkeypatch)
 
-    response = (
-        web_app.app.test_client().post(
-            "/api/devices/configuration/backup",
-            json={
-                "device_ids": [],
-                "protocol": "local",
-            },
-        )
+    response = web_app.app.test_client().post(
+        "/api/devices/configuration/backup",
+        json={
+            "device_ids": [],
+            "protocol": "local",
+        },
     )
 
     assert response.status_code == 400
@@ -3600,91 +3051,59 @@ def test_multi_configuration_backup_requires_devices(
 def test_multi_configuration_download_requires_devices(
     monkeypatch,
 ):
-    configure_test_environment(
-        monkeypatch
-    )
+    configure_test_environment(monkeypatch)
 
-    response = (
-        web_app.app.test_client().post(
-            "/api/devices/configuration/download",
-            json={
-                "device_ids": [],
-                "config_type": "running",
-            },
-        )
+    response = web_app.app.test_client().post(
+        "/api/devices/configuration/download",
+        json={
+            "device_ids": [],
+            "config_type": "running",
+        },
     )
 
     assert response.status_code == 400
 
+
 def test_multi_troubleshooting_ui_exists(
     monkeypatch,
 ):
-    configure_test_environment(
-        monkeypatch
-    )
+    configure_test_environment(monkeypatch)
 
-    response = (
-        web_app.app.test_client().get("/")
-    )
+    response = web_app.app.test_client().get("/")
 
     html = response.data.decode()
 
     assert response.status_code == 200
 
-    assert (
-        'id="multi-troubleshooting"'
-        in html
-    )
+    assert 'id="multi-troubleshooting"' in html
 
     assert "Executar Ping" in html
     assert "Executar Traceroute" in html
 
-    assert (
-        'id="multi-ping-repeat"'
-        in html
-    )
+    assert 'id="multi-ping-repeat"' in html
 
-    assert (
-        'id="multi-ping-timeout"'
-        in html
-    )
+    assert 'id="multi-ping-timeout"' in html
 
-    assert (
-        'id="multi-ping-size"'
-        in html
-    )
+    assert 'id="multi-ping-size"' in html
 
-    assert (
-        'id="multi-ping-df"'
-        in html
-    )
+    assert 'id="multi-ping-df"' in html
 
-    assert (
-        'id="multi-trace-probes"'
-        in html
-    )
+    assert 'id="multi-trace-probes"' in html
 
-    assert (
-        'id="multi-trace-max-ttl"'
-        in html
-    )
+    assert 'id="multi-trace-max-ttl"' in html
 
 
 def test_multi_troubleshooting_ping_requires_devices(
     monkeypatch,
 ):
-    configure_test_environment(
-        monkeypatch
-    )
+    configure_test_environment(monkeypatch)
 
-    response = (
-        web_app.app.test_client().post(
-            "/api/devices/troubleshooting/ping",
-            json={
-                "operations": [],
-                "targets": "8.8.8.8",
-            },
-        )
+    response = web_app.app.test_client().post(
+        "/api/devices/troubleshooting/ping",
+        json={
+            "operations": [],
+            "targets": "8.8.8.8",
+        },
     )
 
     assert response.status_code == 400
@@ -3693,18 +3112,14 @@ def test_multi_troubleshooting_ping_requires_devices(
 def test_multi_troubleshooting_trace_requires_devices(
     monkeypatch,
 ):
-    configure_test_environment(
-        monkeypatch
-    )
+    configure_test_environment(monkeypatch)
 
-    response = (
-        web_app.app.test_client().post(
-            "/api/devices/troubleshooting/traceroute",
-            json={
-                "operations": [],
-                "destination": "8.8.8.8",
-            },
-        )
+    response = web_app.app.test_client().post(
+        "/api/devices/troubleshooting/traceroute",
+        json={
+            "operations": [],
+            "destination": "8.8.8.8",
+        },
     )
 
     assert response.status_code == 400
@@ -3713,57 +3128,34 @@ def test_multi_troubleshooting_trace_requires_devices(
 def test_multi_interface_quick_actions_ui_exists(
     monkeypatch,
 ):
-    configure_test_environment(
-        monkeypatch
-    )
+    configure_test_environment(monkeypatch)
 
-    response = (
-        web_app.app.test_client().get("/")
-    )
+    response = web_app.app.test_client().get("/")
 
     html = response.data.decode()
 
     assert response.status_code == 200
 
-    assert (
-        'id="multi-interface-default"'
-        in html
-    )
+    assert 'id="multi-interface-default"' in html
 
-    assert (
-        'id="multi-interface-bounce"'
-        in html
-    )
+    assert 'id="multi-interface-bounce"' in html
 
-    assert (
-        "Restaurar padrão"
-        in html
-    )
+    assert "Restaurar padrão" in html
 
-    assert (
-        "Bounce (Shut/No Shut)"
-        in html
-    )
+    assert "Bounce (Shut/No Shut)" in html
 
 
 def test_multi_interface_quick_action_requires_selection(
     monkeypatch,
 ):
-    configure_test_environment(
-        monkeypatch
-    )
+    configure_test_environment(monkeypatch)
 
-    response = (
-        web_app.app.test_client().post(
-            "/api/devices/interfaces/quick-action",
-            json={
-                "action":
-                    "bounce",
-
-                "selections":
-                    [],
-            },
-        )
+    response = web_app.app.test_client().post(
+        "/api/devices/interfaces/quick-action",
+        json={
+            "action": "bounce",
+            "selections": [],
+        },
     )
 
     assert response.status_code == 400
@@ -3772,28 +3164,19 @@ def test_multi_interface_quick_action_requires_selection(
 def test_multi_interface_quick_action_rejects_invalid_action(
     monkeypatch,
 ):
-    configure_test_environment(
-        monkeypatch
-    )
+    configure_test_environment(monkeypatch)
 
-    response = (
-        web_app.app.test_client().post(
-            "/api/devices/interfaces/quick-action",
-            json={
-                "action":
-                    "destroy",
-
-                "selections": [
-                    {
-                        "device_id":
-                            "device-1",
-
-                        "interface":
-                            "GigabitEthernet0/1",
-                    }
-                ],
-            },
-        )
+    response = web_app.app.test_client().post(
+        "/api/devices/interfaces/quick-action",
+        json={
+            "action": "destroy",
+            "selections": [
+                {
+                    "device_id": "device-1",
+                    "interface": "GigabitEthernet0/1",
+                }
+            ],
+        },
     )
 
     assert response.status_code == 400
@@ -3802,31 +3185,24 @@ def test_multi_interface_quick_action_rejects_invalid_action(
 def test_quick_action_endpoint_does_not_require_cisco_port_argument(
     monkeypatch,
 ):
-    configure_test_environment(
-        monkeypatch
-    )
+    configure_test_environment(monkeypatch)
 
     import src.web.app as app_module
 
     app_module.device_manager.clear()
 
-    device = (
-        app_module.device_manager.add(
-            host="192.0.2.50",
-            username="admin",
-            password="password",
-        )
+    device = app_module.device_manager.add(
+        host="192.0.2.50",
+        username="admin",
+        password="password",
     )
 
     calls = []
 
-
     def fake_quick_action(
         **kwargs,
     ):
-        calls.append(
-            kwargs
-        )
+        calls.append(kwargs)
 
         return {
             "success": True,
@@ -3838,29 +3214,24 @@ def test_quick_action_endpoint_does_not_require_cisco_port_argument(
             },
         }
 
-
     monkeypatch.setattr(
         app_module,
         "run_interface_quick_action",
         fake_quick_action,
     )
 
-
-    response = (
-        app_module.app.test_client().post(
-            "/api/devices/interfaces/quick-action",
-            json={
-                "action": "bounce",
-                "selections": [
-                    {
-                        "device_id": device.id,
-                        "interface": "Gi1/1",
-                    }
-                ],
-            },
-        )
+    response = app_module.app.test_client().post(
+        "/api/devices/interfaces/quick-action",
+        json={
+            "action": "bounce",
+            "selections": [
+                {
+                    "device_id": device.id,
+                    "interface": "Gi1/1",
+                }
+            ],
+        },
     )
-
 
     assert response.status_code == 200
 
@@ -3869,9 +3240,324 @@ def test_quick_action_endpoint_does_not_require_cisco_port_argument(
     assert calls[0]["host"] == "192.0.2.50"
     assert calls[0]["username"] == "admin"
     assert calls[0]["password"] == "password"
-    assert calls[0]["interfaces"] == [
-        "Gi1/1"
-    ]
+    assert calls[0]["interfaces"] == ["Gi1/1"]
     assert calls[0]["action"] == "bounce"
 
     assert "port" not in calls[0]
+
+
+def test_provision_ui_exists(
+    monkeypatch,
+):
+    configure_test_environment(monkeypatch)
+
+    response = web_app.app.test_client().get("/")
+
+    html = response.data.decode()
+
+    assert response.status_code == 200
+
+    assert 'id="provision-switch-card"' in html
+
+    assert 'id="provision-device"' in html
+
+    assert 'id="provision-generate"' in html
+
+    assert "Branch Standard v1" in html
+
+    assert "Visualizar Template" in html
+
+    assert "Baixar Template" in html
+
+
+def test_provision_devices_endpoint(
+    monkeypatch,
+):
+    configure_test_environment(monkeypatch)
+
+    web_app.device_manager.clear()
+
+    device = web_app.device_manager.add(
+        host="192.0.2.100",
+        username="admin",
+        password="password",
+    )
+
+    response = web_app.app.test_client().get("/api/provision/devices")
+
+    assert response.status_code == 200
+
+    data = response.get_json()
+
+    assert data["devices"][0]["id"] == device.id
+
+    assert "password" not in data["devices"][0]
+
+
+def test_provision_generate_candidate(
+    monkeypatch,
+):
+    configure_test_environment(monkeypatch)
+
+    monkeypatch.setattr(
+        web_app,
+        "detect_provision_capabilities",
+        lambda **kwargs: ProvisionCapabilities(
+            domain_command=("ip domain name"),
+            domain_syntax=("ios_xe_style"),
+            domain_probe_output=("WORD"),
+        ),
+    )
+
+    web_app.device_manager.clear()
+
+    device = web_app.device_manager.add(
+        host="192.0.2.101",
+        username="admin",
+        password="password",
+    )
+
+    monkeypatch.setattr(
+        web_app,
+        "get_switch_interfaces",
+        lambda **kwargs: {
+            "interfaces": [
+                {
+                    "interface": "Gi1/0/1",
+                    "mode": "ROUTED",
+                    "ip_address": "172.28.255.101",
+                },
+                {
+                    "interface": "Gi1/0/2",
+                    "mode": "ACCESS",
+                },
+                {
+                    "interface": "Gi1/0/48",
+                    "mode": "TRUNK",
+                },
+            ],
+            "vlan_state": "",
+            "capabilities": {},
+        },
+    )
+
+    monkeypatch.setattr(
+        web_app,
+        "get_running_config",
+        lambda **kwargs: "hostname OLD-SW\n",
+    )
+
+    response = web_app.app.test_client().post(
+        "/api/provision/generate",
+        json={
+            "device_id": device.id,
+            "hostname": "BRANCH-01",
+            "management_ip": "172.16.255.10",
+            "management_mask": "255.255.255.0",
+            "default_gateway": "172.16.255.1",
+            "uplink_interface": "Gi1/0/48",
+        },
+    )
+
+    assert response.status_code == 200
+
+    data = response.get_json()
+
+    assert data["success"] is True
+
+    assert data["summary"]["user_ports"] == 1
+
+    assert data["summary"]["uplink"] == "Gi1/0/48"
+
+    assert "hostname BRANCH-01" in data["config"]
+
+    assert "interface Vlan255" in data["config"]
+
+    assert "authentication open" in data["config"]
+
+
+def test_provision_candidate_download(
+    monkeypatch,
+):
+    configure_test_environment(monkeypatch)
+
+    monkeypatch.setattr(
+        web_app,
+        "detect_provision_capabilities",
+        lambda **kwargs: ProvisionCapabilities(
+            domain_command=("ip domain name"),
+            domain_syntax=("ios_xe_style"),
+            domain_probe_output=("WORD"),
+        ),
+    )
+
+    web_app.device_manager.clear()
+
+    device = web_app.device_manager.add(
+        host="192.0.2.102",
+        username="admin",
+        password="password",
+    )
+
+    monkeypatch.setattr(
+        web_app,
+        "get_switch_interfaces",
+        lambda **kwargs: {
+            "interfaces": [
+                {
+                    "interface": "Gi1/0/1",
+                    "mode": "ROUTED",
+                    "ip_address": "172.28.255.102",
+                },
+                {
+                    "interface": "Gi1/0/48",
+                    "mode": "TRUNK",
+                },
+            ],
+            "vlan_state": "",
+            "capabilities": {},
+        },
+    )
+
+    monkeypatch.setattr(
+        web_app,
+        "get_running_config",
+        lambda **kwargs: "hostname OLD\n",
+    )
+
+    client = web_app.app.test_client()
+
+    generated = client.post(
+        "/api/provision/generate",
+        json={
+            "device_id": device.id,
+            "hostname": "BRANCH-02",
+            "management_ip": "172.16.255.20",
+            "management_mask": "255.255.255.0",
+            "default_gateway": "172.16.255.1",
+            "uplink_interface": "Gi1/0/48",
+        },
+    )
+
+    candidate_id = generated.get_json()["candidate_id"]
+
+    response = client.get((f"/api/provision/candidates/{candidate_id}/download"))
+
+    assert response.status_code == 200
+
+    assert b"hostname BRANCH-02" in response.data
+
+    assert "attachment" in response.headers["Content-Disposition"]
+
+
+def test_provision_ui_has_adjust_and_diff(
+    monkeypatch,
+):
+    configure_test_environment(monkeypatch)
+
+    response = web_app.app.test_client().get("/")
+
+    html = response.data.decode()
+
+    assert response.status_code == 200
+
+    assert 'id="provision-adjust"' in html
+
+    assert 'id="provision-deploy"' in html
+    assert "Deploy Config" in html
+    assert "deployCandidate" in html
+    assert "/deploy" in html
+    assert "Aplicando..." in html
+    assert "Startup-config NÃO foi salva." in html
+    assert 'id="provision-diff"' not in html
+
+    assert 'id="provision-overrides"' in html
+
+    assert "Regenerar Candidate" in html
+
+
+def test_provision_inventory_matches_short_and_long_interface_names(
+    monkeypatch,
+):
+    class FakeDevice:
+        def credentials(self):
+            return {
+                "host": "192.0.2.1",
+                "username": "admin",
+                "password": "password",
+                "secret": "",
+            }
+
+    monkeypatch.setattr(
+        web_app,
+        "get_switch_interfaces",
+        lambda **kwargs: {
+            "interfaces": [
+                {
+                    "interface": "Gi0/0",
+                    "mode": "ROUTED",
+                },
+                {
+                    "interface": "Gi0/1",
+                    "mode": "ACCESS",
+                },
+            ],
+            "vlan_state": "",
+            "capabilities": {},
+        },
+    )
+
+    monkeypatch.setattr(
+        web_app,
+        "get_switch_l3_interfaces",
+        lambda **kwargs: {
+            "interfaces": [
+                {
+                    "name": "GigabitEthernet0/0",
+                    "ip_address": "172.28.255.192",
+                },
+                {
+                    "name": "GigabitEthernet0/1",
+                    "ip_address": None,
+                },
+            ]
+        },
+    )
+
+    inventory = web_app._provision_inventory(FakeDevice())
+
+    interfaces = inventory["interfaces"]
+
+    assert interfaces[0]["interface"] == "Gi0/0"
+
+    assert interfaces[0]["ip_address"] == "172.28.255.192"
+
+
+def test_provision_rejects_management_ip_in_provision_network(
+    monkeypatch,
+):
+    configure_test_environment(monkeypatch)
+
+    web_app.device_manager.clear()
+
+    device = web_app.device_manager.add(
+        host="192.0.2.210",
+        username="admin",
+        password="password",
+    )
+
+    response = web_app.app.test_client().post(
+        "/api/provision/generate",
+        json={
+            "device_id": device.id,
+            "hostname": "BRANCH-01",
+            "management_ip": "172.28.255.233",
+            "management_mask": "255.255.255.0",
+            "default_gateway": "172.28.255.254",
+            "uplink_interface": "Gi0/3",
+        },
+    )
+
+    assert response.status_code == 400
+
+    assert "172.28.255.0/24" in response.get_json()["error"]

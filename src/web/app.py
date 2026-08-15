@@ -1,7 +1,10 @@
 import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from copy import deepcopy
 from io import BytesIO
+from ipaddress import ip_address, ip_network
 from time import perf_counter
+from uuid import uuid4
 from zipfile import ZIP_DEFLATED, ZipFile
 
 from dotenv import load_dotenv
@@ -21,9 +24,23 @@ from src.switch.batch import (
 )
 from src.switch.cisco import validate_switchport_change
 from src.switch.devices import DeviceManager
+from src.switch.provisioning import (
+    BRANCH_STANDARD_V1,
+    SECTION_LABELS,
+    SECTION_ORDER,
+    BranchVariables,
+    InterfaceClassification,
+    build_candidate_diff,
+    classify_interfaces,
+    detect_provision_capabilities,
+    discover_provision_port,
+    render_branch_candidate,
+    validate_provision_port,
+)
 from src.switch.service import (
     compare_config_texts,
     create_switch_backup,
+    deploy_candidate_config,
     discover_managed_switch,
     get_running_config,
     get_startup_config,
@@ -43,20 +60,11 @@ load_dotenv(".env")
 app = Flask(__name__)
 
 
-device_manager = DeviceManager(
-    max_workers=4
-)
+device_manager = DeviceManager(max_workers=4)
 
 
 def selected_device_id():
-    return (
-        request.values.get(
-            "device_id"
-        )
-        or request.headers.get(
-            "X-Device-ID"
-        )
-    )
+    return request.values.get("device_id") or request.headers.get("X-Device-ID")
 
 
 def is_test_runtime():
@@ -89,25 +97,14 @@ def legacy_test_device():
 def switch_credentials(
     device_id=None,
 ):
-    device_id = (
-        device_id
-        or selected_device_id()
-    )
+    device_id = device_id or selected_device_id()
 
-    if (
-        device_id
-        and device_id != "__legacy_test_device__"
-    ):
+    if device_id and device_id != "__legacy_test_device__":
         try:
-            device = device_manager.get(
-                device_id
-            )
+            device = device_manager.get(device_id)
 
         except KeyError as exc:
-            raise ValueError(
-                "O equipamento selecionado "
-                "não está cadastrado."
-            ) from exc
+            raise ValueError("O equipamento selecionado não está cadastrado.") from exc
 
         return device.credentials()
 
@@ -124,9 +121,7 @@ def switch_credentials(
             ),
         }
 
-    raise ValueError(
-        "Selecione um equipamento para executar esta operação."
-    )
+    raise ValueError("Selecione um equipamento para executar esta operação.")
 
 
 def load_inventory(
@@ -134,23 +129,14 @@ def load_inventory(
 ):
     effective_device_id = device_id
 
-    if (
-        not effective_device_id
-        and is_test_runtime()
-    ):
-        effective_device_id = (
-            "__legacy_test_device__"
-        )
+    if not effective_device_id and is_test_runtime():
+        effective_device_id = "__legacy_test_device__"
 
     if not effective_device_id:
         return [], "", {}, None
 
     try:
-        inventory = get_switch_interfaces(
-            **switch_credentials(
-                effective_device_id
-            )
-        )
+        inventory = get_switch_interfaces(**switch_credentials(effective_device_id))
 
         return (
             inventory["interfaces"],
@@ -178,44 +164,29 @@ def render_page(
     config_result=None,
     config_error=None,
 ):
-    active_device_id = (
-        selected_device_id()
-    )
+    active_device_id = selected_device_id()
 
     active_device = None
 
     if active_device_id:
         try:
-            active_device = (
-                device_manager.get(
-                    active_device_id
-                ).public()
-            )
+            active_device = device_manager.get(active_device_id).public()
 
         except KeyError:
             active_device_id = None
 
-    if (
-        active_device is None
-        and is_test_runtime()
-    ):
-        active_device = (
-            legacy_test_device()
-        )
+    if active_device is None and is_test_runtime():
+        active_device = legacy_test_device()
 
         if active_device:
-            active_device_id = (
-                "__legacy_test_device__"
-            )
+            active_device_id = "__legacy_test_device__"
 
     (
         interfaces,
         vlan_state,
         capabilities,
         inventory_error,
-    ) = load_inventory(
-        active_device_id
-    )
+    ) = load_inventory(active_device_id)
 
     return render_template(
         "index.html",
@@ -244,12 +215,8 @@ def inject_device_template_context():
 
     if is_test_runtime():
         return {
-            "active_device": (
-                legacy_test_device()
-            ),
-            "active_device_id": (
-                "__legacy_test_device__"
-            ),
+            "active_device": (legacy_test_device()),
+            "active_device_id": ("__legacy_test_device__"),
         }
 
     return {
@@ -276,14 +243,9 @@ def parse_vlans():
             continue
 
         if not vlan_id or not vlan_name:
-            raise ValueError(
-                "Para configurar uma VLAN, "
-                "informe ID e nome."
-            )
+            raise ValueError("Para configurar uma VLAN, informe ID e nome.")
 
-        vlans.append(
-            (int(vlan_id), vlan_name)
-        )
+        vlans.append((int(vlan_id), vlan_name))
 
     return vlans
 
@@ -297,77 +259,38 @@ def parse_interface_configuration(
             "",
         ).strip()
 
-    access_raw = field(
-        "access_vlan"
-    )
+    access_raw = field("access_vlan")
 
-    voice_raw = field(
-        "voice_vlan"
-    )
+    voice_raw = field("voice_vlan")
 
-    access_vlan = (
-        int(access_raw)
-        if access_raw
-        else None
-    )
+    access_vlan = int(access_raw) if access_raw else None
 
-    voice_vlan = (
-        int(voice_raw)
-        if voice_raw
-        else None
-    )
+    voice_vlan = int(voice_raw) if voice_raw else None
 
-    description = (
-        field("description")
-        or None
-    )
+    description = field("description") or None
 
-    remove_description = (
-        request.form.get(
-            f"{prefix}remove_description"
-        )
-        == "on"
-    )
+    remove_description = request.form.get(f"{prefix}remove_description") == "on"
 
-    remove_voice_vlan = (
-        request.form.get(
-            f"{prefix}remove_voice_vlan"
-        )
-        == "on"
-    )
+    remove_voice_vlan = request.form.get(f"{prefix}remove_voice_vlan") == "on"
 
-    admin_state = (
-        field("admin_state")
-        or None
-    )
+    admin_state = field("admin_state") or None
 
-    portfast_state = (
-        field("portfast_state")
-        or None
-    )
+    portfast_state = field("portfast_state") or None
 
     if portfast_state not in (
         None,
         "enable",
         "disable",
     ):
-        raise ValueError(
-            "PortFast inválido."
-        )
+        raise ValueError("PortFast inválido.")
 
-    if (
-        description is not None
-        and remove_description
-    ):
+    if description is not None and remove_description:
         raise ValueError(
             "Para Description, escolha configurar um texto "
             "ou remover a descrição atual."
         )
 
-    if (
-        voice_vlan is not None
-        and remove_voice_vlan
-    ):
+    if voice_vlan is not None and remove_voice_vlan:
         raise ValueError(
             "Para Voice VLAN, escolha configurar um número "
             "ou remover a configuração atual."
@@ -387,32 +310,19 @@ def parse_interface_configuration(
 @app.get("/api/devices")
 def api_list_devices():
     return {
-        "devices": (
-            device_manager.list()
-        ),
+        "devices": (device_manager.list()),
     }
 
 
 @app.post("/api/devices")
 def api_add_device():
-    payload = (
-        request.get_json(
-            silent=True
-        )
-        or request.form
-    )
+    payload = request.get_json(silent=True) or request.form
 
     try:
         device = device_manager.upsert(
-            host=payload.get(
-                "host"
-            ),
-            username=payload.get(
-                "username"
-            ),
-            password=payload.get(
-                "password"
-            ),
+            host=payload.get("host"),
+            username=payload.get("username"),
+            password=payload.get("password"),
             secret=payload.get(
                 "secret",
                 "",
@@ -436,9 +346,7 @@ def api_get_device(
     device_id,
 ):
     try:
-        device = device_manager.get(
-            device_id
-        )
+        device = device_manager.get(device_id)
 
         return {
             "success": True,
@@ -457,11 +365,7 @@ def api_remove_device(
     device_id,
 ):
     try:
-        device = (
-            device_manager.remove(
-                device_id
-            )
-        )
+        device = device_manager.remove(device_id)
 
         return {
             "success": True,
@@ -471,35 +375,670 @@ def api_remove_device(
     except KeyError:
         return {
             "success": False,
-            "error": (
-                "Equipamento não encontrado."
-            ),
+            "error": ("Equipamento não encontrado."),
         }, 404
 
+
+_provision_candidates = {}
+
+
+@app.get("/api/provision/devices")
+def api_provision_devices():
+    devices = [device.public() for device in device_manager.objects()]
+
+    return jsonify(
+        {
+            "devices": devices,
+        }
+    )
+
+
+def _normalize_provision_interface_name(
+    interface_name,
+):
+    """
+    Normaliza nomes Cisco para correlação L2 x L3.
+
+    Exemplos:
+        GigabitEthernet0/0 -> gi0/0
+        Gi0/0              -> gi0/0
+        FastEthernet0/1    -> fa0/1
+        TenGigabitEthernet1/0/1 -> te1/0/1
+    """
+    value = str(interface_name or "").strip()
+
+    lowered = value.lower()
+
+    prefixes = (
+        (
+            "tengigabitethernet",
+            "te",
+        ),
+        (
+            "gigabitethernet",
+            "gi",
+        ),
+        (
+            "fastethernet",
+            "fa",
+        ),
+        (
+            "twentyfivegige",
+            "twe",
+        ),
+        (
+            "hundredgige",
+            "hu",
+        ),
+        (
+            "ethernet",
+            "eth",
+        ),
+    )
+
+    for long_name, short_name in prefixes:
+        if lowered.startswith(long_name):
+            return short_name + lowered[len(long_name) :]
+
+    return lowered
+
+
+def _provision_inventory(
+    device,
+):
+    """
+    Inventário exclusivo do Provision.
+
+    L2 é a base.
+    L3 enriquece IPs.
+
+    A correlação usa nomes Cisco normalizados para que,
+    por exemplo:
+
+        Gi0/0
+        GigabitEthernet0/0
+
+    representem a mesma interface.
+    """
+    inventory = get_switch_interfaces(**device.credentials())
+
+    interfaces = [
+        dict(interface) for interface in (inventory.get("interfaces", []) or [])
+    ]
+
+    try:
+        l3_inventory = get_switch_l3_interfaces(**device.credentials())
+
+    except Exception:
+        l3_inventory = {
+            "interfaces": [],
+        }
+
+    l3_by_name = {}
+
+    for interface in l3_inventory.get("interfaces", []) or []:
+        name = str(
+            interface.get("name")
+            or interface.get("interface")
+            or interface.get("port")
+            or ""
+        ).strip()
+
+        if not name:
+            continue
+
+        normalized = _normalize_provision_interface_name(name)
+
+        l3_by_name[normalized] = interface
+
+    for interface in interfaces:
+        name = str(
+            interface.get("interface")
+            or interface.get("name")
+            or interface.get("port")
+            or ""
+        ).strip()
+
+        if not name:
+            continue
+
+        normalized = _normalize_provision_interface_name(name)
+
+        l3 = l3_by_name.get(normalized)
+
+        if not l3:
+            continue
+
+        ip_address = str(
+            l3.get("ip_address") or l3.get("ip") or l3.get("address") or ""
+        ).strip()
+
+        if ip_address:
+            interface["ip_address"] = ip_address
+
+    return {
+        **inventory,
+        "interfaces": interfaces,
+    }
+
+
+def _build_provision_profile(
+    device,
+):
+    """
+    Constrói uma cópia isolada do Branch Standard v1
+    para o equipamento selecionado.
+
+    A baseline global nunca é alterada.
+
+    O preflight define apenas capabilities que realmente
+    dependem da sintaxe/plataforma do equipamento.
+    """
+    capabilities = detect_provision_capabilities(**device.credentials())
+
+    profile = deepcopy(BRANCH_STANDARD_V1)
+
+    profile["domain_command"] = capabilities.domain_command
+
+    return (
+        profile,
+        capabilities,
+    )
+
+
+@app.post("/api/provision/analyze")
+def api_provision_analyze():
+    payload = request.get_json(silent=True) or {}
+
+    device_id = str(
+        payload.get(
+            "device_id",
+            "",
+        )
+        or ""
+    ).strip()
+
+    if not device_id:
+        return jsonify(
+            {
+                "success": False,
+                "error": ("Selecione um equipamento."),
+            }
+        ), 400
+
+    try:
+        device = device_manager.get(device_id)
+
+        inventory = _provision_inventory(device)
+
+        running_config = get_running_config(**device.credentials())
+
+        interfaces = inventory.get("interfaces", []) or []
+
+        interface_names = [
+            str(
+                interface.get("interface")
+                or interface.get("name")
+                or interface.get("port")
+                or ""
+            ).strip()
+            for interface in interfaces
+            if str(
+                interface.get("interface")
+                or interface.get("name")
+                or interface.get("port")
+                or ""
+            ).strip()
+        ]
+
+        provision_interface = discover_provision_port(interfaces)
+
+        provision_validation = validate_provision_port(provision_interface)
+
+        return jsonify(
+            {
+                "success": True,
+                "device": device.public(),
+                "interfaces": interfaces,
+                "interface_names": (interface_names),
+                "interface_count": len(interface_names),
+                "running_config_captured": (bool(running_config.strip())),
+                "provision_port": provision_validation,
+            }
+        )
+
+    except KeyError:
+        return jsonify(
+            {
+                "success": False,
+                "error": ("Equipamento não encontrado."),
+            }
+        ), 404
+
+    except Exception as exc:
+        return jsonify(
+            {
+                "success": False,
+                "error": str(exc),
+            }
+        ), 500
+
+
+@app.post("/api/provision/generate")
+def api_provision_generate():
+    payload = request.get_json(silent=True) or {}
+
+    device_id = str(
+        payload.get(
+            "device_id",
+            "",
+        )
+        or ""
+    ).strip()
+
+    hostname = str(
+        payload.get(
+            "hostname",
+            "",
+        )
+        or ""
+    ).strip()
+
+    management_ip = str(
+        payload.get(
+            "management_ip",
+            "",
+        )
+        or ""
+    ).strip()
+
+    management_mask = str(
+        payload.get(
+            "management_mask",
+            "",
+        )
+        or ""
+    ).strip()
+
+    default_gateway = str(
+        payload.get(
+            "default_gateway",
+            "",
+        )
+        or ""
+    ).strip()
+
+    uplink_interface = str(
+        payload.get(
+            "uplink_interface",
+            "",
+        )
+        or ""
+    ).strip()
+
+    required = {
+        "Equipamento": device_id,
+        "Hostname": hostname,
+        "IP de gerenciamento": management_ip,
+        "Máscara": management_mask,
+        "Default Gateway": default_gateway,
+        "Uplink": uplink_interface,
+    }
+
+    missing = [field for field, value in required.items() if not value]
+
+    if missing:
+        return jsonify(
+            {
+                "success": False,
+                "error": ("Campos obrigatórios: " + ", ".join(missing) + "."),
+            }
+        ), 400
+
+    try:
+        parsed_management_ip = ip_address(management_ip)
+
+    except ValueError:
+        return jsonify(
+            {
+                "success": False,
+                "error": ("IP de gerenciamento inválido."),
+            }
+        ), 400
+
+    provision_network = ip_network("172.28.255.0/24")
+
+    if parsed_management_ip in provision_network:
+        return jsonify(
+            {
+                "success": False,
+                "error": (
+                    "O IP de gerenciamento da "
+                    "Vlan255 não pode pertencer "
+                    "à rede temporária de "
+                    "provisionamento "
+                    "172.28.255.0/24."
+                ),
+            }
+        ), 400
+
+    try:
+        device = device_manager.get(device_id)
+
+        profile, capabilities = _build_provision_profile(device)
+
+        inventory = _provision_inventory(device)
+
+        running_config = get_running_config(**device.credentials())
+
+        interfaces = inventory.get("interfaces", []) or []
+
+        classification = classify_interfaces(
+            interfaces,
+            uplink_interface=(uplink_interface),
+        )
+
+        variables = BranchVariables(
+            hostname=hostname,
+            management_ip=(management_ip),
+            management_mask=(management_mask),
+            default_gateway=(default_gateway),
+            uplink_interface=(uplink_interface),
+        )
+
+        candidate_config = render_branch_candidate(
+            variables=variables,
+            classification=(classification),
+            profile=profile,
+        )
+
+        candidate_id = uuid4().hex
+
+        _provision_candidates[candidate_id] = {
+            "id": candidate_id,
+            "device_id": device_id,
+            "device": device.public(),
+            "profile": profile["name"],
+            "provision_profile": profile,
+            "capabilities": capabilities.as_dict(),
+            "hostname": hostname,
+            "variables": {
+                "management_ip": management_ip,
+                "management_mask": management_mask,
+                "default_gateway": default_gateway,
+                "uplink_interface": uplink_interface,
+            },
+            "classification": {
+                "uplink": classification.uplink,
+                "provision_port": classification.provision_port,
+                "provision_ip": classification.provision_ip,
+                "user_ports": classification.user_ports,
+                "preserved_ports": classification.preserved_ports,
+            },
+            "running_config": running_config,
+            "enabled_sections": list(SECTION_ORDER),
+            "section_labels": SECTION_LABELS,
+            "overrides": "",
+            "config": candidate_config,
+        }
+
+        return jsonify(
+            {
+                "success": True,
+                "candidate_id": candidate_id,
+                "profile": profile["name"],
+                "capabilities": capabilities.as_dict(),
+                "device": device.public(),
+                "hostname": hostname,
+                "summary": {
+                    "interfaces": len(interfaces),
+                    "user_ports": len(classification.user_ports),
+                    "preserved_ports": len(classification.preserved_ports),
+                    "uplink": classification.uplink,
+                    "provision_port": classification.provision_port,
+                    "provision_ip": classification.provision_ip,
+                },
+                "config": candidate_config,
+            }
+        )
+
+    except KeyError:
+        return jsonify(
+            {
+                "success": False,
+                "error": ("Equipamento não encontrado."),
+            }
+        ), 404
+
+    except RuntimeError as exc:
+        return jsonify(
+            {
+                "success": False,
+                "error": ("Preflight: " + str(exc)),
+            }
+        ), 400
+
+    except ValueError as exc:
+        return jsonify(
+            {
+                "success": False,
+                "error": str(exc),
+            }
+        ), 400
+
+    except Exception as exc:
+        return jsonify(
+            {
+                "success": False,
+                "error": str(exc),
+            }
+        ), 500
+
+
+@app.get("/api/provision/candidates/<candidate_id>")
+def api_provision_candidate(
+    candidate_id,
+):
+    candidate = _provision_candidates.get(candidate_id)
+
+    if candidate is None:
+        return jsonify(
+            {
+                "success": False,
+                "error": ("Candidate não encontrado."),
+            }
+        ), 404
+
+    return jsonify(
+        {
+            "success": True,
+            "candidate": candidate,
+        }
+    )
+
+
+@app.get("/api/provision/candidates/<candidate_id>/download")
+def api_provision_candidate_download(
+    candidate_id,
+):
+    candidate = _provision_candidates.get(candidate_id)
+
+    if candidate is None:
+        return jsonify(
+            {
+                "success": False,
+                "error": ("Candidate não encontrado."),
+            }
+        ), 404
+
+    filename = f"{candidate['hostname']}_Branch-Standard-v1.cfg"
+
+    return send_file(
+        BytesIO(candidate["config"].encode("utf-8")),
+        mimetype="text/plain",
+        as_attachment=True,
+        download_name=filename,
+    )
+
+
+@app.post("/api/provision/candidates/<candidate_id>/adjust")
+def api_provision_candidate_adjust(
+    candidate_id,
+):
+    candidate = _provision_candidates.get(candidate_id)
+
+    if candidate is None:
+        return jsonify(
+            {
+                "success": False,
+                "error": ("Candidate não encontrado."),
+            }
+        ), 404
+
+    payload = request.get_json(silent=True) or {}
+
+    enabled_sections = payload.get(
+        "enabled_sections",
+        list(SECTION_ORDER),
+    )
+
+    if not isinstance(
+        enabled_sections,
+        list,
+    ):
+        return jsonify(
+            {
+                "success": False,
+                "error": ("Lista de seções inválida."),
+            }
+        ), 400
+
+    unknown_sections = [
+        section for section in enabled_sections if section not in SECTION_ORDER
+    ]
+
+    if unknown_sections:
+        return jsonify(
+            {
+                "success": False,
+                "error": ("Seções inválidas: " + ", ".join(unknown_sections)),
+            }
+        ), 400
+
+    overrides = str(
+        payload.get(
+            "overrides",
+            "",
+        )
+        or ""
+    ).strip()
+
+    stored_variables = candidate["variables"]
+
+    variables = BranchVariables(
+        hostname=candidate["hostname"],
+        management_ip=(stored_variables["management_ip"]),
+        management_mask=(stored_variables["management_mask"]),
+        default_gateway=(stored_variables["default_gateway"]),
+        uplink_interface=(stored_variables["uplink_interface"]),
+    )
+
+    stored_classification = candidate["classification"]
+
+    classification = InterfaceClassification(
+        uplink=(stored_classification["uplink"]),
+        provision_port=(stored_classification["provision_port"]),
+        provision_ip=(stored_classification.get("provision_ip")),
+        user_ports=list(stored_classification["user_ports"]),
+        preserved_ports=list(stored_classification["preserved_ports"]),
+    )
+
+    profile = candidate.get("provision_profile")
+
+    if profile is None:
+        profile = deepcopy(BRANCH_STANDARD_V1)
+
+    config = render_branch_candidate(
+        variables=variables,
+        classification=(classification),
+        profile=profile,
+        enabled_sections=(enabled_sections),
+        overrides=overrides,
+    )
+
+    candidate["enabled_sections"] = list(enabled_sections)
+
+    candidate["overrides"] = overrides
+
+    candidate["config"] = config
+
+    candidate["diff"] = build_candidate_diff(
+        candidate["running_config"],
+        config,
+    )
+
+    return jsonify(
+        {
+            "success": True,
+            "candidate_id": candidate_id,
+            "config": config,
+            "enabled_sections": enabled_sections,
+            "overrides": overrides,
+            "diff": candidate["diff"],
+        }
+    )
+
+
+@app.get("/api/provision/candidates/<candidate_id>/diff")
+def api_provision_candidate_diff(
+    candidate_id,
+):
+    candidate = _provision_candidates.get(candidate_id)
+
+    if candidate is None:
+        return jsonify(
+            {
+                "success": False,
+                "error": ("Candidate não encontrado."),
+            }
+        ), 404
+
+    diff = build_candidate_diff(
+        candidate["running_config"],
+        candidate["config"],
+    )
+
+    candidate["diff"] = diff
+
+    return jsonify(
+        {
+            "success": True,
+            "candidate_id": candidate_id,
+            "diff": diff,
+        }
+    )
 
 
 @app.post("/api/devices/interfaces/quick-action")
 def api_multi_interface_quick_action():
-    payload = (
-        request.get_json(
-            silent=True
-        )
-        or {}
-    )
+    payload = request.get_json(silent=True) or {}
 
     selections = payload.get(
         "selections",
         [],
     )
 
-    action = str(
-        payload.get(
-            "action",
-            "",
+    action = (
+        str(
+            payload.get(
+                "action",
+                "",
+            )
+            or ""
         )
-        or ""
-    ).strip().lower()
-
+        .strip()
+        .lower()
+    )
 
     if action not in {
         "default",
@@ -508,12 +1047,9 @@ def api_multi_interface_quick_action():
         return jsonify(
             {
                 "success": False,
-                "error": (
-                    "Ação de interface inválida."
-                ),
+                "error": ("Ação de interface inválida."),
             }
         ), 400
-
 
     if (
         not isinstance(
@@ -525,12 +1061,9 @@ def api_multi_interface_quick_action():
         return jsonify(
             {
                 "success": False,
-                "error": (
-                    "Selecione pelo menos uma interface."
-                ),
+                "error": ("Selecione pelo menos uma interface."),
             }
         ), 400
-
 
     grouped = {}
 
@@ -551,30 +1084,18 @@ def api_multi_interface_quick_action():
             or ""
         ).strip()
 
-        if (
-            not device_id
-            or not interface
-        ):
+        if not device_id or not interface:
             continue
 
-        grouped.setdefault(
-            device_id,
-            []
-        ).append(
-            interface
-        )
-
+        grouped.setdefault(device_id, []).append(interface)
 
     if not grouped:
         return jsonify(
             {
                 "success": False,
-                "error": (
-                    "Seleção de interfaces inválida."
-                ),
+                "error": ("Seleção de interfaces inválida."),
             }
         ), 400
-
 
     workers = min(
         device_manager.max_workers,
@@ -583,21 +1104,16 @@ def api_multi_interface_quick_action():
 
     results = []
 
-
     def worker(
         device_id,
         interfaces,
     ):
-        device = device_manager.get(
-            device_id
-        )
+        device = device_manager.get(device_id)
 
-        result = (
-            run_interface_quick_action(
-                **device.credentials(),
-                interfaces=interfaces,
-                action=action,
-            )
+        result = run_interface_quick_action(
+            **device.credentials(),
+            interfaces=interfaces,
+            action=action,
         )
 
         return {
@@ -606,40 +1122,25 @@ def api_multi_interface_quick_action():
             "result": result,
         }
 
-
-    with ThreadPoolExecutor(
-        max_workers=workers
-    ) as executor:
+    with ThreadPoolExecutor(max_workers=workers) as executor:
         futures = {
             executor.submit(
                 worker,
                 device_id,
                 interfaces,
             ): device_id
-            for device_id, interfaces
-            in grouped.items()
+            for device_id, interfaces in grouped.items()
         }
 
-
-        for future in as_completed(
-            futures
-        ):
-            device_id = futures[
-                future
-            ]
+        for future in as_completed(futures):
+            device_id = futures[future]
 
             try:
-                results.append(
-                    future.result()
-                )
+                results.append(future.result())
 
             except Exception as exc:
                 try:
-                    device = (
-                        device_manager.get(
-                            device_id
-                        ).public()
-                    )
+                    device = device_manager.get(device_id).public()
 
                 except Exception:
                     device = {
@@ -656,7 +1157,6 @@ def api_multi_interface_quick_action():
                     }
                 )
 
-
     return jsonify(
         {
             "success": all(
@@ -664,8 +1164,7 @@ def api_multi_interface_quick_action():
                     "success",
                     False,
                 )
-                for item
-                in results
+                for item in results
             ),
             "action": action,
             "results": results,
@@ -675,41 +1174,27 @@ def api_multi_interface_quick_action():
 
 @app.post("/api/devices/interfaces/configure")
 def api_configure_multi_device_interfaces():
-    payload = (
-        request.get_json(
-            silent=True
+    payload = request.get_json(silent=True) or {}
+
+    selections = payload.get("selections", [])
+
+    if (
+        not isinstance(
+            selections,
+            list,
         )
-        or {}
-    )
-
-    selections = payload.get(
-        "selections",
-        []
-    )
-
-    if not isinstance(
-        selections,
-        list,
-    ) or not selections:
+        or not selections
+    ):
         return {
             "success": False,
-            "error": (
-                "Selecione pelo menos uma interface."
-            ),
+            "error": ("Selecione pelo menos uma interface."),
         }, 400
 
+    access_vlan = payload.get("access_vlan")
 
-    access_vlan = payload.get(
-        "access_vlan"
-    )
+    voice_vlan = payload.get("voice_vlan")
 
-    voice_vlan = payload.get(
-        "voice_vlan"
-    )
-
-    description = payload.get(
-        "description"
-    )
+    description = payload.get("description")
 
     remove_voice_vlan = bool(
         payload.get(
@@ -725,24 +1210,15 @@ def api_configure_multi_device_interfaces():
         )
     )
 
-    admin_state = payload.get(
-        "admin_state"
-    )
+    admin_state = payload.get("admin_state")
 
-    portfast_state = payload.get(
-        "portfast_state"
-    )
+    portfast_state = payload.get("portfast_state")
 
-
-    if (
-        access_vlan in ("", None)
-    ):
+    if access_vlan in ("", None):
         access_vlan = None
     else:
         try:
-            access_vlan = int(
-                access_vlan
-            )
+            access_vlan = int(access_vlan)
 
         except (
             TypeError,
@@ -750,21 +1226,14 @@ def api_configure_multi_device_interfaces():
         ):
             return {
                 "success": False,
-                "error": (
-                    "Access VLAN inválida."
-                ),
+                "error": ("Access VLAN inválida."),
             }, 400
 
-
-    if (
-        voice_vlan in ("", None)
-    ):
+    if voice_vlan in ("", None):
         voice_vlan = None
     else:
         try:
-            voice_vlan = int(
-                voice_vlan
-            )
+            voice_vlan = int(voice_vlan)
 
         except (
             TypeError,
@@ -772,37 +1241,20 @@ def api_configure_multi_device_interfaces():
         ):
             return {
                 "success": False,
-                "error": (
-                    "Voice VLAN inválida."
-                ),
+                "error": ("Voice VLAN inválida."),
             }, 400
 
-
-    if (
-        voice_vlan is not None
-        and remove_voice_vlan
-    ):
+    if voice_vlan is not None and remove_voice_vlan:
         return {
             "success": False,
-            "error": (
-                "Informe uma Voice VLAN ou "
-                "selecione remover, não ambos."
-            ),
+            "error": ("Informe uma Voice VLAN ou selecione remover, não ambos."),
         }, 400
 
-
-    if (
-        description
-        and remove_description
-    ):
+    if description and remove_description:
         return {
             "success": False,
-            "error": (
-                "Informe uma Description ou "
-                "selecione remover, não ambos."
-            ),
+            "error": ("Informe uma Description ou selecione remover, não ambos."),
         }, 400
-
 
     if admin_state not in (
         None,
@@ -812,11 +1264,8 @@ def api_configure_multi_device_interfaces():
     ):
         return {
             "success": False,
-            "error": (
-                "Estado administrativo inválido."
-            ),
+            "error": ("Estado administrativo inválido."),
         }, 400
-
 
     if portfast_state not in (
         None,
@@ -826,11 +1275,8 @@ def api_configure_multi_device_interfaces():
     ):
         return {
             "success": False,
-            "error": (
-                "Estado de PortFast inválido."
-            ),
+            "error": ("Estado de PortFast inválido."),
         }, 400
-
 
     if not any(
         (
@@ -845,19 +1291,13 @@ def api_configure_multi_device_interfaces():
     ):
         return {
             "success": False,
-            "error": (
-                "Informe pelo menos uma alteração "
-                "para aplicar."
-            ),
+            "error": ("Informe pelo menos uma alteração para aplicar."),
         }, 400
-
 
     grouped = {}
 
     for item in selections:
-        device_id = item.get(
-            "device_id"
-        )
+        device_id = item.get("device_id")
 
         interface = (
             item.get(
@@ -867,62 +1307,34 @@ def api_configure_multi_device_interfaces():
             or ""
         ).strip()
 
-        if (
-            not device_id
-            or not interface
-        ):
+        if not device_id or not interface:
             return {
                 "success": False,
-                "error": (
-                    "Seleção de interface inválida."
-                ),
+                "error": ("Seleção de interface inválida."),
             }, 400
 
-        grouped.setdefault(
-            device_id,
-            []
-        ).append(
-            interface
-        )
-
+        grouped.setdefault(device_id, []).append(interface)
 
     operation_started = perf_counter()
-
 
     def configure_device(
         device_id,
         interfaces,
     ):
-        device = device_manager.get(
-            device_id
-        )
+        device = device_manager.get(device_id)
 
         worker_started = perf_counter()
 
-        result = (
-            provision_interfaces_batch(
-                **device.credentials(),
-                interfaces=interfaces,
-                access_vlan=access_vlan,
-                voice_vlan=voice_vlan,
-                remove_voice_vlan=remove_voice_vlan,
-                description=(
-                    description
-                    if description
-                    else None
-                ),
-                remove_description=remove_description,
-                admin_state=(
-                    admin_state
-                    if admin_state
-                    else None
-                ),
-                portfast_state=(
-                    portfast_state
-                    if portfast_state
-                    else None
-                ),
-            )
+        result = provision_interfaces_batch(
+            **device.credentials(),
+            interfaces=interfaces,
+            access_vlan=access_vlan,
+            voice_vlan=voice_vlan,
+            remove_voice_vlan=remove_voice_vlan,
+            description=(description if description else None),
+            remove_description=remove_description,
+            admin_state=(admin_state if admin_state else None),
+            portfast_state=(portfast_state if portfast_state else None),
         )
 
         worker_finished = perf_counter()
@@ -933,32 +1345,19 @@ def api_configure_multi_device_interfaces():
             "result": result,
             "timing": {
                 "started_ms": round(
-                    (
-                        worker_started
-                        - operation_started
-                    )
-                    * 1000,
+                    (worker_started - operation_started) * 1000,
                     1,
                 ),
                 "finished_ms": round(
-                    (
-                        worker_finished
-                        - operation_started
-                    )
-                    * 1000,
+                    (worker_finished - operation_started) * 1000,
                     1,
                 ),
                 "duration_ms": round(
-                    (
-                        worker_finished
-                        - worker_started
-                    )
-                    * 1000,
+                    (worker_finished - worker_started) * 1000,
                     1,
                 ),
             },
         }
-
 
     workers = min(
         8,
@@ -967,11 +1366,7 @@ def api_configure_multi_device_interfaces():
 
     results = []
 
-
-    with ThreadPoolExecutor(
-        max_workers=workers
-    ) as executor:
-
+    with ThreadPoolExecutor(max_workers=workers) as executor:
         futures = {
             executor.submit(
                 configure_device,
@@ -984,28 +1379,19 @@ def api_configure_multi_device_interfaces():
             for (
                 device_id,
                 interfaces,
-            )
-            in grouped.items()
+            ) in grouped.items()
         }
 
-
-        for future in as_completed(
-            futures
-        ):
+        for future in as_completed(futures):
             (
                 device_id,
                 interfaces,
-            ) = futures[
-                future
-            ]
+            ) = futures[future]
 
             try:
                 result = future.result()
 
-                service_result = result.get(
-                    "result",
-                    {}
-                )
+                service_result = result.get("result", {})
 
                 service_success = bool(
                     service_result.get(
@@ -1023,11 +1409,7 @@ def api_configure_multi_device_interfaces():
 
             except Exception as exc:
                 try:
-                    device = (
-                        device_manager.get(
-                            device_id
-                        ).public()
-                    )
+                    device = device_manager.get(device_id).public()
 
                 except KeyError:
                     device = {
@@ -1045,32 +1427,20 @@ def api_configure_multi_device_interfaces():
                     }
                 )
 
-
     operation_finished = perf_counter()
 
     return {
-        "success": all(
-            item["success"]
-            for item in results
-        ),
+        "success": all(item["success"] for item in results),
         "results": results,
         "timing": {
             "total_ms": round(
-                (
-                    operation_finished
-                    - operation_started
-                )
-                * 1000,
+                (operation_finished - operation_started) * 1000,
                 1,
             ),
             "workers": workers,
-            "devices": len(
-                grouped
-            ),
+            "devices": len(grouped),
         },
     }
-
-
 
 
 def _multi_configuration_device_ids(
@@ -1085,27 +1455,17 @@ def _multi_configuration_device_ids(
         device_ids,
         list,
     ):
-        raise ValueError(
-            "Lista de equipamentos inválida."
-        )
+        raise ValueError("Lista de equipamentos inválida.")
 
     device_ids = [
-        str(device_id).strip()
-        for device_id in device_ids
-        if str(device_id).strip()
+        str(device_id).strip() for device_id in device_ids if str(device_id).strip()
     ]
 
     if not device_ids:
-        raise ValueError(
-            "Selecione pelo menos um equipamento."
-        )
+        raise ValueError("Selecione pelo menos um equipamento.")
 
     # Preserva ordem sem duplicatas.
-    return list(
-        dict.fromkeys(
-            device_ids
-        )
-    )
+    return list(dict.fromkeys(device_ids))
 
 
 def _parallel_configuration_operation(
@@ -1124,193 +1484,127 @@ def _parallel_configuration_operation(
     def worker(
         device_id,
     ):
-        device = device_manager.get(
-            device_id
-        )
+        device = device_manager.get(device_id)
 
         worker_started = perf_counter()
 
-        result = operation(
-            device
-        )
+        result = operation(device)
 
         return {
-            "device":
-                device.public(),
-            "success":
-                True,
-            "result":
-                result,
-            "duration_ms":
-                round(
-                    (
-                        perf_counter()
-                        - worker_started
-                    )
-                    * 1000,
-                    1,
-                ),
+            "device": device.public(),
+            "success": True,
+            "result": result,
+            "duration_ms": round(
+                (perf_counter() - worker_started) * 1000,
+                1,
+            ),
         }
 
-    with ThreadPoolExecutor(
-        max_workers=workers
-    ) as executor:
+    with ThreadPoolExecutor(max_workers=workers) as executor:
         futures = {
             executor.submit(
                 worker,
                 device_id,
             ): device_id
-            for device_id
-            in device_ids
+            for device_id in device_ids
         }
 
-        for future in as_completed(
-            futures
-        ):
-            device_id = futures[
-                future
-            ]
+        for future in as_completed(futures):
+            device_id = futures[future]
 
             try:
-                results.append(
-                    future.result()
-                )
+                results.append(future.result())
 
             except Exception as exc:
                 try:
-                    device = (
-                        device_manager.get(
-                            device_id
-                        ).public()
-                    )
+                    device = device_manager.get(device_id).public()
 
                 except Exception:
                     device = {
-                        "id":
-                            device_id,
-                        "hostname":
-                            device_id,
-                        "host":
-                            "",
+                        "id": device_id,
+                        "hostname": device_id,
+                        "host": "",
                     }
 
                 results.append(
                     {
-                        "device":
-                            device,
-                        "success":
-                            False,
-                        "error":
-                            str(exc),
+                        "device": device,
+                        "success": False,
+                        "error": str(exc),
                     }
                 )
 
     results.sort(
-        key=lambda item: (
-            item.get(
-                "device",
-                {},
-            ).get(
-                "host",
-                "",
-            )
+        key=lambda item: item.get(
+            "device",
+            {},
+        ).get(
+            "host",
+            "",
         )
     )
 
     return {
-        "success":
-            all(
-                item.get(
-                    "success",
-                    False,
-                )
-                for item
-                in results
-            ),
-        "results":
-            results,
+        "success": all(
+            item.get(
+                "success",
+                False,
+            )
+            for item in results
+        ),
+        "results": results,
         "timing": {
-            "total_ms":
-                round(
-                    (
-                        perf_counter()
-                        - operation_started
-                    )
-                    * 1000,
-                    1,
-                ),
-            "workers":
-                workers,
-            "devices":
-                len(device_ids),
+            "total_ms": round(
+                (perf_counter() - operation_started) * 1000,
+                1,
+            ),
+            "workers": workers,
+            "devices": len(device_ids),
         },
     }
 
 
 @app.post("/api/devices/configuration/save")
 def api_multi_configuration_save():
-    payload = (
-        request.get_json(
-            silent=True
-        )
-        or {}
-    )
+    payload = request.get_json(silent=True) or {}
 
     try:
-        device_ids = (
-            _multi_configuration_device_ids(
-                payload
-            )
+        device_ids = _multi_configuration_device_ids(payload)
+
+        result = _parallel_configuration_operation(
+            device_ids,
+            lambda device: save_running_to_startup(**device.credentials()),
         )
 
-        result = (
-            _parallel_configuration_operation(
-                device_ids,
-                lambda device:
-                    save_running_to_startup(
-                        **device.credentials()
-                    ),
-            )
-        )
-
-        return jsonify(
-            result
-        )
+        return jsonify(result)
 
     except Exception as exc:
         return jsonify(
             {
-                "success":
-                    False,
-                "error":
-                    str(exc),
+                "success": False,
+                "error": str(exc),
             }
         ), 400
 
 
 @app.post("/api/devices/configuration/backup")
 def api_multi_configuration_backup():
-    payload = (
-        request.get_json(
-            silent=True
-        )
-        or {}
-    )
+    payload = request.get_json(silent=True) or {}
 
     try:
-        device_ids = (
-            _multi_configuration_device_ids(
-                payload
-            )
-        )
+        device_ids = _multi_configuration_device_ids(payload)
 
-        protocol = str(
-            payload.get(
-                "protocol",
-                "local",
+        protocol = (
+            str(
+                payload.get(
+                    "protocol",
+                    "local",
+                )
+                or "local"
             )
-            or "local"
-        ).strip().lower()
+            .strip()
+            .lower()
+        )
 
         if protocol not in {
             "local",
@@ -1318,9 +1612,7 @@ def api_multi_configuration_backup():
             "sftp",
             "tftp",
         }:
-            raise ValueError(
-                "Protocolo de backup inválido."
-            )
+            raise ValueError("Protocolo de backup inválido.")
 
         backup_host = (
             str(
@@ -1374,72 +1666,56 @@ def api_multi_configuration_backup():
             or "/"
         )
 
-        result = (
-            _parallel_configuration_operation(
-                device_ids,
-                lambda device:
-                    create_switch_backup(
-                        **device.credentials(),
-                        protocol=protocol,
-                        backup_host=backup_host,
-                        backup_port=backup_port,
-                        backup_username=backup_username,
-                        backup_password=backup_password,
-                        remote_directory=remote_directory,
-                    ),
-            )
+        result = _parallel_configuration_operation(
+            device_ids,
+            lambda device: create_switch_backup(
+                **device.credentials(),
+                protocol=protocol,
+                backup_host=backup_host,
+                backup_port=backup_port,
+                backup_username=backup_username,
+                backup_password=backup_password,
+                remote_directory=remote_directory,
+            ),
         )
 
-        result["protocol"] = (
-            protocol
-        )
+        result["protocol"] = protocol
 
-        return jsonify(
-            result
-        )
+        return jsonify(result)
 
     except Exception as exc:
         return jsonify(
             {
-                "success":
-                    False,
-                "error":
-                    str(exc),
+                "success": False,
+                "error": str(exc),
             }
         ), 400
 
 
 @app.post("/api/devices/configuration/download")
 def api_multi_configuration_download():
-    payload = (
-        request.get_json(
-            silent=True
-        )
-        or {}
-    )
+    payload = request.get_json(silent=True) or {}
 
     try:
-        device_ids = (
-            _multi_configuration_device_ids(
-                payload
-            )
-        )
+        device_ids = _multi_configuration_device_ids(payload)
 
-        config_type = str(
-            payload.get(
-                "config_type",
-                "running",
+        config_type = (
+            str(
+                payload.get(
+                    "config_type",
+                    "running",
+                )
+                or "running"
             )
-            or "running"
-        ).strip().lower()
+            .strip()
+            .lower()
+        )
 
         if config_type not in {
             "running",
             "startup",
         }:
-            raise ValueError(
-                "Tipo de configuração inválido."
-            )
+            raise ValueError("Tipo de configuração inválido.")
 
         from src.switch.configuration import (
             build_backup_filename,
@@ -1450,100 +1726,51 @@ def api_multi_configuration_download():
         def collect(
             device,
         ):
-            credentials = (
-                device.credentials()
-            )
+            credentials = device.credentials()
 
             if config_type == "running":
-                config = (
-                    get_running_config(
-                        **credentials
-                    )
-                )
+                config = get_running_config(**credentials)
 
             else:
-                config = (
-                    get_startup_config(
-                        **credentials
-                    )
-                )
+                config = get_startup_config(**credentials)
 
-            hostname = (
-                extract_hostname(
-                    config
-                )
-                or device.hostname
-                or device.host
-            )
+            hostname = extract_hostname(config) or device.hostname or device.host
 
-            filename = (
-                build_backup_filename(
-                    hostname=hostname,
-                    config_type=config_type,
-                )
+            filename = build_backup_filename(
+                hostname=hostname,
+                config_type=config_type,
             )
 
             return {
-                "hostname":
-                    hostname,
-                "filename":
-                    filename,
-                "content":
-                    normalize_config_text(
-                        config
-                    ),
+                "hostname": hostname,
+                "filename": filename,
+                "content": normalize_config_text(config),
             }
 
-        collected = (
-            _parallel_configuration_operation(
-                device_ids,
-                collect,
-            )
+        collected = _parallel_configuration_operation(
+            device_ids,
+            collect,
         )
 
-        failures = [
-            item
-            for item
-            in collected["results"]
-            if not item.get(
-                "success"
-            )
-        ]
+        failures = [item for item in collected["results"] if not item.get("success")]
 
         if failures:
-            return jsonify(
-                collected
-            ), 500
+            return jsonify(collected), 500
 
-        files = [
-            item["result"]
-            for item
-            in collected["results"]
-        ]
+        files = [item["result"] for item in collected["results"]]
 
         # Um switch:
         # download direto do .cfg.
         if len(files) == 1:
             item = files[0]
 
-            content = (
-                item["content"]
-                .encode(
-                    "utf-8"
-                )
-            )
+            content = item["content"].encode("utf-8")
 
             return send_file(
-                BytesIO(
-                    content
-                ),
+                BytesIO(content),
                 as_attachment=True,
-                download_name=(
-                    item["filename"]
-                ),
-                mimetype=(
-                    "text/plain; charset=utf-8"
-                ),
+                download_name=(item["filename"]),
+                mimetype=("text/plain; charset=utf-8"),
             )
 
         # Vários switches:
@@ -1566,53 +1793,32 @@ def api_multi_configuration_download():
         return send_file(
             buffer,
             as_attachment=True,
-            download_name=(
-                f"switches_{config_type}_configs.zip"
-            ),
+            download_name=(f"switches_{config_type}_configs.zip"),
             mimetype="application/zip",
         )
 
     except Exception as exc:
         return jsonify(
             {
-                "success":
-                    False,
-                "error":
-                    str(exc),
+                "success": False,
+                "error": str(exc),
             }
         ), 400
 
 
 @app.post("/api/devices/configuration/diff")
 def api_multi_configuration_diff():
-    payload = (
-        request.get_json(
-            silent=True
-        )
-        or {}
-    )
+    payload = request.get_json(silent=True) or {}
 
     try:
-        device_ids = (
-            _multi_configuration_device_ids(
-                payload
-            )
-        )
+        device_ids = _multi_configuration_device_ids(payload)
 
         def compare(
             device,
         ):
-            startup = (
-                get_startup_config(
-                    **device.credentials()
-                )
-            )
+            startup = get_startup_config(**device.credentials())
 
-            running = (
-                get_running_config(
-                    **device.credentials()
-                )
-            )
+            running = get_running_config(**device.credentials())
 
             diff = compare_config_texts(
                 left_text=startup,
@@ -1622,31 +1828,23 @@ def api_multi_configuration_diff():
             )
 
             return {
-                "diff":
-                    diff,
+                "diff": diff,
             }
 
-        result = (
-            _parallel_configuration_operation(
-                device_ids,
-                compare,
-            )
+        result = _parallel_configuration_operation(
+            device_ids,
+            compare,
         )
 
-        return jsonify(
-            result
-        )
+        return jsonify(result)
 
     except Exception as exc:
         return jsonify(
             {
-                "success":
-                    False,
-                "error":
-                    str(exc),
+                "success": False,
+                "error": str(exc),
             }
         ), 400
-
 
 
 def _multi_tshoot_positive_int(
@@ -1662,29 +1860,18 @@ def _multi_tshoot_positive_int(
     )
 
     try:
-        value = int(
-            raw
-        )
+        value = int(raw)
     except (
         TypeError,
         ValueError,
     ) as exc:
-        raise ValueError(
-            f"{label} deve ser um número inteiro."
-        ) from exc
+        raise ValueError(f"{label} deve ser um número inteiro.") from exc
 
     if value < 1:
-        raise ValueError(
-            f"{label} deve ser maior que zero."
-        )
+        raise ValueError(f"{label} deve ser maior que zero.")
 
-    if (
-        maximum is not None
-        and value > maximum
-    ):
-        raise ValueError(
-            f"{label} deve ser no máximo {maximum}."
-        )
+    if maximum is not None and value > maximum:
+        raise ValueError(f"{label} deve ser no máximo {maximum}.")
 
     return value
 
@@ -1697,13 +1884,14 @@ def _multi_tshoot_operations(
         [],
     )
 
-    if not isinstance(
-        operations,
-        list,
-    ) or not operations:
-        raise ValueError(
-            "Selecione pelo menos um equipamento."
+    if (
+        not isinstance(
+            operations,
+            list,
         )
+        or not operations
+    ):
+        raise ValueError("Selecione pelo menos um equipamento.")
 
     normalized = []
 
@@ -1727,29 +1915,20 @@ def _multi_tshoot_operations(
         ).strip()
 
         if not device_id:
-            raise ValueError(
-                "Equipamento inválido."
-            )
+            raise ValueError("Equipamento inválido.")
 
         if not source_interface:
-            raise ValueError(
-                "Selecione a interface L3 "
-                "de origem de cada equipamento."
-            )
+            raise ValueError("Selecione a interface L3 de origem de cada equipamento.")
 
         if device_id in seen:
             continue
 
-        seen.add(
-            device_id
-        )
+        seen.add(device_id)
 
         normalized.append(
             {
-                "device_id":
-                    device_id,
-                "source_interface":
-                    source_interface,
+                "device_id": device_id,
+                "source_interface": source_interface,
             }
         )
 
@@ -1772,11 +1951,7 @@ def _parallel_tshoot_operation(
     def worker(
         operation,
     ):
-        device = device_manager.get(
-            operation[
-                "device_id"
-            ]
-        )
+        device = device_manager.get(operation["device_id"])
 
         worker_started = perf_counter()
 
@@ -1786,155 +1961,106 @@ def _parallel_tshoot_operation(
         )
 
         return {
-            "device":
-                device.public(),
-            "success":
-                True,
-            "result":
-                result,
-            "duration_ms":
-                round(
-                    (
-                        perf_counter()
-                        - worker_started
-                    )
-                    * 1000,
-                    1,
-                ),
+            "device": device.public(),
+            "success": True,
+            "result": result,
+            "duration_ms": round(
+                (perf_counter() - worker_started) * 1000,
+                1,
+            ),
         }
 
-    with ThreadPoolExecutor(
-        max_workers=workers
-    ) as executor:
+    with ThreadPoolExecutor(max_workers=workers) as executor:
         futures = {
             executor.submit(
                 worker,
                 operation,
             ): operation
-            for operation
-            in operations
+            for operation in operations
         }
 
-        for future in as_completed(
-            futures
-        ):
-            operation = futures[
-                future
-            ]
+        for future in as_completed(futures):
+            operation = futures[future]
 
             try:
-                results.append(
-                    future.result()
-                )
+                results.append(future.result())
 
             except Exception as exc:
-                device_id = operation[
-                    "device_id"
-                ]
+                device_id = operation["device_id"]
 
                 try:
-                    device = (
-                        device_manager.get(
-                            device_id
-                        ).public()
-                    )
+                    device = device_manager.get(device_id).public()
 
                 except Exception:
                     device = {
-                        "id":
-                            device_id,
-                        "hostname":
-                            device_id,
-                        "host":
-                            "",
+                        "id": device_id,
+                        "hostname": device_id,
+                        "host": "",
                     }
 
                 results.append(
                     {
-                        "device":
-                            device,
-                        "success":
-                            False,
-                        "error":
-                            str(exc),
+                        "device": device,
+                        "success": False,
+                        "error": str(exc),
                     }
                 )
 
     results.sort(
-        key=lambda item: (
-            item.get(
-                "device",
-                {},
-            ).get(
-                "host",
-                "",
-            )
+        key=lambda item: item.get(
+            "device",
+            {},
+        ).get(
+            "host",
+            "",
         )
     )
 
     return {
-        "success":
-            all(
-                item.get(
-                    "success",
-                    False,
-                )
-                for item
-                in results
-            ),
-        "results":
-            results,
+        "success": all(
+            item.get(
+                "success",
+                False,
+            )
+            for item in results
+        ),
+        "results": results,
         "timing": {
-            "total_ms":
-                round(
-                    (
-                        perf_counter()
-                        - started
-                    )
-                    * 1000,
-                    1,
-                ),
-            "workers":
-                workers,
-            "devices":
-                len(operations),
+            "total_ms": round(
+                (perf_counter() - started) * 1000,
+                1,
+            ),
+            "workers": workers,
+            "devices": len(operations),
         },
     }
 
 
 @app.post("/api/devices/troubleshooting/interfaces")
 def api_multi_tshoot_interfaces():
-    payload = (
-        request.get_json(
-            silent=True
-        )
-        or {}
-    )
+    payload = request.get_json(silent=True) or {}
 
     device_ids = payload.get(
         "device_ids",
         [],
     )
 
-    if not isinstance(
-        device_ids,
-        list,
-    ) or not device_ids:
+    if (
+        not isinstance(
+            device_ids,
+            list,
+        )
+        or not device_ids
+    ):
         return jsonify(
             {
-                "success":
-                    False,
-                "error":
-                    "Selecione pelo menos um equipamento.",
+                "success": False,
+                "error": "Selecione pelo menos um equipamento.",
             }
         ), 400
 
     device_ids = list(
-        dict.fromkeys(
-            str(item).strip()
-            for item in device_ids
-            if str(item).strip()
-        )
+        dict.fromkeys(str(item).strip() for item in device_ids if str(item).strip())
     )
 
     workers = min(
@@ -1947,120 +2073,81 @@ def api_multi_tshoot_interfaces():
     def worker(
         device_id,
     ):
-        device = device_manager.get(
-            device_id
-        )
+        device = device_manager.get(device_id)
 
-        inventory = (
-            get_switch_l3_interfaces(
-                **device.credentials()
-            )
-        )
+        inventory = get_switch_l3_interfaces(**device.credentials())
 
         return {
-            "device":
-                device.public(),
-            "success":
-                True,
-            "interfaces":
-                inventory.get(
-                    "interfaces",
-                    [],
-                ),
+            "device": device.public(),
+            "success": True,
+            "interfaces": inventory.get(
+                "interfaces",
+                [],
+            ),
         }
 
-    with ThreadPoolExecutor(
-        max_workers=workers
-    ) as executor:
+    with ThreadPoolExecutor(max_workers=workers) as executor:
         futures = {
             executor.submit(
                 worker,
                 device_id,
             ): device_id
-            for device_id
-            in device_ids
+            for device_id in device_ids
         }
 
-        for future in as_completed(
-            futures
-        ):
-            device_id = futures[
-                future
-            ]
+        for future in as_completed(futures):
+            device_id = futures[future]
 
             try:
-                results.append(
-                    future.result()
-                )
+                results.append(future.result())
 
             except Exception as exc:
                 try:
-                    device = (
-                        device_manager.get(
-                            device_id
-                        ).public()
-                    )
+                    device = device_manager.get(device_id).public()
 
                 except Exception:
                     device = {
-                        "id":
-                            device_id,
-                        "hostname":
-                            device_id,
-                        "host":
-                            "",
+                        "id": device_id,
+                        "hostname": device_id,
+                        "host": "",
                     }
 
                 results.append(
                     {
-                        "device":
-                            device,
-                        "success":
-                            False,
-                        "interfaces":
-                            [],
-                        "error":
-                            str(exc),
+                        "device": device,
+                        "success": False,
+                        "interfaces": [],
+                        "error": str(exc),
                     }
                 )
 
     results.sort(
-        key=lambda item: (
-            item.get(
-                "device",
-                {},
-            ).get(
-                "host",
-                "",
-            )
+        key=lambda item: item.get(
+            "device",
+            {},
+        ).get(
+            "host",
+            "",
         )
     )
 
     return jsonify(
         {
-            "success":
-                all(
-                    item.get(
-                        "success",
-                        False,
-                    )
-                    for item
-                    in results
-                ),
-            "results":
-                results,
+            "success": all(
+                item.get(
+                    "success",
+                    False,
+                )
+                for item in results
+            ),
+            "results": results,
         }
     )
 
 
 @app.post("/api/devices/troubleshooting/ping")
 def api_multi_tshoot_ping():
-    payload = (
-        request.get_json(
-            silent=True
-        )
-        or {}
-    )
+    payload = request.get_json(silent=True) or {}
 
     try:
         raw_operations = payload.get(
@@ -2075,17 +2162,13 @@ def api_multi_tshoot_ping():
             )
             or not raw_operations
         ):
-            raise ValueError(
-                "Selecione pelo menos um equipamento."
-            )
-
+            raise ValueError("Selecione pelo menos um equipamento.")
 
         operations = []
 
         total_parallelism = 0
 
         seen = set()
-
 
         for raw in raw_operations:
             device_id = str(
@@ -2112,33 +2195,21 @@ def api_multi_tshoot_ping():
                 or ""
             ).strip()
 
-
             if not device_id:
-                raise ValueError(
-                    "Equipamento inválido."
-                )
+                raise ValueError("Equipamento inválido.")
 
             if device_id in seen:
                 continue
 
-            seen.add(
-                device_id
-            )
-
+            seen.add(device_id)
 
             if not source_interface:
-                raise ValueError(
-                    "Selecione uma Source L3 "
-                    "para cada equipamento."
-                )
-
+                raise ValueError("Selecione uma Source L3 para cada equipamento.")
 
             if not targets:
                 raise ValueError(
-                    "Informe o destino de Ping "
-                    "para cada equipamento selecionado."
+                    "Informe o destino de Ping para cada equipamento selecionado."
                 )
-
 
             try:
                 repeat = int(
@@ -2173,188 +2244,97 @@ def api_multi_tshoot_ping():
                 TypeError,
                 ValueError,
             ) as exc:
-                raise ValueError(
-                    "Parâmetros numéricos do Ping são inválidos."
-                ) from exc
-
+                raise ValueError("Parâmetros numéricos do Ping são inválidos.") from exc
 
             if repeat < 1:
-                raise ValueError(
-                    "Pacotes deve ser maior que zero."
-                )
+                raise ValueError("Pacotes deve ser maior que zero.")
 
             if timeout < 1:
-                raise ValueError(
-                    "Timeout deve ser maior que zero."
-                )
+                raise ValueError("Timeout deve ser maior que zero.")
 
             if size < 1:
-                raise ValueError(
-                    "Tamanho deve ser maior que zero."
-                )
+                raise ValueError("Tamanho deve ser maior que zero.")
 
             if not 1 <= parallelism <= 8:
-                raise ValueError(
-                    "Paralelismo deve estar entre 1 e 8."
-                )
+                raise ValueError("Paralelismo deve estar entre 1 e 8.")
 
-
-            total_parallelism += (
-                parallelism
-            )
-
+            total_parallelism += parallelism
 
             operations.append(
                 {
-                    "device_id":
-                        device_id,
-
-                    "source_interface":
-                        source_interface,
-
-                    "targets":
-                        targets,
-
-                    "repeat":
-                        repeat,
-
-                    "timeout":
-                        timeout,
-
-                    "size":
-                        size,
-
+                    "device_id": device_id,
+                    "source_interface": source_interface,
+                    "targets": targets,
+                    "repeat": repeat,
+                    "timeout": timeout,
+                    "size": size,
                     #
                     # O service antigo continua chamando
                     # este parâmetro de concurrency.
                     #
-                    "concurrency":
-                        parallelism,
-
-                    "df_bit":
-                        bool(
-                            raw.get(
-                                "df_bit",
-                                False,
-                            )
-                        ),
+                    "concurrency": parallelism,
+                    "df_bit": bool(
+                        raw.get(
+                            "df_bit",
+                            False,
+                        )
+                    ),
                 }
             )
 
-
         if total_parallelism > 8:
             raise ValueError(
-                "O paralelismo total dos equipamentos "
-                "não pode ultrapassar 8."
+                "O paralelismo total dos equipamentos não pode ultrapassar 8."
             )
 
-
-        result = (
-            _parallel_tshoot_operation(
-                operations,
-                lambda device, operation:
-                    run_switch_ping(
-                        **device.credentials(),
-
-                        source_interface=(
-                            operation[
-                                "source_interface"
-                            ]
-                        ),
-
-                        #
-                        # CRÍTICO:
-                        # destino pertence à operação/switch.
-                        #
-                        targets=(
-                            operation[
-                                "targets"
-                            ]
-                        ),
-
-                        repeat=(
-                            operation[
-                                "repeat"
-                            ]
-                        ),
-
-                        timeout=(
-                            operation[
-                                "timeout"
-                            ]
-                        ),
-
-                        size=(
-                            operation[
-                                "size"
-                            ]
-                        ),
-
-                        df_bit=(
-                            operation[
-                                "df_bit"
-                            ]
-                        ),
-
-                        concurrency=(
-                            operation[
-                                "concurrency"
-                            ]
-                        ),
-                    ),
-            )
+        result = _parallel_tshoot_operation(
+            operations,
+            lambda device, operation: run_switch_ping(
+                **device.credentials(),
+                source_interface=(operation["source_interface"]),
+                #
+                # CRÍTICO:
+                # destino pertence à operação/switch.
+                #
+                targets=(operation["targets"]),
+                repeat=(operation["repeat"]),
+                timeout=(operation["timeout"]),
+                size=(operation["size"]),
+                df_bit=(operation["df_bit"]),
+                concurrency=(operation["concurrency"]),
+            ),
         )
 
+        result["total_parallelism"] = total_parallelism
 
-        result[
-            "total_parallelism"
-        ] = total_parallelism
-
-
-        return jsonify(
-            result
-        )
-
+        return jsonify(result)
 
     except ValueError as exc:
         return jsonify(
             {
-                "success":
-                    False,
-
-                "error":
-                    str(exc),
+                "success": False,
+                "error": str(exc),
             }
         ), 400
-
 
     except Exception as exc:
         return jsonify(
             {
-                "success":
-                    False,
-
-                "error":
-                    str(exc),
+                "success": False,
+                "error": str(exc),
             }
         ), 500
 
 
 @app.post("/api/devices/troubleshooting/traceroute")
 def api_multi_tshoot_traceroute():
-    payload = (
-        request.get_json(
-            silent=True
-        )
-        or {}
-    )
+    payload = request.get_json(silent=True) or {}
 
     try:
         raw_operations = payload.get(
             "operations",
             [],
         )
-
 
         if (
             not isinstance(
@@ -2363,15 +2343,11 @@ def api_multi_tshoot_traceroute():
             )
             or not raw_operations
         ):
-            raise ValueError(
-                "Selecione pelo menos um equipamento."
-            )
-
+            raise ValueError("Selecione pelo menos um equipamento.")
 
         operations = []
 
         seen = set()
-
 
         for raw in raw_operations:
             device_id = str(
@@ -2398,35 +2374,21 @@ def api_multi_tshoot_traceroute():
                 or ""
             ).strip()
 
-
             if not device_id:
-                raise ValueError(
-                    "Equipamento inválido."
-                )
-
+                raise ValueError("Equipamento inválido.")
 
             if device_id in seen:
                 continue
 
-
-            seen.add(
-                device_id
-            )
-
+            seen.add(device_id)
 
             if not source_interface:
-                raise ValueError(
-                    "Selecione uma Source L3 "
-                    "para cada equipamento."
-                )
-
+                raise ValueError("Selecione uma Source L3 para cada equipamento.")
 
             if not destination:
                 raise ValueError(
-                    "Informe o destino do Traceroute "
-                    "para cada equipamento."
+                    "Informe o destino do Traceroute para cada equipamento."
                 )
-
 
             try:
                 timeout = int(
@@ -2454,173 +2416,90 @@ def api_multi_tshoot_traceroute():
                 TypeError,
                 ValueError,
             ) as exc:
-                raise ValueError(
-                    "Parâmetros do Traceroute inválidos."
-                ) from exc
-
+                raise ValueError("Parâmetros do Traceroute inválidos.") from exc
 
             if timeout < 1:
-                raise ValueError(
-                    "Timeout deve ser maior que zero."
-                )
-
+                raise ValueError("Timeout deve ser maior que zero.")
 
             if probe_count < 1:
-                raise ValueError(
-                    "Probes por salto deve ser maior que zero."
-                )
-
+                raise ValueError("Probes por salto deve ser maior que zero.")
 
             if max_ttl < 1:
-                raise ValueError(
-                    "TTL máximo deve ser maior que zero."
-                )
-
+                raise ValueError("TTL máximo deve ser maior que zero.")
 
             operations.append(
                 {
-                    "device_id":
-                        device_id,
-
-                    "source_interface":
-                        source_interface,
-
-                    "destination":
-                        destination,
-
-                    "timeout":
-                        timeout,
-
-                    "probe_count":
-                        probe_count,
-
-                    "max_ttl":
-                        max_ttl,
+                    "device_id": device_id,
+                    "source_interface": source_interface,
+                    "destination": destination,
+                    "timeout": timeout,
+                    "probe_count": probe_count,
+                    "max_ttl": max_ttl,
                 }
             )
 
-
-        result = (
-            _parallel_tshoot_operation(
-                operations,
-                lambda device, operation:
-                    run_switch_traceroute(
-                        **device.credentials(),
-
-                        source_interface=(
-                            operation[
-                                "source_interface"
-                            ]
-                        ),
-
-                        destination=(
-                            operation[
-                                "destination"
-                            ]
-                        ),
-
-                        timeout=(
-                            operation[
-                                "timeout"
-                            ]
-                        ),
-
-                        probe_count=(
-                            operation[
-                                "probe_count"
-                            ]
-                        ),
-
-                        max_ttl=(
-                            operation[
-                                "max_ttl"
-                            ]
-                        ),
-                    ),
-            )
+        result = _parallel_tshoot_operation(
+            operations,
+            lambda device, operation: run_switch_traceroute(
+                **device.credentials(),
+                source_interface=(operation["source_interface"]),
+                destination=(operation["destination"]),
+                timeout=(operation["timeout"]),
+                probe_count=(operation["probe_count"]),
+                max_ttl=(operation["max_ttl"]),
+            ),
         )
 
-
-        return jsonify(
-            result
-        )
-
+        return jsonify(result)
 
     except ValueError as exc:
         return jsonify(
             {
-                "success":
-                    False,
-
-                "error":
-                    str(exc),
+                "success": False,
+                "error": str(exc),
             }
         ), 400
-
 
     except Exception as exc:
         return jsonify(
             {
-                "success":
-                    False,
-
-                "error":
-                    str(exc),
+                "success": False,
+                "error": str(exc),
             }
         ), 500
 
 
 @app.post("/api/devices/general/configure")
 def api_configure_multi_device_general():
-    payload = (
-        request.get_json(
-            silent=True
+    payload = request.get_json(silent=True) or {}
+
+    operations = payload.get("operations", [])
+
+    if (
+        not isinstance(
+            operations,
+            list,
         )
-        or {}
-    )
-
-    operations = payload.get(
-        "operations",
-        []
-    )
-
-    if not isinstance(
-        operations,
-        list,
-    ) or not operations:
+        or not operations
+    ):
         return {
             "success": False,
-            "error": (
-                "Selecione pelo menos um equipamento."
-            ),
+            "error": ("Selecione pelo menos um equipamento."),
         }, 400
 
     normalized = []
 
     for operation in operations:
-        device_id = operation.get(
-            "device_id"
-        )
+        device_id = operation.get("device_id")
 
-        hostname = (
-            operation.get(
-                "hostname",
-                ""
-            )
-            or ""
-        ).strip() or None
+        hostname = (operation.get("hostname", "") or "").strip() or None
 
-        raw_vlans = operation.get(
-            "vlans",
-            []
-        )
+        raw_vlans = operation.get("vlans", [])
 
         if not device_id:
             return {
                 "success": False,
-                "error": (
-                    "Equipamento inválido."
-                ),
+                "error": ("Equipamento inválido."),
             }, 400
 
         if not isinstance(
@@ -2629,63 +2508,47 @@ def api_configure_multi_device_general():
         ):
             return {
                 "success": False,
-                "error": (
-                    "Lista de VLANs inválida."
-                ),
+                "error": ("Lista de VLANs inválida."),
             }, 400
 
         vlans = []
 
         for vlan in raw_vlans:
-            vlan_id = vlan.get(
-                "id"
-            )
+            vlan_id = vlan.get("id")
 
-            vlan_name = (
-                vlan.get(
-                    "name",
-                    ""
+            vlan_name = (vlan.get("name", "") or "").strip()
+
+            if (
+                vlan_id
+                in (
+                    "",
+                    None,
                 )
-                or ""
-            ).strip()
-
-            if vlan_id in (
-                "",
-                None,
-            ) and not vlan_name:
+                and not vlan_name
+            ):
                 continue
 
             try:
-                vlan_id = int(
-                    vlan_id
-                )
+                vlan_id = int(vlan_id)
             except (
                 TypeError,
                 ValueError,
             ):
                 return {
                     "success": False,
-                    "error": (
-                        "VLAN ID inválida."
-                    ),
+                    "error": ("VLAN ID inválida."),
                 }, 400
 
             if not 1 <= vlan_id <= 4094:
                 return {
                     "success": False,
-                    "error": (
-                        f"VLAN {vlan_id} fora "
-                        "do intervalo 1-4094."
-                    ),
+                    "error": (f"VLAN {vlan_id} fora do intervalo 1-4094."),
                 }, 400
 
             if not vlan_name:
                 return {
                     "success": False,
-                    "error": (
-                        f"Informe o nome da VLAN "
-                        f"{vlan_id}."
-                    ),
+                    "error": (f"Informe o nome da VLAN {vlan_id}."),
                 }, 400
 
             vlans.append(
@@ -2699,19 +2562,15 @@ def api_configure_multi_device_general():
             return {
                 "success": False,
                 "error": (
-                    "Informe hostname e/ou VLAN "
-                    "para cada equipamento selecionado."
+                    "Informe hostname e/ou VLAN para cada equipamento selecionado."
                 ),
             }, 400
 
         normalized.append(
             {
-                "device_id":
-                    device_id,
-                "hostname":
-                    hostname,
-                "vlans":
-                    vlans,
+                "device_id": device_id,
+                "hostname": hostname,
+                "vlans": vlans,
             }
         )
 
@@ -2720,134 +2579,69 @@ def api_configure_multi_device_general():
     def configure_device(
         operation,
     ):
-        device = device_manager.get(
-            operation[
-                "device_id"
-            ]
-        )
+        device = device_manager.get(operation["device_id"])
 
         worker_started = perf_counter()
 
         result = provision_switch(
             **device.credentials(),
-            hostname=operation[
-                "hostname"
-            ],
-            vlans=operation[
-                "vlans"
-            ],
+            hostname=operation["hostname"],
+            vlans=operation["vlans"],
         )
 
-        if (
-            result.get(
-                "success"
-            )
-            and operation[
-                "hostname"
-            ]
-        ):
-            device.hostname = (
-                operation[
-                    "hostname"
-                ]
-            )
+        if result.get("success") and operation["hostname"]:
+            device.hostname = operation["hostname"]
 
         return {
-            "device_id":
-                operation[
-                    "device_id"
-                ],
-            "host":
-                device.host,
-            "hostname":
-                (
-                    operation[
-                        "hostname"
-                    ]
-                    or device.hostname
-                    or device.host
-                ),
-            "success":
-                bool(
-                    result.get(
-                        "success"
-                    )
-                ),
-            "missing":
-                result.get(
-                    "missing",
-                    [],
-                ),
-            "changes":
-                result.get(
-                    "changes",
-                    [],
-                ),
-            "backup":
-                result.get(
-                    "backup"
-                ),
-            "duration_ms":
-                round(
-                    (
-                        perf_counter()
-                        - worker_started
-                    )
-                    * 1000,
-                    1,
-                ),
+            "device_id": operation["device_id"],
+            "host": device.host,
+            "hostname": (operation["hostname"] or device.hostname or device.host),
+            "success": bool(result.get("success")),
+            "missing": result.get(
+                "missing",
+                [],
+            ),
+            "changes": result.get(
+                "changes",
+                [],
+            ),
+            "backup": result.get("backup"),
+            "duration_ms": round(
+                (perf_counter() - worker_started) * 1000,
+                1,
+            ),
         }
 
     workers = min(
         device_manager.max_workers,
-        len(
-            normalized
-        ),
+        len(normalized),
     )
 
     results = []
 
-    with ThreadPoolExecutor(
-        max_workers=workers
-    ) as executor:
+    with ThreadPoolExecutor(max_workers=workers) as executor:
         futures = {
             executor.submit(
                 configure_device,
                 operation,
             ): operation
-            for operation
-            in normalized
+            for operation in normalized
         }
 
-        for future in as_completed(
-            futures
-        ):
-            operation = futures[
-                future
-            ]
+        for future in as_completed(futures):
+            operation = futures[future]
 
             try:
-                results.append(
-                    future.result()
-                )
+                results.append(future.result())
 
             except Exception as exc:
-                device_id = operation[
-                    "device_id"
-                ]
+                device_id = operation["device_id"]
 
                 try:
-                    device = (
-                        device_manager.get(
-                            device_id
-                        )
-                    )
+                    device = device_manager.get(device_id)
 
                     host = device.host
-                    hostname = (
-                        device.hostname
-                        or device.host
-                    )
+                    hostname = device.hostname or device.host
 
                 except KeyError:
                     host = ""
@@ -2855,73 +2649,35 @@ def api_configure_multi_device_general():
 
                 results.append(
                     {
-                        "device_id":
-                            device_id,
-                        "host":
-                            host,
-                        "hostname":
-                            hostname,
-                        "success":
-                            False,
-                        "missing":
-                            [],
-                        "changes":
-                            [],
-                        "error":
-                            str(
-                                exc
-                            ),
+                        "device_id": device_id,
+                        "host": host,
+                        "hostname": hostname,
+                        "success": False,
+                        "missing": [],
+                        "changes": [],
+                        "error": str(exc),
                     }
                 )
 
-    results.sort(
-        key=lambda item: (
-            item.get(
-                "host",
-                ""
-            )
-        )
-    )
+    results.sort(key=lambda item: item.get("host", ""))
 
-    success = all(
-        item.get(
-            "success"
-        )
-        for item
-        in results
-    )
+    success = all(item.get("success") for item in results)
 
     return {
-        "success":
-            success,
-        "results":
-            results,
-        "duration_ms":
-            round(
-                (
-                    perf_counter()
-                    - operation_started
-                )
-                * 1000,
-                1,
-            ),
-        "workers":
-            workers,
-        "devices":
-            len(
-                normalized
-            ),
+        "success": success,
+        "results": results,
+        "duration_ms": round(
+            (perf_counter() - operation_started) * 1000,
+            1,
+        ),
+        "workers": workers,
+        "devices": len(normalized),
     }
 
 
 @app.post("/api/devices/workspace")
 def api_devices_workspace():
-    payload = (
-        request.get_json(
-            silent=True
-        )
-        or {}
-    )
+    payload = request.get_json(silent=True) or {}
 
     device_ids = payload.get(
         "device_ids",
@@ -2934,34 +2690,25 @@ def api_devices_workspace():
     ):
         return {
             "success": False,
-            "error": (
-                "device_ids deve ser uma lista."
-            ),
+            "error": ("device_ids deve ser uma lista."),
         }, 400
 
     if not device_ids:
         return {
             "success": False,
-            "error": (
-                "Selecione pelo menos um equipamento."
-            ),
+            "error": ("Selecione pelo menos um equipamento."),
         }, 400
 
     try:
-        results = (
-            device_manager.discover_many(
-                load_managed_switch_workspace,
-                device_ids=device_ids,
-            )
+        results = device_manager.discover_many(
+            load_managed_switch_workspace,
+            device_ids=device_ids,
         )
 
     except KeyError:
         return {
             "success": False,
-            "error": (
-                "Um dos equipamentos selecionados "
-                "não está mais cadastrado."
-            ),
+            "error": ("Um dos equipamentos selecionados não está mais cadastrado."),
         }, 404
 
     return {
@@ -2972,22 +2719,13 @@ def api_devices_workspace():
 
 @app.post("/api/devices/discover")
 def api_discover_devices():
-    payload = (
-        request.get_json(
-            silent=True
-        )
-        or {}
-    )
+    payload = request.get_json(silent=True) or {}
 
-    device_ids = payload.get(
-        "device_ids"
-    )
+    device_ids = payload.get("device_ids")
 
-    results = (
-        device_manager.discover_many(
-            discover_managed_switch,
-            device_ids=device_ids,
-        )
+    results = device_manager.discover_many(
+        discover_managed_switch,
+        device_ids=device_ids,
     )
 
     return {
@@ -3003,9 +2741,7 @@ def index():
 
 @app.post("/")
 def stale_root_post():
-    return redirect(
-        url_for("index")
-    )
+    return redirect(url_for("index"))
 
 
 @app.post("/apply-hostname")
@@ -3020,9 +2756,7 @@ def apply_hostname():
         )
 
         if not hostname:
-            raise ValueError(
-                "Informe o novo hostname."
-            )
+            raise ValueError("Informe o novo hostname.")
 
         result = provision_switch(
             **switch_credentials(),
@@ -3045,9 +2779,7 @@ def apply_vlans():
         vlans = parse_vlans()
 
         if not vlans:
-            raise ValueError(
-                "Informe pelo menos uma VLAN."
-            )
+            raise ValueError("Informe pelo menos uma VLAN.")
 
         result = provision_switch(
             **switch_credentials(),
@@ -3066,21 +2798,15 @@ def apply_vlans():
 
 @app.post("/apply-ports")
 def apply_ports():
-    interfaces, _, capabilities, inventory_error = (
-        load_inventory()
-    )
+    interfaces, _, capabilities, inventory_error = load_inventory()
 
     try:
         if inventory_error:
             raise ValueError(
-                "Não foi possível consultar "
-                "as interfaces do switch: "
-                f"{inventory_error}"
+                f"Não foi possível consultar as interfaces do switch: {inventory_error}"
             )
 
-        selected_names = request.form.getlist(
-            "interfaces"
-        )
+        selected_names = request.form.getlist("interfaces")
 
         start_interface = (
             request.form.get(
@@ -3119,26 +2845,15 @@ def apply_ports():
                 validate_switchport_change(
                     interfaces=interfaces,
                     interface=item["name"],
-                    access_vlan=config[
-                        "access_vlan"
-                    ],
-                    voice_vlan=config[
-                        "voice_vlan"
-                    ],
-                    remove_voice_vlan=config[
-                        "remove_voice_vlan"
-                    ],
-                    portfast_state=config[
-                        "portfast_state"
-                    ],
+                    access_vlan=config["access_vlan"],
+                    voice_vlan=config["voice_vlan"],
+                    remove_voice_vlan=config["remove_voice_vlan"],
+                    portfast_state=config["portfast_state"],
                 )
 
         result = provision_interfaces_batch(
             **switch_credentials(),
-            interfaces=[
-                item["name"]
-                for item in selected
-            ],
+            interfaces=[item["name"] for item in selected],
             **config,
         )
 
@@ -3155,17 +2870,13 @@ def apply_ports():
 @app.post("/configuration/save")
 def configuration_save():
     try:
-        result = save_running_to_startup(
-            **switch_credentials()
-        )
+        result = save_running_to_startup(**switch_credentials())
 
         return render_page(
             config_result={
                 "type": "save",
                 "success": result["success"],
-                "message": (
-                    "Configuração salva na NVRAM com sucesso."
-                ),
+                "message": ("Configuração salva na NVRAM com sucesso."),
             }
         )
 
@@ -3187,32 +2898,16 @@ def configuration_create_backup():
     )
 
     try:
-        backup_port = (
-            request.form.get(
-                "backup_port"
-            )
-            or None
-        )
+        backup_port = request.form.get("backup_port") or None
 
         result = create_switch_backup(
             **switch_credentials(),
             protocol=protocol,
-            backup_host=request.form.get(
-                "backup_host"
-            ),
+            backup_host=request.form.get("backup_host"),
             backup_port=backup_port,
-            backup_username=request.form.get(
-                "backup_username"
-            ),
-            backup_password=request.form.get(
-                "backup_password"
-            ),
-            remote_directory=(
-                request.form.get(
-                    "backup_remote_directory"
-                )
-                or "/"
-            ),
+            backup_username=request.form.get("backup_username"),
+            backup_password=request.form.get("backup_password"),
+            remote_directory=(request.form.get("backup_remote_directory") or "/"),
         )
 
         return render_page(
@@ -3236,19 +2931,21 @@ def configuration_create_backup():
 
 @app.get("/configuration/download")
 def configuration_download_selected():
-    config_type = request.args.get(
-        "config_type",
-        "running",
-    ).strip().lower()
+    config_type = (
+        request.args.get(
+            "config_type",
+            "running",
+        )
+        .strip()
+        .lower()
+    )
 
     if config_type not in {
         "running",
         "startup",
     }:
         return render_page(
-            config_error=(
-                "Tipo de configuração inválido."
-            ),
+            config_error=("Tipo de configuração inválido."),
         ), 400
 
     from src.switch.configuration import (
@@ -3258,36 +2955,24 @@ def configuration_download_selected():
     )
 
     if config_type == "running":
-        config = get_running_config(
-            **switch_credentials()
-        )
+        config = get_running_config(**switch_credentials())
     else:
-        config = get_startup_config(
-            **switch_credentials()
-        )
+        config = get_startup_config(**switch_credentials())
 
-    hostname = extract_hostname(
-        config
-    )
+    hostname = extract_hostname(config)
 
     filename = build_backup_filename(
         hostname=hostname,
         config_type=config_type,
     )
 
-    content = normalize_config_text(
-        config
-    ).encode(
-        "utf-8"
-    )
+    content = normalize_config_text(config).encode("utf-8")
 
     return send_file(
         BytesIO(content),
         as_attachment=True,
         download_name=filename,
-        mimetype=(
-            "text/plain; charset=utf-8"
-        ),
+        mimetype=("text/plain; charset=utf-8"),
     )
 
 
@@ -3299,32 +2984,22 @@ def configuration_download_running():
         normalize_config_text,
     )
 
-    config = get_running_config(
-        **switch_credentials()
-    )
+    config = get_running_config(**switch_credentials())
 
-    hostname = extract_hostname(
-        config
-    )
+    hostname = extract_hostname(config)
 
     filename = build_backup_filename(
         hostname=hostname,
         config_type="running",
     )
 
-    content = normalize_config_text(
-        config
-    ).encode(
-        "utf-8"
-    )
+    content = normalize_config_text(config).encode("utf-8")
 
     return send_file(
         BytesIO(content),
         as_attachment=True,
         download_name=filename,
-        mimetype=(
-            "text/plain; charset=utf-8"
-        ),
+        mimetype=("text/plain; charset=utf-8"),
     )
 
 
@@ -3336,45 +3011,31 @@ def configuration_download_startup():
         normalize_config_text,
     )
 
-    config = get_startup_config(
-        **switch_credentials()
-    )
+    config = get_startup_config(**switch_credentials())
 
-    hostname = extract_hostname(
-        config
-    )
+    hostname = extract_hostname(config)
 
     filename = build_backup_filename(
         hostname=hostname,
         config_type="startup",
     )
 
-    content = normalize_config_text(
-        config
-    ).encode(
-        "utf-8"
-    )
+    content = normalize_config_text(config).encode("utf-8")
 
     return send_file(
         BytesIO(content),
         as_attachment=True,
         download_name=filename,
-        mimetype=(
-            "text/plain; charset=utf-8"
-        ),
+        mimetype=("text/plain; charset=utf-8"),
     )
 
 
 @app.post("/configuration/diff/live")
 def configuration_diff_live():
     try:
-        running = get_running_config(
-            **switch_credentials()
-        )
+        running = get_running_config(**switch_credentials())
 
-        startup = get_startup_config(
-            **switch_credentials()
-        )
+        startup = get_startup_config(**switch_credentials())
 
         diff = compare_config_texts(
             left_text=startup,
@@ -3403,26 +3064,16 @@ def configuration_diff_files():
             validate_config_filename,
         )
 
-        left_file = request.files.get(
-            "diff_left_file"
-        )
+        left_file = request.files.get("diff_left_file")
 
-        right_file = request.files.get(
-            "diff_right_file"
-        )
+        right_file = request.files.get("diff_right_file")
 
         if left_file is None or right_file is None:
-            raise ValueError(
-                "Selecione os dois arquivos para comparação."
-            )
+            raise ValueError("Selecione os dois arquivos para comparação.")
 
-        validate_config_filename(
-            left_file.filename
-        )
+        validate_config_filename(left_file.filename)
 
-        validate_config_filename(
-            right_file.filename
-        )
+        validate_config_filename(right_file.filename)
 
         left_text = left_file.read().decode(
             "utf-8",
@@ -3457,9 +3108,7 @@ def configuration_diff_files():
 @app.get("/api/troubleshooting/interfaces")
 def troubleshooting_interfaces():
     try:
-        result = get_switch_l3_interfaces(
-            **switch_credentials()
-        )
+        result = get_switch_l3_interfaces(**switch_credentials())
 
         return jsonify(
             {
@@ -3495,9 +3144,7 @@ def troubleshooting_ping():
         ).strip()
 
         if not source_interface:
-            raise ValueError(
-                "Selecione uma interface L3 de origem."
-            )
+            raise ValueError("Selecione uma interface L3 de origem.")
 
         def positive_int(field, label, default):
             raw = request.form.get(
@@ -3508,14 +3155,10 @@ def troubleshooting_ping():
             try:
                 value = int(raw)
             except ValueError as exc:
-                raise ValueError(
-                    f"{label} deve ser um número inteiro."
-                ) from exc
+                raise ValueError(f"{label} deve ser um número inteiro.") from exc
 
             if value < 1:
-                raise ValueError(
-                    f"{label} deve ser maior que zero."
-                )
+                raise ValueError(f"{label} deve ser maior que zero.")
 
             return value
 
@@ -3544,16 +3187,9 @@ def troubleshooting_ping():
         )
 
         if concurrency > 8:
-            raise ValueError(
-                "A concorrência máxima permitida é 8."
-            )
+            raise ValueError("A concorrência máxima permitida é 8.")
 
-        df_bit = (
-            request.form.get(
-                "ping_df_bit"
-            )
-            == "on"
-        )
+        df_bit = request.form.get("ping_df_bit") == "on"
 
         troubleshooting_result = {
             "type": "ping",
@@ -3593,9 +3229,7 @@ def troubleshooting_traceroute():
         ).strip()
 
         if not source_interface:
-            raise ValueError(
-                "Selecione uma interface L3 de origem."
-            )
+            raise ValueError("Selecione uma interface L3 de origem.")
 
         def positive_int(field, label, default):
             raw = request.form.get(
@@ -3606,14 +3240,10 @@ def troubleshooting_traceroute():
             try:
                 value = int(raw)
             except ValueError as exc:
-                raise ValueError(
-                    f"{label} deve ser um número inteiro."
-                ) from exc
+                raise ValueError(f"{label} deve ser um número inteiro.") from exc
 
             if value < 1:
-                raise ValueError(
-                    f"{label} deve ser maior que zero."
-                )
+                raise ValueError(f"{label} deve ser maior que zero.")
 
             return value
 
@@ -3671,14 +3301,10 @@ def batch_preview():
     try:
         if inventory_error:
             raise ValueError(
-                "Não foi possível consultar "
-                "as interfaces do switch: "
-                f"{inventory_error}"
+                f"Não foi possível consultar as interfaces do switch: {inventory_error}"
             )
 
-        selected_names = request.form.getlist(
-            "batch_interfaces"
-        )
+        selected_names = request.form.getlist("batch_interfaces")
 
         start_interface = (
             request.form.get(
@@ -3703,63 +3329,38 @@ def batch_preview():
             end_interface=end_interface,
         )
 
-        config = parse_interface_configuration(
-            prefix="batch_"
-        )
+        config = parse_interface_configuration(prefix="batch_")
 
         desired_changes = []
 
         if config["description"]:
-            desired_changes.append(
-                f"Description: "
-                f"{config['description']}"
-            )
+            desired_changes.append(f"Description: {config['description']}")
 
         if config["remove_description"]:
-            desired_changes.append(
-                "Remover Description"
-            )
+            desired_changes.append("Remover Description")
 
         if config["access_vlan"] is not None:
-            desired_changes.append(
-                f"Access VLAN: "
-                f"{config['access_vlan']}"
-            )
+            desired_changes.append(f"Access VLAN: {config['access_vlan']}")
 
         if config["voice_vlan"] is not None:
-            desired_changes.append(
-                f"Voice VLAN: "
-                f"{config['voice_vlan']}"
-            )
+            desired_changes.append(f"Voice VLAN: {config['voice_vlan']}")
 
         if config["remove_voice_vlan"]:
-            desired_changes.append(
-                "Remover Voice VLAN"
-            )
+            desired_changes.append("Remover Voice VLAN")
 
         if config["admin_state"] == "up":
-            desired_changes.append(
-                "Estado administrativo: Admin Up"
-            )
+            desired_changes.append("Estado administrativo: Admin Up")
 
         if config["admin_state"] == "down":
-            desired_changes.append(
-                "Estado administrativo: Admin Down"
-            )
+            desired_changes.append("Estado administrativo: Admin Down")
 
         if config["portfast_state"] == "enable":
-            desired_changes.append(
-                "PortFast: habilitar Edge"
-            )
+            desired_changes.append("PortFast: habilitar Edge")
 
         if config["portfast_state"] == "disable":
-            desired_changes.append(
-                "PortFast: desabilitar"
-            )
+            desired_changes.append("PortFast: desabilitar")
 
-        preview["desired_changes"] = (
-            desired_changes
-        )
+        preview["desired_changes"] = desired_changes
 
         preview["form"] = {
             "selected_names": selected_names,
@@ -3795,16 +3396,12 @@ def batch_preview():
 # Compatibilidade com os testes e chamadas anteriores.
 @app.post("/apply")
 def apply_configuration():
-    interfaces, _, capabilities, inventory_error = (
-        load_inventory()
-    )
+    interfaces, _, capabilities, inventory_error = load_inventory()
 
     try:
         if inventory_error:
             raise ValueError(
-                "Não foi possível consultar "
-                "as interfaces do switch: "
-                f"{inventory_error}"
+                f"Não foi possível consultar as interfaces do switch: {inventory_error}"
             )
 
         hostname = (
@@ -3828,35 +3425,23 @@ def apply_configuration():
         config = parse_interface_configuration()
 
         if interface:
-            valid_interfaces = {
-                item["name"]
-                for item in interfaces
-            }
+            valid_interfaces = {item["name"] for item in interfaces}
 
             if interface not in valid_interfaces:
                 raise ValueError(
-                    f"A interface {interface} "
-                    "não foi encontrada no switch."
+                    f"A interface {interface} não foi encontrada no switch."
                 )
 
             validate_switchport_change(
                 interfaces=interfaces,
                 interface=interface,
-                access_vlan=config[
-                    "access_vlan"
-                ],
-                voice_vlan=config[
-                    "voice_vlan"
-                ],
-                remove_voice_vlan=config[
-                    "remove_voice_vlan"
-                ],
+                access_vlan=config["access_vlan"],
+                voice_vlan=config["voice_vlan"],
+                remove_voice_vlan=config["remove_voice_vlan"],
             )
 
         legacy_config = {
-            key: value
-            for key, value in config.items()
-            if key != "portfast_state"
+            key: value for key, value in config.items() if key != "portfast_state"
         }
 
         result = provision_switch(
@@ -3875,6 +3460,127 @@ def apply_configuration():
         return render_page(
             error=str(exc),
         )
+
+
+@app.post("/api/provision/candidates/<candidate_id>/deploy")
+def api_provision_candidate_deploy(
+    candidate_id,
+):
+    candidate = _provision_candidates.get(candidate_id)
+
+    if candidate is None:
+        return jsonify(
+            {
+                "success": False,
+                "error": ("Candidate não encontrado."),
+            }
+        ), 404
+
+    device_id = candidate.get("device_id")
+
+    if not device_id:
+        return jsonify(
+            {
+                "success": False,
+                "error": ("Candidate sem equipamento associado."),
+            }
+        ), 400
+
+    try:
+        device = device_manager.get(device_id)
+
+    except KeyError:
+        return jsonify(
+            {
+                "success": False,
+                "error": ("Equipamento do Candidate não encontrado."),
+            }
+        ), 404
+
+    config_text = str(
+        candidate.get(
+            "config",
+            "",
+        )
+        or ""
+    )
+
+    if not config_text.strip():
+        return jsonify(
+            {
+                "success": False,
+                "error": ("Candidate sem configuração para aplicar."),
+            }
+        ), 400
+
+    try:
+        result = deploy_candidate_config(
+            **device.credentials(),
+            config_text=config_text,
+        )
+
+    except (
+        RuntimeError,
+        ValueError,
+    ) as exc:
+        return jsonify(
+            {
+                "success": False,
+                "error": ("Deploy falhou: " + str(exc)),
+            }
+        ), 400
+
+    except Exception as exc:
+        return jsonify(
+            {
+                "success": False,
+                "error": ("Falha inesperada no deploy: " + str(exc)),
+            }
+        ), 500
+
+    candidate["running_config_after_deploy"] = result.get(
+        "running_config",
+        "",
+    )
+
+    candidate["deploy_result"] = {
+        "success": result.get(
+            "success",
+            False,
+        ),
+        "blocks_sent": result.get(
+            "blocks_sent",
+            0,
+        ),
+        "commands_sent": result.get(
+            "commands_sent",
+            0,
+        ),
+        "saved": result.get(
+            "saved",
+            False,
+        ),
+    }
+
+    return jsonify(
+        {
+            "success": True,
+            "candidate_id": candidate_id,
+            "blocks_sent": result.get(
+                "blocks_sent",
+                0,
+            ),
+            "commands_sent": result.get(
+                "commands_sent",
+                0,
+            ),
+            "saved": result.get(
+                "saved",
+                False,
+            ),
+            "message": ("Candidate aplicado na running-config."),
+        }
+    )
 
 
 if __name__ == "__main__":

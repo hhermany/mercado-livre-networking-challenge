@@ -57,10 +57,7 @@ def _nonzero_counters(interface_state, counter_names):
 
 
 def _format_counters(counters):
-    return ", ".join(
-        f"{name}: {value}"
-        for name, value in counters.items()
-    )
+    return ", ".join(f"{name}: {value}" for name, value in counters.items())
 
 
 def highlight_interface_counters(summary):
@@ -94,16 +91,11 @@ def highlight_interface_counters(summary):
             re.IGNORECASE,
         )
 
-        css_class = (
-            "counter-highlight "
-            f"counter-highlight-{level}"
-        )
+        css_class = f"counter-highlight counter-highlight-{level}"
 
         highlighted = pattern.sub(
             lambda match, css_class=css_class: (
-                f'<span class="{css_class}">'
-                f"{match.group(1)} {match.group(2)}"
-                "</span>"
+                f'<span class="{css_class}">{match.group(1)} {match.group(2)}</span>'
             ),
             highlighted,
         )
@@ -136,9 +128,7 @@ def classify_interface_health(interface_state):
             {
                 "level": "danger",
                 "category": "physical",
-                "title": (
-                    "Possível problema físico ou de cabeamento"
-                ),
+                "title": ("Possível problema físico ou de cabeamento"),
                 "detail": (
                     f"{_format_counters(carrier_counters)}. "
                     "Foi detectada perda de carrier. "
@@ -164,9 +154,7 @@ def classify_interface_health(interface_state):
             {
                 "level": "warning",
                 "category": "physical-duplex",
-                "title": (
-                    "Indício de problema físico ou de duplex"
-                ),
+                "title": ("Indício de problema físico ou de duplex"),
                 "detail": (
                     f"{_format_counters(physical_duplex_counters)}. "
                     "Avalie cabeamento, porta/NIC, ruído "
@@ -179,9 +167,7 @@ def classify_interface_health(interface_state):
     # Cisco aponta principalmente para o dispositivo/NIC remoto.
     giant_counters = _nonzero_counters(
         interface_state,
-        (
-            "giants",
-        ),
+        ("giants",),
     )
 
     if giant_counters:
@@ -189,9 +175,7 @@ def classify_interface_health(interface_state):
             {
                 "level": "warning",
                 "category": "endpoint",
-                "title": (
-                    "Frames inválidos de tamanho excessivo"
-                ),
+                "title": ("Frames inválidos de tamanho excessivo"),
                 "detail": (
                     f"{_format_counters(giant_counters)}. "
                     "Avalie principalmente o dispositivo/NIC "
@@ -202,9 +186,7 @@ def classify_interface_health(interface_state):
 
     late_collision_counters = _nonzero_counters(
         interface_state,
-        (
-            "late collision",
-        ),
+        ("late collision",),
     )
 
     if late_collision_counters:
@@ -212,9 +194,7 @@ def classify_interface_health(interface_state):
             {
                 "level": "warning",
                 "category": "duplex",
-                "title": (
-                    "Possível problema de duplex ou meio físico"
-                ),
+                "title": ("Possível problema de duplex ou meio físico"),
                 "detail": (
                     f"{_format_counters(late_collision_counters)}. "
                     "Verifique speed/duplex e o segmento físico."
@@ -224,9 +204,7 @@ def classify_interface_health(interface_state):
 
     collisions = _nonzero_counters(
         interface_state,
-        (
-            "collisions",
-        ),
+        ("collisions",),
     )
 
     full_duplex = bool(
@@ -242,9 +220,7 @@ def classify_interface_health(interface_state):
             {
                 "level": "warning",
                 "category": "duplex",
-                "title": (
-                    "Colisões detectadas em full-duplex"
-                ),
+                "title": ("Colisões detectadas em full-duplex"),
                 "detail": (
                     f"{_format_counters(collisions)}. "
                     "Colisões não são esperadas em uma "
@@ -269,9 +245,7 @@ def classify_interface_health(interface_state):
             {
                 "level": "warning",
                 "category": "resources",
-                "title": (
-                    "Atenção a capacidade de recepção"
-                ),
+                "title": ("Atenção a capacidade de recepção"),
                 "detail": (
                     f"{_format_counters(receive_resource_counters)}. "
                     "Os contadores indicam pressão de buffers, "
@@ -295,9 +269,7 @@ def classify_interface_health(interface_state):
             {
                 "level": "warning",
                 "category": "congestion",
-                "title": (
-                    "Possível congestionamento ou pressão de buffers"
-                ),
+                "title": ("Possível congestionamento ou pressão de buffers"),
                 "detail": (
                     f"{_format_counters(transmit_resource_counters)}. "
                     "Avalie utilização, velocidade da interface "
@@ -335,10 +307,7 @@ def classify_interface_health(interface_state):
             }
         )
 
-    admin_down = (
-        "administratively down"
-        in interface_state.lower()
-    )
+    admin_down = "administratively down" in interface_state.lower()
 
     operational_up = bool(
         re.search(
@@ -348,10 +317,7 @@ def classify_interface_health(interface_state):
         )
     )
 
-    if any(
-        issue["level"] == "danger"
-        for issue in issues
-    ):
+    if any(issue["level"] == "danger" for issue in issues):
         level = "danger"
         label = "Alerta físico/cabeamento"
 
@@ -469,14 +435,11 @@ def provision_switch(
         )
 
     if admin_state not in (None, "up", "down"):
-        raise ValueError(
-            "Estado administrativo deve ser 'up' ou 'down'."
-        )
+        raise ValueError("Estado administrativo deve ser 'up' ou 'down'.")
 
     if not hostname and not desired_vlans and not has_interface_config:
         raise ValueError(
-            "Informe um hostname, pelo menos uma VLAN "
-            "ou uma configuração de interface."
+            "Informe um hostname, pelo menos uma VLAN ou uma configuração de interface."
         )
 
     switch = CiscoSwitch(
@@ -521,110 +484,67 @@ def provision_switch(
         if not matching_lines or vlan_name not in matching_lines[0]:
             missing.append(f"vlan:{vlan_id}:{vlan_name}")
 
-        changes.append(
-            f"VLAN {vlan_id}: {vlan_name}"
-        )
+        changes.append(f"VLAN {vlan_id}: {vlan_name}")
 
     has_switchport_config = (
-        access_vlan is not None
-        or voice_vlan is not None
-        or remove_voice_vlan
+        access_vlan is not None or voice_vlan is not None or remove_voice_vlan
     )
 
     if has_switchport_config:
         if "Administrative Mode: static access" not in interface_state:
-            missing.append(
-                f"interface:{interface}:mode-access"
-            )
+            missing.append(f"interface:{interface}:mode-access")
 
         if access_vlan is not None:
             access_marker = f"Access Mode VLAN: {access_vlan}"
 
             if access_marker not in interface_state:
-                missing.append(
-                    f"interface:{interface}:access-vlan:{access_vlan}"
-                )
+                missing.append(f"interface:{interface}:access-vlan:{access_vlan}")
 
-            changes.append(
-                f"{interface}: Access VLAN {access_vlan}"
-            )
+            changes.append(f"{interface}: Access VLAN {access_vlan}")
 
         if voice_vlan is not None:
             voice_marker = f"Voice VLAN: {voice_vlan}"
 
             if voice_marker not in interface_state:
-                missing.append(
-                    f"interface:{interface}:voice-vlan:{voice_vlan}"
-                )
+                missing.append(f"interface:{interface}:voice-vlan:{voice_vlan}")
 
-            changes.append(
-                f"{interface}: Voice VLAN {voice_vlan}"
-            )
+            changes.append(f"{interface}: Voice VLAN {voice_vlan}")
 
         if remove_voice_vlan:
             if "Voice VLAN: none" not in interface_state:
-                missing.append(
-                    f"interface:{interface}:remove-voice-vlan"
-                )
+                missing.append(f"interface:{interface}:remove-voice-vlan")
 
-            changes.append(
-                f"{interface}: Voice VLAN removida"
-            )
+            changes.append(f"{interface}: Voice VLAN removida")
 
     if description is not None:
         expected_description = f"description {description}"
 
-        interface_config_lines = [
-            line.strip()
-            for line in running_config.splitlines()
-        ]
+        interface_config_lines = [line.strip() for line in running_config.splitlines()]
 
         if expected_description not in interface_config_lines:
-            missing.append(
-                f"interface:{interface}:description"
-            )
+            missing.append(f"interface:{interface}:description")
 
-        changes.append(
-            f"{interface}: Description alterada para {description}"
-        )
+        changes.append(f"{interface}: Description alterada para {description}")
 
     if remove_description:
-        interface_config_lines = [
-            line.strip()
-            for line in running_config.splitlines()
-        ]
+        interface_config_lines = [line.strip() for line in running_config.splitlines()]
 
-        if any(
-            line.startswith("description ")
-            for line in interface_config_lines
-        ):
-            missing.append(
-                f"interface:{interface}:remove-description"
-            )
+        if any(line.startswith("description ") for line in interface_config_lines):
+            missing.append(f"interface:{interface}:remove-description")
 
-        changes.append(
-            f"{interface}: Description removida"
-        )
+        changes.append(f"{interface}: Description removida")
 
     if admin_state == "down":
         if "administratively down" not in interface_state.lower():
-            missing.append(
-                f"interface:{interface}:admin-down"
-            )
+            missing.append(f"interface:{interface}:admin-down")
 
-        changes.append(
-            f"{interface}: Admin Down"
-        )
+        changes.append(f"{interface}: Admin Down")
 
     if admin_state == "up":
         if "administratively down" in interface_state.lower():
-            missing.append(
-                f"interface:{interface}:admin-up"
-            )
+            missing.append(f"interface:{interface}:admin-up")
 
-        changes.append(
-            f"{interface}: Admin Up"
-        )
+        changes.append(f"{interface}: Admin Up")
 
     backup = save_backup(hostname, running_config)
 
@@ -636,9 +556,7 @@ def provision_switch(
         "configuration_output": output,
         "vlan_state": vlan_state,
         "interface_state": interface_state,
-        "interface_summary": summarize_interface_state(
-            interface_state
-        ),
+        "interface_summary": summarize_interface_state(interface_state),
         "hostname": hostname,
     }
 
@@ -660,13 +578,9 @@ def provision_interfaces_batch(
     interfaces = interfaces or []
 
     if not interfaces:
-        raise ValueError(
-            "Selecione pelo menos uma interface."
-        )
+        raise ValueError("Selecione pelo menos uma interface.")
 
-    validate_interface_description(
-        description
-    )
+    validate_interface_description(description)
 
     if description is not None and remove_description:
         raise ValueError(
@@ -685,19 +599,14 @@ def provision_interfaces_batch(
         "up",
         "down",
     ):
-        raise ValueError(
-            "Estado administrativo deve ser 'up' ou 'down'."
-        )
+        raise ValueError("Estado administrativo deve ser 'up' ou 'down'.")
 
     if portfast_state not in (
         None,
         "enable",
         "disable",
     ):
-        raise ValueError(
-            "PortFast deve ser 'enable', 'disable' ou não informado."
-        )
-
+        raise ValueError("PortFast deve ser 'enable', 'disable' ou não informado.")
 
     has_configuration = (
         access_vlan is not None
@@ -711,8 +620,7 @@ def provision_interfaces_batch(
 
     if not has_configuration:
         raise ValueError(
-            "Informe pelo menos uma configuração "
-            "para as interfaces selecionadas."
+            "Informe pelo menos uma configuração para as interfaces selecionadas."
         )
 
     switch = CiscoSwitch(
@@ -722,17 +630,15 @@ def provision_interfaces_batch(
         secret=secret,
     )
 
-    output, validation, running_config = (
-        switch.configure_interfaces(
-            interfaces=interfaces,
-            access_vlan=access_vlan,
-            voice_vlan=voice_vlan,
-            remove_voice_vlan=remove_voice_vlan,
-            description=description,
-            remove_description=remove_description,
-            admin_state=admin_state,
-            portfast_state=portfast_state,
-        )
+    output, validation, running_config = switch.configure_interfaces(
+        interfaces=interfaces,
+        access_vlan=access_vlan,
+        voice_vlan=voice_vlan,
+        remove_voice_vlan=remove_voice_vlan,
+        description=description,
+        remove_description=remove_description,
+        admin_state=admin_state,
+        portfast_state=portfast_state,
     )
 
     missing = []
@@ -740,109 +646,59 @@ def provision_interfaces_batch(
     interface_results = {}
 
     for interface in interfaces:
-        state = validation[interface][
-            "interface_state"
-        ]
+        state = validation[interface]["interface_state"]
 
-        running_interface = validation[
-            interface
-        ]["running_config"]
+        running_interface = validation[interface]["running_config"]
 
         interface_missing = []
 
         has_switchport_config = (
-            access_vlan is not None
-            or voice_vlan is not None
-            or remove_voice_vlan
+            access_vlan is not None or voice_vlan is not None or remove_voice_vlan
         )
 
         if has_switchport_config:
-            if (
-                "Administrative Mode: static access"
-                not in state
-            ):
-                interface_missing.append(
-                    "mode-access"
-                )
+            if "Administrative Mode: static access" not in state:
+                interface_missing.append("mode-access")
 
         if access_vlan is not None:
-            marker = (
-                f"Access Mode VLAN: {access_vlan}"
-            )
+            marker = f"Access Mode VLAN: {access_vlan}"
 
             if marker not in state:
-                interface_missing.append(
-                    f"access-vlan:{access_vlan}"
-                )
+                interface_missing.append(f"access-vlan:{access_vlan}")
 
         if voice_vlan is not None:
-            marker = (
-                f"Voice VLAN: {voice_vlan}"
-            )
+            marker = f"Voice VLAN: {voice_vlan}"
 
             if marker not in state:
-                interface_missing.append(
-                    f"voice-vlan:{voice_vlan}"
-                )
+                interface_missing.append(f"voice-vlan:{voice_vlan}")
 
         if remove_voice_vlan:
             if "Voice VLAN: none" not in state:
-                interface_missing.append(
-                    "remove-voice-vlan"
-                )
+                interface_missing.append("remove-voice-vlan")
 
-        running_lines = [
-            line.strip()
-            for line in running_interface.splitlines()
-        ]
+        running_lines = [line.strip() for line in running_interface.splitlines()]
 
         if description is not None:
-            marker = (
-                f"description {description}"
-            )
+            marker = f"description {description}"
 
             if marker not in running_lines:
-                interface_missing.append(
-                    "description"
-                )
+                interface_missing.append("description")
 
         if remove_description:
-            if any(
-                line.startswith(
-                    "description "
-                )
-                for line in running_lines
-            ):
-                interface_missing.append(
-                    "remove-description"
-                )
+            if any(line.startswith("description ") for line in running_lines):
+                interface_missing.append("remove-description")
 
         if admin_state == "down":
-            if (
-                "administratively down"
-                not in state.lower()
-            ):
-                interface_missing.append(
-                    "admin-down"
-                )
+            if "administratively down" not in state.lower():
+                interface_missing.append("admin-down")
 
         if admin_state == "up":
-            if (
-                "administratively down"
-                in state.lower()
-            ):
-                interface_missing.append(
-                    "admin-up"
-                )
+            if "administratively down" in state.lower():
+                interface_missing.append("admin-up")
 
         if portfast_state == "enable":
-            if (
-                "spanning-tree portfast edge"
-                not in running_interface.lower()
-            ):
-                interface_missing.append(
-                    "portfast-edge"
-                )
+            if "spanning-tree portfast edge" not in running_interface.lower():
+                interface_missing.append("portfast-edge")
 
             # A configuração é validada pelo running-config.
             #
@@ -851,87 +707,52 @@ def provision_interfaces_batch(
             # Ex.: porta sem link, STP ainda convergindo ou
             # ausência de detalhe operacional naquele instante.
 
-
         if portfast_state == "disable":
-            if (
-                "spanning-tree portfast disable"
-                not in running_interface.lower()
-            ):
-                interface_missing.append(
-                    "portfast-disable"
-                )
+            if "spanning-tree portfast disable" not in running_interface.lower():
+                interface_missing.append("portfast-disable")
 
             # Assim como no enable, estado STP operacional
             # é diagnóstico separado e não divergência de config.
 
-
         for item in interface_missing:
-            missing.append(
-                f"interface:{interface}:{item}"
-            )
+            missing.append(f"interface:{interface}:{item}")
 
-        summary = summarize_interface_state(
-            state
-        )
+        summary = summarize_interface_state(state)
 
         interface_results[interface] = {
             "success": not interface_missing,
             "missing": interface_missing,
             "summary": summary,
-            "summary_highlighted": (
-                highlight_interface_counters(
-                    summary
-                )
-            ),
-            "health": classify_interface_health(
-                state
-            ),
+            "summary_highlighted": (highlight_interface_counters(summary)),
+            "health": classify_interface_health(state),
         }
 
         if description is not None:
-            changes.append(
-                f"{interface}: Description {description}"
-            )
+            changes.append(f"{interface}: Description {description}")
 
         if remove_description:
-            changes.append(
-                f"{interface}: Description removida"
-            )
+            changes.append(f"{interface}: Description removida")
 
         if access_vlan is not None:
-            changes.append(
-                f"{interface}: Access VLAN {access_vlan}"
-            )
+            changes.append(f"{interface}: Access VLAN {access_vlan}")
 
         if voice_vlan is not None:
-            changes.append(
-                f"{interface}: Voice VLAN {voice_vlan}"
-            )
+            changes.append(f"{interface}: Voice VLAN {voice_vlan}")
 
         if remove_voice_vlan:
-            changes.append(
-                f"{interface}: Voice VLAN removida"
-            )
+            changes.append(f"{interface}: Voice VLAN removida")
 
         if admin_state == "up":
-            changes.append(
-                f"{interface}: Admin Up"
-            )
+            changes.append(f"{interface}: Admin Up")
 
         if admin_state == "down":
-            changes.append(
-                f"{interface}: Admin Down"
-            )
+            changes.append(f"{interface}: Admin Down")
 
         if portfast_state == "enable":
-            changes.append(
-                f"{interface}: PortFast Edge habilitado"
-            )
+            changes.append(f"{interface}: PortFast Edge habilitado")
 
         if portfast_state == "disable":
-            changes.append(
-                f"{interface}: PortFast desabilitado"
-            )
+            changes.append(f"{interface}: PortFast desabilitado")
 
     backup = save_backup(
         None,
@@ -947,9 +768,7 @@ def provision_interfaces_batch(
 
         for change in changes:
             if change.startswith(prefix):
-                interface_changes.append(
-                    change[len(prefix):]
-                )
+                interface_changes.append(change[len(prefix) :])
 
         if interface_changes:
             change_groups.append(
@@ -1010,9 +829,7 @@ def run_switch_ping(
     )
 
     if concurrency < 1 or concurrency > 8:
-        raise ValueError(
-            "A concorrência deve estar entre 1 e 8."
-        )
+        raise ValueError("A concorrência deve estar entre 1 e 8.")
 
     inventory_switch = CiscoSwitch(
         host=host,
@@ -1021,9 +838,7 @@ def run_switch_ping(
         secret=secret,
     )
 
-    inventory = (
-        inventory_switch.list_l3_interfaces()
-    )
+    inventory = inventory_switch.list_l3_interfaces()
 
     source = validate_source_interface(
         inventory["interfaces"],
@@ -1031,9 +846,7 @@ def run_switch_ping(
     )
 
     destinations = parse_ipv4_targets(
-        targets
-        if isinstance(targets, str)
-        else ",".join(targets)
+        targets if isinstance(targets, str) else ",".join(targets)
     )
 
     chunks = split_targets_for_workers(
@@ -1061,15 +874,9 @@ def run_switch_ping(
         )
 
     if worker_count == 1:
-        batch_results = [
-            execute_chunk(
-                chunks[0]
-            )
-        ]
+        batch_results = [execute_chunk(chunks[0])]
     else:
-        with ThreadPoolExecutor(
-            max_workers=worker_count
-        ) as executor:
+        with ThreadPoolExecutor(max_workers=worker_count) as executor:
             batch_results = list(
                 executor.map(
                     execute_chunk,
@@ -1078,24 +885,16 @@ def run_switch_ping(
             )
 
     # executor.map preserva a ordem dos chunks.
-    executions = [
-        execution
-        for batch in batch_results
-        for execution in batch
-    ]
+    executions = [execution for batch in batch_results for execution in batch]
 
     results = []
 
     for execution in executions:
-        parsed = parse_ping_result(
-            execution["output"]
-        )
+        parsed = parse_ping_result(execution["output"])
 
         results.append(
             {
-                "destination": execution[
-                    "destination"
-                ],
+                "destination": execution["destination"],
                 "source_interface": source["name"],
                 "source_ip": source["ip_address"],
                 "command": execution["command"],
@@ -1108,19 +907,13 @@ def run_switch_ping(
             }
         )
 
-    reachable = sum(
-        1
-        for item in results
-        if item["success"]
-    )
+    reachable = sum(1 for item in results if item["success"])
 
     return {
         "source": source,
         "count": len(results),
         "reachable": reachable,
-        "unreachable": (
-            len(results) - reachable
-        ),
+        "unreachable": (len(results) - reachable),
         "repeat": repeat,
         "timeout": timeout,
         "size": size,
@@ -1128,7 +921,6 @@ def run_switch_ping(
         "concurrency": worker_count,
         "results": results,
     }
-
 
 
 def run_switch_traceroute(
@@ -1175,9 +967,7 @@ def run_switch_traceroute(
         max_ttl=max_ttl,
     )
 
-    raw_output = execution[
-        "output"
-    ]
+    raw_output = execution["output"]
 
     return {
         "destination": target,
@@ -1187,9 +977,7 @@ def run_switch_traceroute(
         "timeout": timeout,
         "probe_count": probe_count,
         "max_ttl": max_ttl,
-        "output": extract_traceroute_result(
-            raw_output
-        ),
+        "output": extract_traceroute_result(raw_output),
         "raw_output": raw_output,
     }
 
@@ -1255,9 +1043,7 @@ def create_local_config_backup(
         normalize_config_text,
     )
 
-    directory = Path(
-        backup_dir
-    )
+    directory = Path(backup_dir)
 
     directory.mkdir(
         parents=True,
@@ -1271,11 +1057,7 @@ def create_local_config_backup(
 
     path = directory / filename
 
-    path.write_text(
-        normalize_config_text(
-            config_text
-        )
-    )
+    path.write_text(normalize_config_text(config_text))
 
     return {
         "filename": filename,
@@ -1331,20 +1113,14 @@ def create_switch_backup(
         secret=secret,
     )
 
-    hostname = extract_hostname(
-        config
-    )
+    hostname = extract_hostname(config)
 
     filename = build_backup_filename(
         hostname=hostname,
         config_type="running",
     )
 
-    content = normalize_config_text(
-        config
-    ).encode(
-        "utf-8"
-    )
+    content = normalize_config_text(config).encode("utf-8")
 
     stored = store_backup(
         protocol=protocol,
@@ -1379,22 +1155,14 @@ def discover_managed_switch(
         extract_hostname,
     )
 
-    credentials = (
-        device.credentials()
-    )
+    credentials = device.credentials()
 
-    running = get_running_config(
-        **credentials
-    )
+    running = get_running_config(**credentials)
 
-    hostname = extract_hostname(
-        running
-    )
+    hostname = extract_hostname(running)
 
     # Reutiliza o inventário operacional existente.
-    inventory = get_switch_interfaces(
-        **credentials
-    )
+    inventory = get_switch_interfaces(**credentials)
 
     if isinstance(
         inventory,
@@ -1427,15 +1195,10 @@ def load_managed_switch_workspace(
     """
     credentials = device.credentials()
 
-    inventory = get_switch_interfaces(
-        **credentials
-    )
+    inventory = get_switch_interfaces(**credentials)
 
     return {
-        "hostname": (
-            device.hostname
-            or device.host
-        ),
+        "hostname": (device.hostname or device.host),
         "interfaces": inventory.get(
             "interfaces",
             [],
@@ -1470,24 +1233,18 @@ def run_interface_quick_action(
     """
     normalized_interfaces = list(
         dict.fromkeys(
-            str(interface).strip()
-            for interface in interfaces
-            if str(interface).strip()
+            str(interface).strip() for interface in interfaces if str(interface).strip()
         )
     )
 
     if not normalized_interfaces:
-        raise ValueError(
-            "Selecione pelo menos uma interface."
-        )
+        raise ValueError("Selecione pelo menos uma interface.")
 
     if action not in {
         "default",
         "bounce",
     }:
-        raise ValueError(
-            "Ação de interface inválida."
-        )
+        raise ValueError("Ação de interface inválida.")
 
     switch = CiscoSwitch(
         host=host,
@@ -1497,22 +1254,14 @@ def run_interface_quick_action(
     )
 
     if action == "default":
-        operation = switch.default_interfaces(
-            normalized_interfaces
-        )
+        operation = switch.default_interfaces(normalized_interfaces)
 
-        message = (
-            "Interface restaurada para o padrão."
-        )
+        message = "Interface restaurada para o padrão."
 
     else:
-        operation = switch.bounce_interfaces(
-            normalized_interfaces
-        )
+        operation = switch.bounce_interfaces(normalized_interfaces)
 
-        message = (
-            "Bounce concluído (shutdown / no shutdown)."
-        )
+        message = "Bounce concluído (shutdown / no shutdown)."
 
     return {
         "success": True,
@@ -1523,8 +1272,32 @@ def run_interface_quick_action(
                 "success": True,
                 "message": message,
             }
-            for interface
-            in normalized_interfaces
+            for interface in normalized_interfaces
         },
         "operation": operation,
     }
+
+
+def deploy_candidate_config(
+    host,
+    username,
+    password,
+    config_text,
+    secret="",
+):
+    """
+    Aplica um Candidate Cisco somente na running-config.
+
+    O tratamento dos blocos e dos erros do IOS pertence
+    ao CiscoSwitch.deploy_config().
+
+    Este serviço não salva a startup-config.
+    """
+    switch = CiscoSwitch(
+        host=host,
+        username=username,
+        password=password,
+        secret=secret,
+    )
+
+    return switch.deploy_config(config_text)

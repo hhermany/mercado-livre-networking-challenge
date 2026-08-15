@@ -4345,7 +4345,420 @@ body.multi-switch-mode #device-workspace {
         class="multi-switch-operations"
     >
 
-        <div
+
+<div
+    id="provision-switch-card"
+    class="provision-card"
+>
+    <div class="provision-header">
+        <div>
+            <h2>
+                Provision
+            </h2>
+
+            <p>
+                Gere uma configuração padrão de Branch
+                a partir do inventário real do switch.
+                Nenhum comando é aplicado nesta etapa.
+            </p>
+        </div>
+
+        <span class="provision-profile-badge">
+            Branch Standard v1
+        </span>
+    </div>
+
+
+    <div class="provision-form-grid">
+
+        <div class="provision-field provision-device-field">
+            <label for="provision-device">
+                Equipamento gerenciável
+            </label>
+
+            <select id="provision-device">
+                <option value="">
+                    Selecione...
+                </option>
+            </select>
+        </div>
+
+
+        <div class="provision-field">
+            <label for="provision-hostname">
+                Hostname
+            </label>
+
+            <input
+                type="text"
+                id="provision-hostname"
+                placeholder="Ex.: BRANCH-01"
+            >
+        </div>
+
+
+        <div class="provision-field">
+            <label for="provision-management-ip">
+                IP de gerenciamento
+            </label>
+
+            <input
+                type="text"
+                id="provision-management-ip"
+                placeholder="Ex.: 172.16.255.10"
+            >
+        </div>
+
+
+        <div class="provision-field">
+            <label for="provision-management-mask">
+                Máscara
+            </label>
+
+            <input
+                type="text"
+                id="provision-management-mask"
+                value="255.255.255.0"
+            >
+        </div>
+
+
+        <div class="provision-field">
+            <label for="provision-default-gateway">
+                Default Gateway
+            </label>
+
+            <input
+                type="text"
+                id="provision-default-gateway"
+                placeholder="Ex.: 172.16.255.1"
+            >
+        </div>
+
+
+        <div class="provision-field">
+            <label for="provision-uplink">
+                Porta de Uplink
+            </label>
+
+            <select
+                id="provision-uplink"
+                disabled
+            >
+                <option value="">
+                    Selecione o equipamento primeiro
+                </option>
+            </select>
+        </div>
+
+    </div>
+
+
+    <div class="provision-actions">
+        <button
+            type="button"
+            id="provision-generate"
+            disabled
+        >
+            Gerar Template
+        </button>
+
+        <button
+            type="button"
+            id="provision-view"
+            class="provision-secondary"
+            disabled
+        >
+            Visualizar Template
+        </button>
+
+        <button
+            type="button"
+            id="provision-adjust"
+            class="provision-secondary"
+            disabled
+        >
+            Ajustar Template
+        </button>
+
+        <button
+            type="button"
+            id="provision-deploy"
+            class="provision-deploy"
+            disabled
+        >
+            Deploy Config
+        </button>
+
+        <a
+            id="provision-download"
+            class="provision-button-link disabled"
+            href="#"
+            aria-disabled="true"
+        >
+            Baixar Template
+        </a>
+    </div>
+
+
+    <div
+        id="provision-status"
+        class="provision-status"
+    >
+        Selecione um equipamento gerenciável.
+    </div>
+
+
+    <div
+        id="provision-summary"
+        class="provision-summary"
+        hidden
+    >
+        <div class="provision-summary-item">
+            <strong id="provision-summary-total">
+                0
+            </strong>
+            <span>
+                interfaces inventariadas
+            </span>
+        </div>
+
+        <div class="provision-summary-item">
+            <strong id="provision-summary-users">
+                0
+            </strong>
+            <span>
+                portas de usuário
+            </span>
+        </div>
+
+        <div class="provision-summary-item">
+            <strong id="provision-summary-preserved">
+                0
+            </strong>
+            <span>
+                interfaces preservadas
+            </span>
+        </div>
+
+        <div class="provision-summary-item">
+            <strong
+                id="provision-summary-provision-port"
+            >
+                -
+            </strong>
+
+            <span>
+                Provision Port protegida
+            </span>
+        </div>
+
+        <div class="provision-summary-item">
+            <strong id="provision-summary-uplink">
+                -
+            </strong>
+            <span>
+                uplink
+            </span>
+        </div>
+    </div>
+
+
+    <div
+        id="provision-adjust-panel"
+        class="provision-adjust-panel"
+        hidden
+    >
+        <div class="provision-subpanel-header">
+            <div>
+                <strong>
+                    Ajustar Template
+                </strong>
+
+                <span>
+                    Escolha quais seções entram no Candidate
+                    e adicione comandos específicos.
+                </span>
+            </div>
+        </div>
+
+        <div class="provision-sections">
+            <label>
+                <input
+                    type="checkbox"
+                    value="system"
+                    checked
+                >
+                Sistema
+            </label>
+
+            <label>
+                <input
+                    type="checkbox"
+                    value="vlans"
+                    checked
+                >
+                VLANs
+            </label>
+
+            <label>
+                <input
+                    type="checkbox"
+                    value="management"
+                    checked
+                >
+                Gerenciamento
+            </label>
+
+            <label>
+                <input
+                    type="checkbox"
+                    value="uplink"
+                    checked
+                >
+                Uplink
+            </label>
+
+            <label>
+                <input
+                    type="checkbox"
+                    value="user_ports"
+                    checked
+                >
+                Portas de Usuário
+            </label>
+
+            <label>
+                <input
+                    type="checkbox"
+                    value="stp"
+                    checked
+                >
+                STP
+            </label>
+
+            <label>
+                <input
+                    type="checkbox"
+                    value="dhcp_snooping"
+                    checked
+                >
+                DHCP Snooping
+            </label>
+
+            <label>
+                <input
+                    type="checkbox"
+                    value="aaa"
+                    checked
+                >
+                AAA / RADIUS / 802.1X
+            </label>
+
+            <label>
+                <input
+                    type="checkbox"
+                    value="snmp"
+                    checked
+                >
+                SNMP
+            </label>
+
+            <label>
+                <input
+                    type="checkbox"
+                    value="ntp_logging"
+                    checked
+                >
+                NTP / Logging
+            </label>
+
+            <label>
+                <input
+                    type="checkbox"
+                    value="ssh"
+                    checked
+                >
+                SSH / VTY
+            </label>
+        </div>
+
+
+        <div class="provision-overrides">
+            <label for="provision-overrides">
+                Comandos adicionais / overrides
+            </label>
+
+            <textarea
+                id="provision-overrides"
+                rows="7"
+                placeholder="Ex.:&#10;snmp-server location BRANCH-01&#10;no ip http server"
+            ></textarea>
+        </div>
+
+
+        <div class="provision-adjust-actions">
+            <button
+                type="button"
+                id="provision-regenerate"
+            >
+                Regenerar Candidate
+            </button>
+        </div>
+    </div>
+
+
+    <div
+        id="provision-diff-panel"
+        class="provision-preview"
+        hidden
+    >
+        <div class="provision-preview-header">
+            <div>
+                <strong>
+                    Diff
+                </strong>
+
+                <span>
+                    Running atual → Candidate
+                </span>
+            </div>
+
+            <span>
+                Somente revisão
+            </span>
+        </div>
+
+        <pre id="provision-diff-content"></pre>
+    </div>
+
+
+    <div
+        id="provision-preview"
+        class="provision-preview"
+        hidden
+    >
+        <div class="provision-preview-header">
+            <div>
+                <strong>
+                    Candidate Configuration
+                </strong>
+
+                <span id="provision-preview-name">
+                </span>
+            </div>
+
+            <span>
+                Somente leitura
+            </span>
+        </div>
+
+        <pre id="provision-preview-config"></pre>
+    </div>
+</div>
+
+
+<div
             id="multi-config-management"
             class="multi-config-management"
         >
@@ -20867,6 +21280,1668 @@ strong {
 
 </style>
 
+
+<style id="provision-switch-style">
+
+#provision-switch-card {
+    width:
+        calc(100% - 40px);
+
+    max-width:
+        1900px;
+
+    margin:
+        20px auto;
+
+    padding:
+        18px 20px;
+
+    box-sizing:
+        border-box;
+
+    border:
+        1px solid #ccd5dd;
+
+    border-radius:
+        7px;
+
+    background:
+        #fff;
+}
+
+
+.provision-header {
+    display:
+        flex;
+
+    align-items:
+        flex-start;
+
+    justify-content:
+        space-between;
+
+    gap:
+        18px;
+
+    margin-bottom:
+        16px;
+}
+
+
+.provision-header h2 {
+    margin:
+        0 0 4px;
+
+    font-size:
+        20px;
+
+    line-height:
+        1.25;
+}
+
+
+.provision-header p {
+    margin:
+        0;
+
+    color:
+        #65727d;
+
+    font-size:
+        11px;
+
+    line-height:
+        1.4;
+}
+
+
+.provision-profile-badge {
+    flex:
+        0 0 auto;
+
+    padding:
+        5px 9px;
+
+    border:
+        1px solid #b9c8d3;
+
+    border-radius:
+        999px;
+
+    background:
+        #f5f8fa;
+
+    color:
+        #45535f;
+
+    font-size:
+        10px;
+
+    font-weight:
+        600;
+}
+
+
+.provision-form-grid {
+    display:
+        grid;
+
+    grid-template-columns:
+        repeat(
+            3,
+            minmax(220px, 1fr)
+        );
+
+    gap:
+        12px 14px;
+
+    align-items:
+        end;
+}
+
+
+.provision-field {
+    min-width:
+        0;
+}
+
+
+.provision-field label {
+    display:
+        block;
+
+    margin:
+        0 0 5px;
+
+    font-size:
+        10px;
+
+    font-weight:
+        600;
+}
+
+
+.provision-field input,
+.provision-field select {
+    width:
+        100%;
+
+    height:
+        35px;
+
+    padding:
+        5px 9px;
+
+    box-sizing:
+        border-box;
+
+    font-size:
+        11px;
+}
+
+
+.provision-device-field {
+    grid-column:
+        span 2;
+}
+
+
+.provision-actions {
+    display:
+        flex;
+
+    align-items:
+        center;
+
+    justify-content:
+        flex-start;
+
+    flex-wrap:
+        wrap;
+
+    gap:
+        8px;
+
+    margin-top:
+        16px;
+
+    padding-top:
+        12px;
+
+    border-top:
+        1px solid #e0e6ea;
+}
+
+
+.provision-actions button,
+.provision-button-link {
+    display:
+        inline-flex;
+
+    align-items:
+        center;
+
+    justify-content:
+        center;
+
+    min-height:
+        34px;
+
+    padding:
+        6px 12px;
+
+    box-sizing:
+        border-box;
+
+    border-radius:
+        4px;
+
+    font-size:
+        11px;
+
+    text-decoration:
+        none;
+}
+
+
+.provision-secondary {
+    background:
+        #fff !important;
+
+    border:
+        1px solid #7d8b96 !important;
+
+    color:
+        #344451 !important;
+}
+
+
+.provision-button-link {
+    border:
+        1px solid #7d8b96;
+
+    background:
+        #fff;
+
+    color:
+        #344451;
+}
+
+
+.provision-button-link.disabled {
+    opacity:
+        0.45;
+
+    pointer-events:
+        none;
+}
+
+
+.provision-status {
+    margin-top:
+        8px;
+
+    color:
+        #687581;
+
+    font-size:
+        10px;
+
+    line-height:
+        1.3;
+}
+
+
+.provision-summary {
+    display:
+        grid;
+
+    grid-template-columns:
+        repeat(
+            4,
+            minmax(130px, 1fr)
+        );
+
+    gap:
+        10px;
+
+    margin-top:
+        14px;
+}
+
+
+.provision-summary[hidden] {
+    display:
+        none;
+}
+
+
+.provision-summary-item {
+    display:
+        flex;
+
+    flex-direction:
+        column;
+
+    padding:
+        10px 12px;
+
+    border:
+        1px solid #d9e1e6;
+
+    border-radius:
+        5px;
+
+    background:
+        #f8fafb;
+}
+
+
+.provision-summary-item strong {
+    font-size:
+        14px;
+
+    line-height:
+        1.2;
+}
+
+
+.provision-summary-item span {
+    margin-top:
+        3px;
+
+    color:
+        #687581;
+
+    font-size:
+        9px;
+}
+
+
+.provision-preview {
+    margin-top:
+        15px;
+
+    overflow:
+        hidden;
+
+    border:
+        1px solid #40515f;
+
+    border-radius:
+        6px;
+}
+
+
+.provision-preview[hidden] {
+    display:
+        none;
+}
+
+
+.provision-preview-header {
+    display:
+        flex;
+
+    align-items:
+        center;
+
+    justify-content:
+        space-between;
+
+    gap:
+        12px;
+
+    padding:
+        9px 12px;
+
+    background:
+        #f7f9fa;
+
+    border-bottom:
+        1px solid #dce4e9;
+
+    font-size:
+        11px;
+}
+
+
+.provision-preview-header
+> div {
+    display:
+        flex;
+
+    align-items:
+        center;
+
+    gap:
+        8px;
+}
+
+
+.provision-preview-header
+> span {
+    color:
+        #697681;
+
+    font-size:
+        9px;
+}
+
+
+#provision-preview-config {
+    width:
+        100%;
+
+    max-height:
+        560px;
+
+    overflow:
+        auto;
+
+    margin:
+        0;
+
+    padding:
+        15px 17px;
+
+    box-sizing:
+        border-box;
+
+    background:
+        #1f2b36;
+
+    color:
+        #f5f7f9;
+
+    white-space:
+        pre;
+
+    font-family:
+        ui-monospace,
+        SFMono-Regular,
+        Menlo,
+        Consolas,
+        monospace;
+
+    font-size:
+        12px;
+
+    line-height:
+        1.45;
+}
+
+
+@media (max-width: 1000px) {
+
+    .provision-form-grid {
+        grid-template-columns:
+            repeat(
+                2,
+                minmax(0, 1fr)
+            );
+    }
+
+    .provision-summary {
+        grid-template-columns:
+            repeat(
+                2,
+                minmax(0, 1fr)
+            );
+    }
+}
+
+
+@media (max-width: 700px) {
+
+    .provision-form-grid {
+        grid-template-columns:
+            1fr;
+    }
+
+    .provision-device-field {
+        grid-column:
+            auto;
+    }
+
+    .provision-summary {
+        grid-template-columns:
+            1fr;
+    }
+}
+
+</style>
+
+
+<script id="provision-switch-script">
+(function () {
+    "use strict";
+
+
+    const byId =
+        id =>
+            document.getElementById(
+                id
+            );
+
+
+    const deviceSelect =
+        byId(
+            "provision-device"
+        );
+
+    if (!deviceSelect) {
+        return;
+    }
+
+
+    const hostnameInput =
+        byId(
+            "provision-hostname"
+        );
+
+    const managementIpInput =
+        byId(
+            "provision-management-ip"
+        );
+
+    const managementMaskInput =
+        byId(
+            "provision-management-mask"
+        );
+
+    const gatewayInput =
+        byId(
+            "provision-default-gateway"
+        );
+
+    const uplinkSelect =
+        byId(
+            "provision-uplink"
+        );
+
+    const generateButton =
+        byId(
+            "provision-generate"
+        );
+
+    const viewButton =
+        byId(
+            "provision-view"
+        );
+
+    const adjustButton =
+        byId(
+            "provision-adjust"
+        );
+
+    const deployButton =
+        byId(
+            "provision-deploy"
+        );
+
+    const downloadButton =
+        byId(
+            "provision-download"
+        );
+
+    const regenerateButton =
+        byId(
+            "provision-regenerate"
+        );
+
+    const adjustPanel =
+        byId(
+            "provision-adjust-panel"
+        );
+
+    const diffPanel =
+        byId(
+            "provision-diff-panel"
+        );
+
+    const diffContent =
+        byId(
+            "provision-diff-content"
+        );
+
+    const overridesInput =
+        byId(
+            "provision-overrides"
+        );
+
+    const status =
+        byId(
+            "provision-status"
+        );
+
+    const summary =
+        byId(
+            "provision-summary"
+        );
+
+    const preview =
+        byId(
+            "provision-preview"
+        );
+
+    const previewName =
+        byId(
+            "provision-preview-name"
+        );
+
+    const previewConfig =
+        byId(
+            "provision-preview-config"
+        );
+
+
+    let candidateId =
+        null;
+
+
+    function setStatus(
+        message
+    ) {
+        status.textContent =
+            message;
+    }
+
+
+    function enabledSections() {
+        return [
+            ...adjustPanel.querySelectorAll(
+                'input[type="checkbox"]:checked'
+            ),
+        ].map(
+            checkbox =>
+                checkbox.value
+        );
+    }
+
+
+    function resetCandidate() {
+        candidateId =
+            null;
+
+        viewButton.disabled =
+            true;
+
+        adjustButton.disabled =
+            true;
+
+        deployButton.disabled =
+            true;
+
+        downloadButton.classList.add(
+            "disabled"
+        );
+
+        downloadButton.setAttribute(
+            "aria-disabled",
+            "true"
+        );
+
+        downloadButton.href =
+            "#";
+
+        summary.hidden =
+            true;
+
+        preview.hidden =
+            true;
+
+        adjustPanel.hidden =
+            true;
+
+        diffPanel.hidden =
+            true;
+
+        previewConfig.textContent =
+            "";
+
+        diffContent.textContent =
+            "";
+    }
+
+
+    function validateGenerateState() {
+        generateButton.disabled =
+            !(
+                deviceSelect.value
+                && hostnameInput.value.trim()
+                && managementIpInput.value.trim()
+                && managementMaskInput.value.trim()
+                && gatewayInput.value.trim()
+                && uplinkSelect.value
+            );
+    }
+
+
+    function activateCandidate(
+        data
+    ) {
+        candidateId =
+            data.candidate_id;
+
+
+        viewButton.disabled =
+            false;
+
+        adjustButton.disabled =
+            false;
+
+        deployButton.disabled =
+            false;
+
+
+        downloadButton.classList.remove(
+            "disabled"
+        );
+
+        downloadButton.removeAttribute(
+            "aria-disabled"
+        );
+
+        downloadButton.href =
+            (
+                "/api/provision/candidates/"
+                + candidateId
+                + "/download"
+            );
+    }
+
+
+    async function loadDevices() {
+        try {
+            const response =
+                await fetch(
+                    "/api/provision/devices"
+                );
+
+            const data =
+                await response.json();
+
+
+            deviceSelect.innerHTML =
+                '<option value="">'
+                + 'Selecione...'
+                + '</option>';
+
+
+            (
+                data.devices
+                || []
+            ).forEach(
+                device => {
+                    const option =
+                        document.createElement(
+                            "option"
+                        );
+
+                    option.value =
+                        device.id;
+
+                    option.textContent =
+                        (
+                            device.hostname
+                            || device.host
+                        )
+                        + " — "
+                        + device.host;
+
+                    option.dataset.hostname =
+                        device.hostname
+                        || "";
+
+                    deviceSelect.appendChild(
+                        option
+                    );
+                }
+            );
+
+
+            if (
+                !(
+                    data.devices
+                    || []
+                ).length
+            ) {
+                setStatus(
+                    "Nenhum equipamento gerenciável disponível."
+                );
+            }
+
+        } catch (error) {
+            setStatus(
+                error.message
+            );
+        }
+    }
+
+
+    async function analyzeDevice() {
+        resetCandidate();
+
+        uplinkSelect.disabled =
+            true;
+
+        uplinkSelect.innerHTML =
+            '<option value="">'
+            + 'Analisando inventário...'
+            + '</option>';
+
+
+        if (!deviceSelect.value) {
+            uplinkSelect.innerHTML =
+                '<option value="">'
+                + 'Selecione o equipamento primeiro'
+                + '</option>';
+
+            setStatus(
+                "Selecione um equipamento gerenciável."
+            );
+
+            validateGenerateState();
+
+            return;
+        }
+
+
+        const selected =
+            deviceSelect.options[
+                deviceSelect.selectedIndex
+            ];
+
+
+        if (
+            !hostnameInput.value.trim()
+            && selected.dataset.hostname
+        ) {
+            hostnameInput.value =
+                selected.dataset.hostname;
+        }
+
+
+        setStatus(
+            "Analisando switch e coletando inventário..."
+        );
+
+
+        try {
+            const response =
+                await fetch(
+                    "/api/provision/analyze",
+                    {
+                        method:
+                            "POST",
+
+                        headers: {
+                            "Content-Type":
+                                "application/json",
+                        },
+
+                        body:
+                            JSON.stringify(
+                                {
+                                    device_id:
+                                        deviceSelect.value,
+                                }
+                            ),
+                    }
+                );
+
+            const data =
+                await response.json();
+
+
+            if (!response.ok) {
+                throw new Error(
+                    data.error
+                    || "Falha na análise."
+                );
+            }
+
+
+            uplinkSelect.innerHTML =
+                '<option value="">'
+                + 'Selecione a porta de uplink...'
+                + '</option>';
+
+
+            (
+                data.interface_names
+                || []
+            ).forEach(
+                interfaceName => {
+                    const option =
+                        document.createElement(
+                            "option"
+                        );
+
+                    option.value =
+                        interfaceName;
+
+                    option.textContent =
+                        interfaceName;
+
+                    uplinkSelect.appendChild(
+                        option
+                    );
+                }
+            );
+
+
+            uplinkSelect.disabled =
+                false;
+
+
+            const provisionPort =
+                data.provision_port
+                || {};
+
+
+            if (!provisionPort.valid) {
+                uplinkSelect.disabled =
+                    true;
+
+                setStatus(
+                    (
+                        "Provision Port inválida: "
+                        + (
+                            provisionPort.errors
+                            || []
+                        ).join(
+                            " "
+                        )
+                    )
+                );
+
+                validateGenerateState();
+
+                return;
+            }
+
+
+            setStatus(
+                (
+                    `${data.interface_count} interface(s) `
+                    + `reais inventariada(s). `
+                    + `Provision Port: `
+                    + `${provisionPort.interface} — `
+                    + `${provisionPort.ip_address}/24 — `
+                    + `ROUTED — protegida.`
+                )
+            );
+
+
+        } catch (error) {
+            uplinkSelect.innerHTML =
+                '<option value="">'
+                + 'Falha ao carregar interfaces'
+                + '</option>';
+
+            setStatus(
+                error.message
+            );
+        }
+
+
+        validateGenerateState();
+    }
+
+
+    async function generateCandidate() {
+        resetCandidate();
+
+        generateButton.disabled =
+            true;
+
+        setStatus(
+            "Gerando Candidate Configuration..."
+        );
+
+
+        try {
+            const response =
+                await fetch(
+                    "/api/provision/generate",
+                    {
+                        method:
+                            "POST",
+
+                        headers: {
+                            "Content-Type":
+                                "application/json",
+                        },
+
+                        body:
+                            JSON.stringify(
+                                {
+                                    device_id:
+                                        deviceSelect.value,
+
+                                    hostname:
+                                        hostnameInput.value.trim(),
+
+                                    management_ip:
+                                        managementIpInput.value.trim(),
+
+                                    management_mask:
+                                        managementMaskInput.value.trim(),
+
+                                    default_gateway:
+                                        gatewayInput.value.trim(),
+
+                                    uplink_interface:
+                                        uplinkSelect.value,
+                                }
+                            ),
+                    }
+                );
+
+
+            const data =
+                await response.json();
+
+
+            if (!response.ok) {
+                throw new Error(
+                    data.error
+                    || "Falha ao gerar template."
+                );
+            }
+
+
+            activateCandidate(
+                data
+            );
+
+
+            byId(
+                "provision-summary-total"
+            ).textContent =
+                data.summary.interfaces;
+
+            byId(
+                "provision-summary-users"
+            ).textContent =
+                data.summary.user_ports;
+
+            byId(
+                "provision-summary-preserved"
+            ).textContent =
+                data.summary.preserved_ports;
+
+            byId(
+                "provision-summary-uplink"
+            ).textContent =
+                data.summary.uplink;
+
+
+            byId(
+                "provision-summary-provision-port"
+            ).textContent =
+                (
+                    data.summary.provision_port
+                    + " — "
+                    + data.summary.provision_ip
+                );
+
+
+            summary.hidden =
+                false;
+
+
+            previewName.textContent =
+                data.hostname
+                + " · "
+                + data.profile;
+
+            previewConfig.textContent =
+                data.config;
+
+
+            setStatus(
+                "Template gerado. "
+                + "Nenhum comando foi aplicado ao switch."
+            );
+
+
+        } catch (error) {
+            setStatus(
+                error.message
+            );
+
+
+        } finally {
+            validateGenerateState();
+        }
+    }
+
+
+    async function adjustCandidate() {
+        if (!candidateId) {
+            return;
+        }
+
+
+        regenerateButton.disabled =
+            true;
+
+        setStatus(
+            "Regenerando Candidate..."
+        );
+
+
+        try {
+            const response =
+                await fetch(
+                    (
+                        "/api/provision/candidates/"
+                        + candidateId
+                        + "/adjust"
+                    ),
+                    {
+                        method:
+                            "POST",
+
+                        headers: {
+                            "Content-Type":
+                                "application/json",
+                        },
+
+                        body:
+                            JSON.stringify(
+                                {
+                                    enabled_sections:
+                                        enabledSections(),
+
+                                    overrides:
+                                        overridesInput.value,
+                                }
+                            ),
+                    }
+                );
+
+
+            const data =
+                await response.json();
+
+
+            if (!response.ok) {
+                throw new Error(
+                    data.error
+                    || "Falha ao ajustar Candidate."
+                );
+            }
+
+
+            previewConfig.textContent =
+                data.config;
+
+            diffContent.textContent =
+                data.diff
+                || "Nenhuma diferença textual.";
+
+            preview.hidden =
+                false;
+
+
+            setStatus(
+                "Candidate regenerado. "
+                + "Nenhum comando foi aplicado."
+            );
+
+
+        } catch (error) {
+            setStatus(
+                error.message
+            );
+
+
+        } finally {
+            regenerateButton.disabled =
+                false;
+        }
+    }
+
+
+    async function showDiff() {
+        if (!candidateId) {
+            return;
+        }
+
+
+        try {
+            const response =
+                await fetch(
+                    (
+                        "/api/provision/candidates/"
+                        + candidateId
+                        + "/diff"
+                    )
+                );
+
+            const data =
+                await response.json();
+
+
+            if (!response.ok) {
+                throw new Error(
+                    data.error
+                    || "Falha ao gerar Diff."
+                );
+            }
+
+
+            diffContent.textContent =
+                data.diff
+                || "Nenhuma diferença textual.";
+
+            diffPanel.hidden =
+                false;
+
+
+            diffPanel.scrollIntoView(
+                {
+                    behavior:
+                        "smooth",
+
+                    block:
+                        "nearest",
+                }
+            );
+
+
+        } catch (error) {
+            setStatus(
+                error.message
+            );
+        }
+    }
+
+
+    async function deployCandidate() {
+        if (!candidateId) {
+            setStatus(
+                "Gere um Candidate antes do Deploy Config."
+            );
+
+            return;
+        }
+
+        const confirmed =
+            window.confirm(
+                "Aplicar este Candidate no equipamento?\n\n"
+                + "A running-config será alterada.\n"
+                + "A startup-config NÃO será salva."
+            );
+
+        if (!confirmed) {
+            return;
+        }
+
+        deployButton.disabled =
+            true;
+
+        const originalText =
+            deployButton.textContent;
+
+        deployButton.textContent =
+            "Aplicando...";
+
+        setStatus(
+            "Aplicando Candidate no equipamento..."
+        );
+
+        try {
+            const response =
+                await fetch(
+                    (
+                        "/api/provision/candidates/"
+                        + candidateId
+                        + "/deploy"
+                    ),
+                    {
+                        method:
+                            "POST",
+                    }
+                );
+
+            const data =
+                await response.json();
+
+            if (!response.ok) {
+                throw new Error(
+                    data.error
+                    || "Falha durante o Deploy Config."
+                );
+            }
+
+            setStatus(
+                "Deploy concluído. "
+                + data.blocks_sent
+                + " blocos / "
+                + data.commands_sent
+                + " comandos aplicados. "
+                + "Startup-config NÃO foi salva."
+            );
+
+        } catch (error) {
+            setStatus(
+                "Deploy falhou: "
+                + error.message
+            );
+
+        } finally {
+            deployButton.disabled =
+                false;
+
+            deployButton.textContent =
+                originalText;
+        }
+    }
+
+
+    deployButton.addEventListener(
+        "click",
+        deployCandidate
+    );
+
+
+    deviceSelect.addEventListener(
+        "change",
+        analyzeDevice
+    );
+
+
+    [
+        hostnameInput,
+        managementIpInput,
+        managementMaskInput,
+        gatewayInput,
+        uplinkSelect,
+    ].forEach(
+        element => {
+            element.addEventListener(
+                "input",
+                validateGenerateState
+            );
+
+            element.addEventListener(
+                "change",
+                validateGenerateState
+            );
+        }
+    );
+
+
+    generateButton.addEventListener(
+        "click",
+        generateCandidate
+    );
+
+
+    viewButton.addEventListener(
+        "click",
+        function () {
+            preview.hidden =
+                !preview.hidden;
+
+            if (!preview.hidden) {
+                preview.scrollIntoView(
+                    {
+                        behavior:
+                            "smooth",
+
+                        block:
+                            "nearest",
+                    }
+                );
+            }
+        }
+    );
+
+
+    adjustButton.addEventListener(
+        "click",
+        function () {
+            adjustPanel.hidden =
+                !adjustPanel.hidden;
+        }
+    );
+
+
+
+
+    regenerateButton.addEventListener(
+        "click",
+        adjustCandidate
+    );
+
+
+    loadDevices();
+
+})();
+</script>
+
+
+<style id="provision-inc3-style">
+
+.provision-adjust-panel {
+    margin-top:
+        15px;
+
+    padding:
+        14px;
+
+    box-sizing:
+        border-box;
+
+    border:
+        1px solid #d4dde3;
+
+    border-radius:
+        6px;
+
+    background:
+        #f9fbfc;
+}
+
+
+.provision-adjust-panel[hidden] {
+    display:
+        none;
+}
+
+
+.provision-subpanel-header {
+    margin-bottom:
+        12px;
+}
+
+
+.provision-subpanel-header
+> div {
+    display:
+        flex;
+
+    flex-direction:
+        column;
+
+    gap:
+        3px;
+}
+
+
+.provision-subpanel-header strong {
+    font-size:
+        13px;
+}
+
+
+.provision-subpanel-header span {
+    color:
+        #687581;
+
+    font-size:
+        10px;
+}
+
+
+.provision-sections {
+    display:
+        grid;
+
+    grid-template-columns:
+        repeat(
+            4,
+            minmax(150px, 1fr)
+        );
+
+    gap:
+        8px 12px;
+
+    padding:
+        10px 0 13px;
+
+    border-bottom:
+        1px solid #e0e6ea;
+}
+
+
+.provision-sections label {
+    display:
+        flex;
+
+    align-items:
+        center;
+
+    gap:
+        6px;
+
+    margin:
+        0;
+
+    font-size:
+        10px;
+
+    cursor:
+        pointer;
+}
+
+
+.provision-sections input {
+    width:
+        14px;
+
+    height:
+        14px;
+
+    margin:
+        0;
+}
+
+
+.provision-overrides {
+    margin-top:
+        12px;
+}
+
+
+.provision-overrides label {
+    display:
+        block;
+
+    margin-bottom:
+        5px;
+
+    font-size:
+        10px;
+
+    font-weight:
+        600;
+}
+
+
+#provision-overrides {
+    width:
+        100%;
+
+    min-height:
+        120px;
+
+    padding:
+        10px 12px;
+
+    box-sizing:
+        border-box;
+
+    resize:
+        vertical;
+
+    border:
+        1px solid #cbd5dc;
+
+    border-radius:
+        4px;
+
+    background:
+        #fff;
+
+    font-family:
+        ui-monospace,
+        SFMono-Regular,
+        Menlo,
+        Consolas,
+        monospace;
+
+    font-size:
+        11px;
+
+    line-height:
+        1.4;
+}
+
+
+.provision-adjust-actions {
+    display:
+        flex;
+
+    justify-content:
+        flex-start;
+
+    margin-top:
+        10px;
+}
+
+
+#provision-diff-content {
+    width:
+        100%;
+
+    max-height:
+        560px;
+
+    overflow:
+        auto;
+
+    margin:
+        0;
+
+    padding:
+        15px 17px;
+
+    box-sizing:
+        border-box;
+
+    background:
+        #1f2b36;
+
+    color:
+        #f5f7f9;
+
+    white-space:
+        pre;
+
+    font-family:
+        ui-monospace,
+        SFMono-Regular,
+        Menlo,
+        Consolas,
+        monospace;
+
+    font-size:
+        12px;
+
+    line-height:
+        1.45;
+}
+
+
+@media (max-width: 900px) {
+
+    .provision-sections {
+        grid-template-columns:
+            repeat(
+                2,
+                minmax(0, 1fr)
+            );
+    }
+}
+
+
+@media (max-width: 600px) {
+
+    .provision-sections {
+        grid-template-columns:
+            1fr;
+    }
+}
+
+</style>
+
 </body>
 </html>
 
@@ -21671,4 +23746,25 @@ details pre {
     }
 }
 
+</style>
+
+<style>
+/* PROVISION CARD ALIGNMENT */
+#provision-switch-card {
+    width: 100%;
+    max-width: none;
+    box-sizing: border-box;
+    align-self: stretch;
+    margin-left: 0;
+    margin-right: 0;
+}
+
+#provision-switch-card .provision-actions {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+#provision-switch-card .provision-deploy {
+    font-weight: 700;
+}
 </style>
