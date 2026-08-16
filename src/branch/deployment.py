@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from ipaddress import IPv4Network
 from pathlib import Path
 
 from src.branch.provisioning import (
@@ -87,7 +88,7 @@ def deploy_candidate(
     stage = "nautobot"
 
     try:
-        reservation = provisioner.reserve(branch_id=(candidate["branch_id"]))
+        reservation = provisioner.ensure_reserved(branch_id=(candidate["branch_id"]))
 
         reserved_plan = reservation["plan"]
 
@@ -103,6 +104,61 @@ def deploy_candidate(
         if exact != candidate_plan:
             raise RuntimeError(
                 "Plano reservado no Nautobot nao corresponde ao Candidate."
+            )
+
+        stage = "nautobot-vpn-inventory"
+
+        phase1 = candidate.get("phase1") or {}
+
+        phase2 = candidate.get("phase2") or {}
+
+        vpn_metadata = {
+            "ike_version": candidate.get(
+                "phase1_ike_version",
+                phase1.get(
+                    "ike_version",
+                    2,
+                ),
+            ),
+            "phase1_proposal": candidate.get(
+                "phase1_proposal",
+                phase1.get(
+                    "proposal",
+                    "des-sha256",
+                ),
+            ),
+            "phase1_dh": candidate.get(
+                "phase1_dh_group",
+                phase1.get(
+                    "dh_group",
+                    14,
+                ),
+            ),
+            "phase1_lifetime": 28800,
+            "phase2_proposal": candidate.get(
+                "phase2_proposal",
+                phase2.get(
+                    "proposal",
+                    "des-sha256",
+                ),
+            ),
+            "phase2_pfs": candidate.get(
+                "phase2_dh_group",
+                phase2.get(
+                    "dh_group",
+                    14,
+                ),
+            ),
+            "phase2_lifetime": 3600,
+        }
+
+        if hasattr(
+            provisioner,
+            "enrich_reservation",
+        ):
+            reservation = provisioner.enrich_reservation(
+                reservation,
+                vpn_metadata=vpn_metadata,
             )
 
         stage = "artifacts"
@@ -140,6 +196,29 @@ def deploy_candidate(
 
         fortigate.validate_configuration(expected_hostname=(candidate["hostname"]))
 
+        lan = IPv4Network(reserved_plan.lan_prefix)
+        vpn1 = IPv4Network(reserved_plan.vpn1_prefix)
+        vpn2 = IPv4Network(reserved_plan.vpn2_prefix)
+
+        lan_hosts = list(lan.hosts())
+        vpn1_hosts = list(vpn1.hosts())
+        vpn2_hosts = list(vpn2.hosts())
+
+        stage = "fortigate-operational-validation"
+
+        fortigate.validate_operational_state(
+            expected_lan_gateway=str(lan_hosts[-1]),
+            expected_loopback_ip=(reserved_plan.loopback_prefix.split("/")[0]),
+            expected_vpn1_fg_ip=str(vpn1_hosts[1]),
+            expected_vpn2_fg_ip=str(vpn2_hosts[1]),
+            expected_bgp_neighbors=(
+                str(vpn1_hosts[0]),
+                str(vpn2_hosts[0]),
+            ),
+            expected_dhcp_start=str(lan_hosts[0]),
+            expected_dhcp_end=str(lan_hosts[9]),
+        )
+
         return BranchDeploymentResult(
             branch_id=(candidate["branch_id"]),
             name=candidate["name"],
@@ -152,7 +231,9 @@ def deploy_candidate(
         )
 
     except Exception as exc:
-        if reservation is not None and not device_changed:
+        reservation_owned = reservation is not None and reservation.get("created", True)
+
+        if reservation_owned and not device_changed:
             try:
                 provisioner.release(reservation["objects"])
             except Exception:

@@ -46,6 +46,21 @@ end
 
 
 
+config system dhcp server
+    edit 2
+        set default-gateway {{ lan_gateway }}
+        set netmask 255.255.255.0
+        set interface "port4"
+        config ip-range
+            edit 1
+                set start-ip {{ dhcp_start }}
+                set end-ip {{ dhcp_end }}
+            next
+        end
+        set dns-server1 10.255.255.1
+    next
+end
+
 config firewall address
     edit "BRANCH-LAN"
         set subnet {{ lan_network }} 255.255.255.0

@@ -40,6 +40,8 @@ def generate_fortigate_branch_config(
             "hostname": hostname or plan.hostname,
             "lan_network": str(lan.network_address),
             "lan_gateway": str(lan_hosts[-1]),
+            "dhcp_start": str(lan_hosts[0]),
+            "dhcp_end": str(lan_hosts[9]),
             "loopback_ip": plan.loopback_prefix.split("/")[0],
             "wan1_ip": str(wan1.ip),
             "wan1_mask": str(wan1.netmask),

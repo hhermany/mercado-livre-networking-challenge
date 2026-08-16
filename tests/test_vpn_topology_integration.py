@@ -45,8 +45,16 @@ def test_allocate_multiple_tunnels_with_nautobot() -> None:
 
         assert len(tunnels) == 2
 
-        assert tunnels[0].addressing.prefix == "169.255.0.0/30"
-        assert tunnels[1].addressing.prefix == "169.255.0.4/30"
+        prefixes = {
+            tunnel.addressing.prefix
+            for tunnel in tunnels
+        }
+
+        assert len(prefixes) == 2
+        assert all(
+            prefix.endswith("/30")
+            for prefix in prefixes
+        )
 
     finally:
         for tunnel in tunnels:

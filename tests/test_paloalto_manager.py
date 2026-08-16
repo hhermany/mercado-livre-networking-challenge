@@ -124,3 +124,76 @@ def test_parse_ike_versions_fails_closed():
         assert "Nenhuma versao IKE" in str(exc)
     else:
         raise AssertionError("Parser deveria falhar sem versao IKE.")
+
+
+def test_apply_configuration_does_not_use_netmiko_commit_helper(
+    monkeypatch,
+):
+    import src.devices.paloalto_manager as module
+
+    calls = []
+
+    class FakeConnection:
+        def __enter__(self):
+            return self
+
+        def __exit__(
+            self,
+            exc_type,
+            exc_value,
+            traceback,
+        ):
+            return False
+
+        def config_mode(self):
+            return ""
+
+        def send_config_set(
+            self,
+            commands,
+            **kwargs,
+        ):
+            return ""
+
+        def commit(self, *args, **kwargs):
+            raise AssertionError("Netmiko commit() nao deve ser chamado.")
+
+        def send_command_timing(
+            self,
+            command,
+            **kwargs,
+        ):
+            calls.append(
+                (
+                    command,
+                    kwargs,
+                )
+            )
+
+            return "Commit job enqueued\nConfiguration committed successfully"
+
+        def check_config_mode(self):
+            return True
+
+        def exit_config_mode(self):
+            return ""
+
+    monkeypatch.setattr(
+        module,
+        "ConnectHandler",
+        lambda **kwargs: FakeConnection(),
+    )
+
+    manager = module.PaloAltoManager(
+        host="192.0.2.1",
+        username="admin",
+        password="password",
+    )
+
+    manager.apply_configuration("set network test value")
+
+    commits = [item for item in calls if item[0] == "commit"]
+
+    assert len(commits) == 1
+    assert commits[0][1]["read_timeout"] == 300
+    assert commits[0][1]["last_read"] == 10

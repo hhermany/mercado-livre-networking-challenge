@@ -188,21 +188,16 @@ class PaloAltoManager:
 
             self._assert_cli_success(output)
 
-            commit_method = getattr(
-                connection,
+            # Nao usar connection.commit() do Netmiko/PAN-OS.
+            # O helper espera o marcador literal "100%" e pode
+            # gerar ReadTimeout mesmo durante um commit valido.
+            commit_output = connection.send_command_timing(
                 "commit",
-                None,
+                read_timeout=300,
+                last_read=10,
+                strip_prompt=False,
+                strip_command=False,
             )
-
-            if callable(commit_method):
-                commit_output = commit_method()
-            else:
-                commit_output = connection.send_command_timing(
-                    "commit",
-                    read_timeout=180,
-                    strip_prompt=False,
-                    strip_command=False,
-                )
 
             self._assert_cli_success(commit_output)
 

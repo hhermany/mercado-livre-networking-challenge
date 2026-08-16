@@ -94,6 +94,17 @@ def test_provision_reserves_exact_candidate_plan(
         fake_create,
     )
 
+    monkeypatch.setattr(
+        provisioner,
+        "_create_overlay_inventory",
+        lambda plan, tunnel_number, prefix: {
+            "ip_addresses": [],
+            "vpns": [],
+            "vpn_endpoints": [],
+            "vpn_tunnels": [],
+        },
+    )
+
     plan = provisioner.provision(branch_id=5)
 
     assert plan.branch_id == 5

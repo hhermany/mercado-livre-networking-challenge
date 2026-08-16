@@ -21,7 +21,7 @@ class FakeDevice:
 class FakeProvisioner:
     released = False
 
-    def reserve(
+    def ensure_reserved(
         self,
         branch_id=None,
     ):
@@ -37,6 +37,7 @@ class FakeProvisioner:
                     "id": "two",
                 },
             ],
+            "created": True,
         }
 
     def release(
@@ -83,6 +84,23 @@ class FakeFG:
         expected_hostname=None,
     ):
         assert expected_hostname == "FW-BRANCH-2"
+
+        return True
+
+    def validate_operational_state(
+        self,
+        **kwargs,
+    ):
+        assert kwargs["expected_lan_gateway"] == "10.0.1.254"
+        assert kwargs["expected_loopback_ip"] == "172.31.255.2"
+        assert kwargs["expected_vpn1_fg_ip"] == "169.255.0.2"
+        assert kwargs["expected_vpn2_fg_ip"] == "169.255.0.6"
+        assert kwargs["expected_bgp_neighbors"] == (
+            "169.255.0.1",
+            "169.255.0.5",
+        )
+        assert kwargs["expected_dhcp_start"] == "10.0.1.1"
+        assert kwargs["expected_dhcp_end"] == "10.0.1.10"
 
         return True
 
@@ -170,3 +188,72 @@ def test_golden_cannot_be_target():
             paloalto_username="admin",
             paloalto_password="password",
         )
+
+
+def test_existing_reservation_is_not_released_on_pre_device_failure(
+    monkeypatch,
+    tmp_path,
+):
+    class ExistingProvisioner(FakeProvisioner):
+        released = False
+
+        def ensure_reserved(
+            self,
+            branch_id=None,
+        ):
+            plan = build_branch_plan(branch_id)
+
+            return {
+                "plan": plan,
+                "objects": {
+                    "prefixes": [],
+                },
+                "created": False,
+            }
+
+        def release(
+            self,
+            objects,
+        ):
+            type(self).released = True
+
+    class BrokenPA:
+        def __init__(
+            self,
+            **kwargs,
+        ):
+            pass
+
+        def apply_configuration(
+            self,
+            configuration,
+        ):
+            raise RuntimeError("simulated PA failure")
+
+    ExistingProvisioner.released = False
+
+    monkeypatch.setattr(
+        deployment,
+        "BranchProvisioner",
+        ExistingProvisioner,
+    )
+
+    monkeypatch.setattr(
+        deployment,
+        "PaloAltoManager",
+        BrokenPA,
+    )
+
+    with pytest.raises(
+        deployment.BranchDeploymentError,
+    ):
+        deployment.deploy_candidate(
+            candidate=candidate(),
+            device=FakeDevice(),
+            paloalto_host="192.0.2.1",
+            paloalto_username="admin",
+            paloalto_password="password",
+            output_root=str(tmp_path),
+        )
+
+    assert ExistingProvisioner.released is False

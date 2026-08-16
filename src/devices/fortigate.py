@@ -1,3 +1,6 @@
+import re
+import time
+
 from netmiko import ConnectHandler
 
 from src.devices.base import DeviceDriver
@@ -390,6 +393,215 @@ class FortiGateDriver(DeviceDriver):
             )
 
         return True
+
+    def validate_operational_state(
+        self,
+        *,
+        expected_lan_gateway,
+        expected_loopback_ip,
+        expected_vpn1_fg_ip,
+        expected_vpn2_fg_ip,
+        expected_bgp_neighbors,
+        expected_dhcp_start,
+        expected_dhcp_end,
+        expected_vpn_names=(
+            "VPN1-PA-DC",
+            "VPN2-PA-DC",
+        ),
+        expected_dc_prefix="10.255.255.0/24",
+        attempts=12,
+        interval=5,
+    ):
+        """
+        Valida convergencia operacional apos o Deploy.
+
+        Diferente de validate_configuration(), esta rotina
+        exige VPN, BGP e SD-WAN efetivamente operacionais.
+
+        Retry existe porque IKE/BGP podem levar alguns
+        segundos para convergir depois da configuracao.
+        """
+
+        if attempts < 1:
+            raise ValueError("attempts deve ser >= 1.")
+
+        vpn1_peer, vpn2_peer = expected_bgp_neighbors
+        vpn1_name, vpn2_name = expected_vpn_names
+
+        last_missing = []
+
+        with ConnectHandler(**self._connection_parameters()) as connection:
+            for attempt in range(
+                1,
+                attempts + 1,
+            ):
+                interfaces = connection.send_command(
+                    "show system interface",
+                    read_timeout=30,
+                )
+
+                dhcp = connection.send_command(
+                    "show system dhcp server",
+                    read_timeout=30,
+                )
+
+                vpn = connection.send_command(
+                    "get vpn ipsec tunnel summary",
+                    read_timeout=30,
+                )
+
+                bgp = connection.send_command(
+                    "get router info bgp summary",
+                    read_timeout=30,
+                )
+
+                routes = connection.send_command(
+                    "get router info routing-table all",
+                    read_timeout=30,
+                )
+
+                sdwan = connection.send_command(
+                    "diagnose sys sdwan health-check",
+                    read_timeout=30,
+                )
+
+                missing = []
+
+                interface_checks = (
+                    (
+                        "LAN gateway",
+                        (f"set ip {expected_lan_gateway} 255.255.255.0"),
+                    ),
+                    (
+                        "LO-MGMT",
+                        (f"set ip {expected_loopback_ip} 255.255.255.255"),
+                    ),
+                    (
+                        "VPN1 overlay IP",
+                        (f"set ip {expected_vpn1_fg_ip} 255.255.255.255"),
+                    ),
+                    (
+                        "VPN2 overlay IP",
+                        (f"set ip {expected_vpn2_fg_ip} 255.255.255.255"),
+                    ),
+                )
+
+                for name, marker_value in interface_checks:
+                    if marker_value not in interfaces:
+                        missing.append(name)
+
+                dhcp_checks = (
+                    (
+                        "DHCP interface port4",
+                        'set interface "port4"',
+                    ),
+                    (
+                        "DHCP gateway",
+                        (f"set default-gateway {expected_lan_gateway}"),
+                    ),
+                    (
+                        "DHCP start",
+                        (f"set start-ip {expected_dhcp_start}"),
+                    ),
+                    (
+                        "DHCP end",
+                        (f"set end-ip {expected_dhcp_end}"),
+                    ),
+                    (
+                        "DHCP DNS",
+                        "set dns-server1 10.255.255.1",
+                    ),
+                )
+
+                for name, marker_value in dhcp_checks:
+                    if marker_value not in dhcp:
+                        missing.append(name)
+
+                vpn_checks = (
+                    (
+                        "VPN1 IPsec UP",
+                        vpn1_name,
+                    ),
+                    (
+                        "VPN2 IPsec UP",
+                        vpn2_name,
+                    ),
+                )
+
+                for name, vpn_name in vpn_checks:
+                    pattern = (
+                        rf"'{re.escape(vpn_name)}'"
+                        r".*selectors\(total,up\):"
+                        r"\s*1/1"
+                    )
+
+                    if not re.search(
+                        pattern,
+                        vpn,
+                    ):
+                        missing.append(name)
+
+                for peer_name, peer_ip in (
+                    (
+                        "BGP VPN1 Established",
+                        vpn1_peer,
+                    ),
+                    (
+                        "BGP VPN2 Established",
+                        vpn2_peer,
+                    ),
+                ):
+                    peer_line = None
+
+                    for line in bgp.splitlines():
+                        if line.strip().startswith(peer_ip):
+                            peer_line = line
+                            break
+
+                    if peer_line is None:
+                        missing.append(peer_name)
+                        continue
+
+                    # FortiGate mostra PfxRcd numerico
+                    # quando o neighbor esta Established.
+                    if not re.search(
+                        r"\s+\d+\s*$",
+                        peer_line,
+                    ):
+                        missing.append(peer_name)
+
+                if expected_dc_prefix not in routes:
+                    missing.append("Rota DC via BGP")
+
+                if vpn1_name not in routes or vpn2_name not in routes:
+                    missing.append("ECMP DC VPN1/VPN2")
+
+                sdwan_checks = (
+                    (
+                        "SD-WAN VPN1 alive",
+                        (f"Seq(1 {vpn1_name}): state(alive)"),
+                    ),
+                    (
+                        "SD-WAN VPN2 alive",
+                        (f"Seq(2 {vpn2_name}): state(alive)"),
+                    ),
+                )
+
+                for name, marker_value in sdwan_checks:
+                    if marker_value not in sdwan:
+                        missing.append(name)
+
+                if not missing:
+                    return True
+
+                last_missing = missing
+
+                if attempt < attempts:
+                    time.sleep(interval)
+
+        raise RuntimeError(
+            "Post-validation operacional FortiGate falhou: " + ", ".join(last_missing)
+        )
 
 
 def discover_managed_fortigate(device):

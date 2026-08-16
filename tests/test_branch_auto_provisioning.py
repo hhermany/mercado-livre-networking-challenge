@@ -19,6 +19,17 @@ def test_provision_uses_next_branch_id(
         },
     )
 
+    monkeypatch.setattr(
+        provisioning.BranchProvisioner,
+        "_create_overlay_inventory",
+        lambda self, plan, tunnel_number, prefix: {
+            "ip_addresses": [],
+            "vpns": [],
+            "vpn_endpoints": [],
+            "vpn_tunnels": [],
+        },
+    )
+
     provisioner = provisioning.BranchProvisioner.__new__(provisioning.BranchProvisioner)
 
     plan = provisioner.provision()
