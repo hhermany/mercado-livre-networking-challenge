@@ -11,23 +11,9 @@ def build_candidate_diff(
     Nesta fase não representa intenção de remoção automática.
     Nenhum comando 'no ...' é derivado deste diff.
     """
-    running_lines = (
-        str(
-            running_config
-            or ""
-        )
-        .strip()
-        .splitlines()
-    )
+    running_lines = str(running_config or "").strip().splitlines()
 
-    candidate_lines = (
-        str(
-            candidate_config
-            or ""
-        )
-        .strip()
-        .splitlines()
-    )
+    candidate_lines = str(candidate_config or "").strip().splitlines()
 
     return "\n".join(
         unified_diff(

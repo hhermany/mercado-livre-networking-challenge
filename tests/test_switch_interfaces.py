@@ -158,9 +158,7 @@ def test_allows_admin_change_on_routed_port():
 
 
 def test_description_validation_does_not_depend_on_switchport_mode():
-    validate_interface_description(
-        "UPLINK ROUTED"
-    )
+    validate_interface_description("UPLINK ROUTED")
 
 
 def test_stp_capabilities_detect_rapid_pvst_and_edge():
@@ -172,14 +170,8 @@ def test_stp_capabilities_detect_rapid_pvst_and_edge():
     assert capabilities["stp_mode"] == "rapid-pvst"
     assert capabilities["portfast_supported"] is True
     assert capabilities["portfast_mode"] == "edge"
-    assert (
-        capabilities["portfast_enable_command"]
-        == "spanning-tree portfast edge"
-    )
-    assert (
-        capabilities["portfast_disable_command"]
-        == "spanning-tree portfast disable"
-    )
+    assert capabilities["portfast_enable_command"] == "spanning-tree portfast edge"
+    assert capabilities["portfast_disable_command"] == "spanning-tree portfast disable"
 
 
 def test_portfast_rejects_routed_interface():
@@ -286,7 +278,6 @@ def test_enrich_interfaces_with_voice_vlan():
     assert result[1]["voice_vlan_label"] == "--"
 
 
-
 def test_parse_interface_portfast():
     output = """\
 interface GigabitEthernet0/1
@@ -349,15 +340,11 @@ def test_enrich_interfaces_with_portfast():
 
 
 def test_normalize_interface_name_matches_cisco_long_and_short_names():
-    assert normalize_interface_name(
-        "Gi0/1"
-    ) == normalize_interface_name(
+    assert normalize_interface_name("Gi0/1") == normalize_interface_name(
         "GigabitEthernet0/1"
     )
 
-    assert normalize_interface_name(
-        "Gi1/0/24"
-    ) == normalize_interface_name(
+    assert normalize_interface_name("Gi1/0/24") == normalize_interface_name(
         "GigabitEthernet1/0/24"
     )
 
@@ -391,9 +378,7 @@ interface GigabitEthernet0/2
         },
     ]
 
-    portfast = parse_interface_portfast(
-        running_config
-    )
+    portfast = parse_interface_portfast(running_config)
 
     result = enrich_interfaces_with_portfast(
         interfaces,
@@ -444,17 +429,11 @@ Vl10                           up             up
 
     result = parse_interface_descriptions(output)
 
-    assert result[
-        normalize_interface_name("Gi0/1")
-    ] == "## HOST DE TESTES ##"
+    assert result[normalize_interface_name("Gi0/1")] == "## HOST DE TESTES ##"
 
-    assert result[
-        normalize_interface_name("Gi1/0")
-    ] == "UPLINK CORE PRINCIPAL"
+    assert result[normalize_interface_name("Gi1/0")] == "UPLINK CORE PRINCIPAL"
 
-    assert result[
-        normalize_interface_name("Gi0/2")
-    ] == ""
+    assert result[normalize_interface_name("Gi0/2")] == ""
 
 
 def test_enrich_interfaces_uses_description_command_as_source():
@@ -478,12 +457,8 @@ def test_enrich_interfaces_uses_description_command_as_source():
     ]
 
     descriptions = {
-        normalize_interface_name(
-            "GigabitEthernet0/1"
-        ): "## HOST DE TESTES ##",
-        normalize_interface_name(
-            "GigabitEthernet0/2"
-        ): "",
+        normalize_interface_name("GigabitEthernet0/1"): "## HOST DE TESTES ##",
+        normalize_interface_name("GigabitEthernet0/2"): "",
     }
 
     result = enrich_interfaces_with_descriptions(
@@ -491,10 +466,7 @@ def test_enrich_interfaces_uses_description_command_as_source():
         descriptions,
     )
 
-    assert (
-        result[0]["description"]
-        == "## HOST DE TESTES ##"
-    )
+    assert result[0]["description"] == "## HOST DE TESTES ##"
 
     assert result[1]["description"] == ""
 
@@ -511,13 +483,9 @@ Trunking VLANs Enabled: 10,20
 Pruning VLANs Enabled: 2-1001
 """
 
-    result = parse_switchport_details(
-        output
-    )
+    result = parse_switchport_details(output)
 
-    item = result[
-        normalize_interface_name("Po1")
-    ]
+    item = result[normalize_interface_name("Po1")]
 
     assert item["mode"] == "trunk"
     assert item["access_vlan"] is None
@@ -551,10 +519,7 @@ def test_enrich_interface_displays_trunk_vlans():
         details,
     )
 
-    assert (
-        result[0]["mode_label"]
-        == "TRUNK · VLANs 10,20"
-    )
+    assert result[0]["mode_label"] == "TRUNK · VLANs 10,20"
 
     assert result[0]["switchport_mode"] == "trunk"
 
@@ -585,10 +550,7 @@ def test_enrich_interface_displays_access_vlan():
         details,
     )
 
-    assert (
-        result[0]["mode_label"]
-        == "ACCESS · VLAN 10"
-    )
+    assert result[0]["mode_label"] == "ACCESS · VLAN 10"
 
 
 def test_parse_etherchannel_members():
@@ -598,9 +560,7 @@ Group  Port-channel  Protocol    Ports
 1      Po1(SD)       LACP        Gi1/2(D)    Gi1/3(D)
 """
 
-    result = parse_etherchannel_members(
-        output
-    )
+    result = parse_etherchannel_members(output)
 
     assert result == {
         normalize_interface_name("Gi1/2"): "Po1",

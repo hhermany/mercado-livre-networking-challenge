@@ -4,25 +4,47 @@ end
 
 config system interface
     edit "port2"
+        set vdom "root"
+        set alias "WAN1"
+        set ip {{ wan1_ip }} {{ wan1_mask }}
         unset allowaccess
+        set allowaccess ping
+        set type physical
+
+
     next
 
     edit "port3"
+        set vdom "root"
+        set alias "WAN2"
+        set ip {{ wan2_ip }} {{ wan2_mask }}
         unset allowaccess
+        set allowaccess ping
+        set type physical
+
+
     next
 
     edit "port4"
+        set vdom "root"
         set alias "{{ name }}_LAN"
         set ip {{ lan_gateway }} 255.255.255.0
         unset allowaccess
+        set allowaccess ping https http
+        set type physical
+
+
     next
 
     edit "LO-MGMT"
+        set vdom "root"
         set type loopback
         set ip {{ loopback_ip }} 255.255.255.255
-        set allowaccess ping http https ssh snmp
+        set allowaccess ping https ssh snmp http
     next
 end
+
+
 
 config firewall address
     edit "BRANCH-LAN"
@@ -39,34 +61,36 @@ config firewall address
 end
 
 config vpn ipsec phase1-interface
-    edit "VPN-PA-DC"
+    edit "VPN1-PA-DC"
+        set vdom "root"
         set interface "port2"
-        set ike-version 2
+        set ike-version {{ phase1_ike_version }}
         set keylife 28800
         set peertype any
         set net-device disable
-        set proposal des-sha256
-        set dhgrp 14
+        set proposal {{ phase1_proposal }}
+        set dhgrp {{ phase1_dh_group }}
         set remote-gw {{ dc_wan1_ip }}
-        set psksecret "{{ psk }}"
+        set psksecret "{{ phase1_psk }}"
     next
 
     edit "VPN2-PA-DC"
+        set vdom "root"
         set interface "port3"
-        set ike-version 2
+        set ike-version {{ phase1_ike_version }}
         set keylife 28800
         set peertype any
         set net-device disable
-        set proposal des-sha256
-        set dhgrp 14
+        set proposal {{ phase1_proposal }}
+        set dhgrp {{ phase1_dh_group }}
         set remote-gw {{ dc_wan2_ip }}
-        set psksecret "{{ psk }}"
+        set psksecret "{{ phase1_psk }}"
     next
 end
 
 config vpn ipsec phase2-interface
-    edit "VPN-PA-DC-P2"
-        set phase1name "VPN-PA-DC"
+    edit "VPN1-PA-DC-P2"
+        set phase1name "VPN1-PA-DC"
         set proposal des-sha256
         set dhgrp 14
         set keylifeseconds 3600
@@ -81,16 +105,60 @@ config vpn ipsec phase2-interface
 end
 
 config system interface
-    edit "VPN-PA-DC"
+    edit "VPN1-PA-DC"
+        set vdom "root"
         set ip {{ vpn1_branch_ip }} 255.255.255.255
+        set allowaccess ping https
+        set type tunnel
         set remote-ip {{ vpn1_dc_ip }} 255.255.255.252
-        unset allowaccess
+        set interface "port2"
     next
 
     edit "VPN2-PA-DC"
+        set vdom "root"
         set ip {{ vpn2_branch_ip }} 255.255.255.255
+        set allowaccess ping https
+        set type tunnel
         set remote-ip {{ vpn2_dc_ip }} 255.255.255.252
-        unset allowaccess
+        set interface "port3"
+    next
+end
+
+config router community-list
+    edit "COMM-VPN1-PREFER"
+        config rule
+            edit 1
+                set action permit
+                set match "65001:1"
+            next
+        end
+    next
+
+    edit "COMM-VPN2-PREFER"
+        config rule
+            edit 1
+                set action permit
+                set match "65001:2"
+            next
+        end
+    next
+
+    edit "COMM-VPN1-DEGRADED"
+        config rule
+            edit 1
+                set action permit
+                set match "65001:11"
+            next
+        end
+    next
+
+    edit "COMM-VPN2-DEGRADED"
+        config rule
+            edit 1
+                set action permit
+                set match "65001:12"
+            next
+        end
     next
 end
 
@@ -130,6 +198,7 @@ end
 
 config router bgp
     set as 65001
+    set ibgp-multipath enable
     set router-id {{ lan_gateway }}
 
     config neighbor
@@ -137,12 +206,16 @@ config router bgp
             set remote-as 65001
             set route-map-out "RM-OUT-VPN1"
             set route-map-out-preferable "RM-OUT-VPN1-PREF"
+            set advertisement-interval 1
+
         next
 
         edit "{{ vpn2_dc_ip }}"
             set remote-as 65001
             set route-map-out "RM-OUT-VPN2"
             set route-map-out-preferable "RM-OUT-VPN2-PREF"
+            set advertisement-interval 1
+
         next
     end
 
@@ -167,7 +240,7 @@ config system sdwan
 
     config members
         edit 1
-            set interface "VPN-PA-DC"
+            set interface "VPN1-PA-DC"
             set zone "VPN-DC"
         next
 
@@ -230,6 +303,16 @@ config system sdwan
     end
 end
 
+config firewall service group
+    edit "SERVICES-DC"
+        set member "PING" "DNS" "HTTP" "HTTPS" "FTP" "NTP" "SSH" "TRACEROUTE"
+    next
+
+    edit "SERVICES-MGMT"
+        set member "SSH" "RDP" "HTTPS" "HTTP" "SNMP" "TELNET" "TFTP" "TRACEROUTE" "VNC" "PING" "PING6"
+    next
+end
+
 config firewall policy
     edit 1
         set name "BRANCH-LAN-to-VPN-DC"
@@ -254,4 +337,17 @@ config firewall policy
         set service "SERVICES-MGMT"
         set logtraffic all
     next
+
+    edit 3
+        set name "DC-to-FG-MGMT"
+        set srcintf "VPN-DC"
+        set dstintf "LO-MGMT"
+        set action accept
+        set srcaddr "DC-SERVER-1"
+        set dstaddr "all"
+        set schedule "always"
+        set service "SERVICES-MGMT"
+        set logtraffic all
+    next
+
 end

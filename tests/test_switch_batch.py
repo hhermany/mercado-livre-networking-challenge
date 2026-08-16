@@ -51,10 +51,7 @@ def test_selects_inclusive_interface_range():
         end_interface="Gi0/3",
     )
 
-    assert [
-        item["name"]
-        for item in selected
-    ] == [
+    assert [item["name"] for item in selected] == [
         "Gi0/1",
         "Gi0/2",
         "Gi0/3",
@@ -79,10 +76,7 @@ def test_preserves_device_inventory_order():
         end_interface="Gi0/2",
     )
 
-    assert [
-        item["name"]
-        for item in selected
-    ] == [
+    assert [item["name"] for item in selected] == [
         "Gi0/0",
         "Gi0/1",
         "Gi0/2",
@@ -223,10 +217,7 @@ def test_selects_specific_non_contiguous_interfaces():
         ],
     )
 
-    assert [
-        item["name"]
-        for item in selected
-    ] == [
+    assert [item["name"] for item in selected] == [
         "Gi0/1",
         "Gi0/3",
     ]
@@ -242,10 +233,7 @@ def test_combines_range_and_specific_interfaces():
         end_interface="Gi0/2",
     )
 
-    assert [
-        item["name"]
-        for item in selected
-    ] == [
+    assert [item["name"] for item in selected] == [
         "Gi0/0",
         "Gi0/1",
         "Gi0/2",
@@ -264,10 +252,7 @@ def test_combined_selection_removes_duplicates():
         end_interface="Gi0/2",
     )
 
-    assert [
-        item["name"]
-        for item in selected
-    ] == [
+    assert [item["name"] for item in selected] == [
         "Gi0/0",
         "Gi0/1",
         "Gi0/2",
@@ -284,10 +269,7 @@ def test_combined_selection_preserves_inventory_order():
         ],
     )
 
-    assert [
-        item["name"]
-        for item in selected
-    ] == [
+    assert [item["name"] for item in selected] == [
         "Gi0/1",
         "Gi0/3",
     ]
@@ -357,7 +339,4 @@ def test_selection_preview_keeps_warnings():
 
     assert preview["has_warnings"] is True
 
-    assert (
-        "Interface Layer 3 (routed)"
-        in preview["interfaces"][0]["warnings"]
-    )
+    assert "Interface Layer 3 (routed)" in preview["interfaces"][0]["warnings"]

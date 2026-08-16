@@ -37,10 +37,7 @@ def parse_l3_interfaces(output):
         protocol = fields[-1]
         status = " ".join(fields[4:-1])
 
-        operational = (
-            status.lower() == "up"
-            and protocol.lower() == "up"
-        )
+        operational = status.lower() == "up" and protocol.lower() == "up"
 
         interfaces.append(
             {
@@ -49,23 +46,18 @@ def parse_l3_interfaces(output):
                 "status": status,
                 "protocol": protocol,
                 "operational": operational,
-                "label": (
-                    f"{interface} - {ip_address}"
-                ),
+                "label": (f"{interface} - {ip_address}"),
             }
         )
 
     return interfaces
 
 
-
 def _parse_ipv4(value):
     try:
         return IPv4Address(value.strip())
     except ValueError as exc:
-        raise ValueError(
-            f"Endereço IPv4 inválido: {value}"
-        ) from exc
+        raise ValueError(f"Endereço IPv4 inválido: {value}") from exc
 
 
 def _expand_ipv4_range(value):
@@ -75,17 +67,13 @@ def _expand_ipv4_range(value):
         return [str(_parse_ipv4(value))]
 
     if "-" in end_text:
-        raise ValueError(
-            f"Range IPv4 inválido: {value}"
-        )
+        raise ValueError(f"Range IPv4 inválido: {value}")
 
     start = _parse_ipv4(start_text)
     end = _parse_ipv4(end_text)
 
     if int(end) < int(start):
-        raise ValueError(
-            f"Range IPv4 invertido: {value}"
-        )
+        raise ValueError(f"Range IPv4 invertido: {value}")
 
     return [
         str(IPv4Address(address))
@@ -107,9 +95,7 @@ def split_targets_for_workers(
     dos lotes são concatenados posteriormente.
     """
     if workers < 1:
-        raise ValueError(
-            "A concorrência deve ser maior que zero."
-        )
+        raise ValueError("A concorrência deve ser maior que zero.")
 
     if not targets:
         return []
@@ -128,16 +114,11 @@ def split_targets_for_workers(
     start = 0
 
     for index in range(worker_count):
-        size = (
-            base_size
-            + (1 if index < remainder else 0)
-        )
+        size = base_size + (1 if index < remainder else 0)
 
         end = start + size
 
-        chunks.append(
-            targets[start:end]
-        )
+        chunks.append(targets[start:end])
 
         start = end
 
@@ -158,31 +139,18 @@ def parse_ipv4_targets(
     Remove duplicatas preservando a ordem.
     """
     if value is None or not value.strip():
-        raise ValueError(
-            "Informe pelo menos um destino."
-        )
+        raise ValueError("Informe pelo menos um destino.")
 
-    if (
-        max_targets is not None
-        and max_targets < 1
-    ):
-        raise ValueError(
-            "O limite de destinos deve ser maior que zero."
-        )
+    if max_targets is not None and max_targets < 1:
+        raise ValueError("O limite de destinos deve ser maior que zero.")
 
     targets = []
     seen = set()
 
-    entries = [
-        item.strip()
-        for item in value.split(",")
-        if item.strip()
-    ]
+    entries = [item.strip() for item in value.split(",") if item.strip()]
 
     if not entries:
-        raise ValueError(
-            "Informe pelo menos um destino."
-        )
+        raise ValueError("Informe pelo menos um destino.")
 
     for entry in entries:
         for target in _expand_ipv4_range(entry):
@@ -192,10 +160,7 @@ def parse_ipv4_targets(
             targets.append(target)
             seen.add(target)
 
-            if (
-                max_targets is not None
-                and len(targets) > max_targets
-            ):
+            if max_targets is not None and len(targets) > max_targets:
                 raise ValueError(
                     "Quantidade de destinos excede o limite "
                     f"de {max_targets} endereços."
@@ -209,15 +174,10 @@ def find_l3_interface_by_name(
     interface_name,
 ):
     for interface in interfaces:
-        if (
-            interface["name"].lower()
-            == interface_name.lower()
-        ):
+        if interface["name"].lower() == interface_name.lower():
             return interface
 
-    raise ValueError(
-        f"Interface L3 {interface_name} não encontrada."
-    )
+    raise ValueError(f"Interface L3 {interface_name} não encontrada.")
 
 
 def validate_source_interface(
@@ -231,8 +191,7 @@ def validate_source_interface(
 
     if not interface["operational"]:
         raise ValueError(
-            f"A interface L3 {interface['name']} "
-            "não está operacional (up/up)."
+            f"A interface L3 {interface['name']} não está operacional (up/up)."
         )
 
     return interface
@@ -258,11 +217,7 @@ def extract_traceroute_result(output):
         for index, line in enumerate(lines):
             stripped = line.strip()
 
-            if (
-                stripped
-                and stripped[0].isdigit()
-                and "Protocol [" not in stripped
-            ):
+            if stripped and stripped[0].isdigit() and "Protocol [" not in stripped:
                 start_index = index
                 break
 
@@ -323,19 +278,13 @@ def parse_ping_result(output):
             "rtt_max_ms": None,
         }
 
-    success_rate = int(
-        success_match.group(1)
-    )
+    success_rate = int(success_match.group(1))
 
     result = {
         "success": success_rate > 0,
         "success_rate": success_rate,
-        "received": int(
-            success_match.group(2)
-        ),
-        "sent": int(
-            success_match.group(3)
-        ),
+        "received": int(success_match.group(2)),
+        "sent": int(success_match.group(3)),
         "rtt_min_ms": None,
         "rtt_avg_ms": None,
         "rtt_max_ms": None,
@@ -344,15 +293,9 @@ def parse_ping_result(output):
     if rtt_match:
         result.update(
             {
-                "rtt_min_ms": int(
-                    rtt_match.group(1)
-                ),
-                "rtt_avg_ms": int(
-                    rtt_match.group(2)
-                ),
-                "rtt_max_ms": int(
-                    rtt_match.group(3)
-                ),
+                "rtt_min_ms": int(rtt_match.group(1)),
+                "rtt_avg_ms": int(rtt_match.group(2)),
+                "rtt_max_ms": int(rtt_match.group(3)),
             }
         )
 

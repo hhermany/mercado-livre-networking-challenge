@@ -33,7 +33,9 @@ def get_next_branch_id() -> int:
         if match:
             ids.add(int(match.group(1)))
 
-    branch_id = 1
+    # BRANCH-1 is the golden/reference branch.
+    # Automated onboarding starts at BRANCH-2.
+    branch_id = 2
 
     while branch_id in ids:
         branch_id += 1

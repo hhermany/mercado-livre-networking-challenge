@@ -5,9 +5,7 @@ from src.switch.provisioning.models import (
     InterfaceClassification,
 )
 
-PROVISION_NETWORK = ipaddress.ip_network(
-    "172.28.255.0/24"
-)
+PROVISION_NETWORK = ipaddress.ip_network("172.28.255.0/24")
 
 
 _PHYSICAL_INTERFACE_PATTERN = re.compile(
@@ -31,21 +29,12 @@ def _interface_name(
         interface,
         dict,
     ):
-        return str(
-            interface
-            or ""
-        ).strip()
+        return str(interface or "").strip()
 
     return str(
-        interface.get(
-            "interface"
-        )
-        or interface.get(
-            "name"
-        )
-        or interface.get(
-            "port"
-        )
+        interface.get("interface")
+        or interface.get("name")
+        or interface.get("port")
         or ""
     ).strip()
 
@@ -53,23 +42,13 @@ def _interface_name(
 def _normalized_text(
     value,
 ):
-    return str(
-        value
-        or ""
-    ).strip().lower()
+    return str(value or "").strip().lower()
 
 
 def _is_physical_interface(
     name,
 ):
-    return bool(
-        _PHYSICAL_INTERFACE_PATTERN.match(
-            str(
-                name
-                or ""
-            ).strip()
-        )
-    )
+    return bool(_PHYSICAL_INTERFACE_PATTERN.match(str(name or "").strip()))
 
 
 def _physical_sort_key(
@@ -88,8 +67,7 @@ def _physical_sort_key(
     """
     numbers = tuple(
         int(value)
-        for value
-        in re.findall(
+        for value in re.findall(
             r"\d+",
             name,
         )
@@ -108,37 +86,22 @@ def discover_provision_port(
     candidates = []
 
     for interface in interfaces:
-        name = _interface_name(
-            interface
-        )
+        name = _interface_name(interface)
 
         if not name:
             continue
 
-        if not _is_physical_interface(
-            name
-        ):
+        if not _is_physical_interface(name):
             continue
 
-        candidates.append(
-            interface
-        )
+        candidates.append(interface)
 
     if not candidates:
-        raise ValueError(
-            "Nenhuma interface física encontrada "
-            "para Provision Port."
-        )
+        raise ValueError("Nenhuma interface física encontrada para Provision Port.")
 
     return sorted(
         candidates,
-        key=lambda interface: (
-            _physical_sort_key(
-                _interface_name(
-                    interface
-                )
-            )
-        ),
+        key=lambda interface: _physical_sort_key(_interface_name(interface)),
     )[0]
 
 
@@ -174,17 +137,9 @@ def provision_port_ip(
 
         try:
             if "/" in value:
-                return str(
-                    ipaddress.ip_interface(
-                        value
-                    ).ip
-                )
+                return str(ipaddress.ip_interface(value).ip)
 
-            return str(
-                ipaddress.ip_address(
-                    value
-                )
-            )
+            return str(ipaddress.ip_address(value))
 
         except ValueError:
             continue
@@ -205,80 +160,41 @@ def validate_provision_port(
 
     Retorna dados estruturados para API/UX.
     """
-    name = _interface_name(
-        interface
-    )
+    name = _interface_name(interface)
 
     mode = _normalized_text(
-        interface.get(
-            "mode"
-        )
-        or interface.get(
-            "mode_label"
-        )
-        or interface.get(
-            "vlan"
-        )
+        interface.get("mode") or interface.get("mode_label") or interface.get("vlan")
     )
 
-    ip_address = provision_port_ip(
-        interface
-    )
+    ip_address = provision_port_ip(interface)
 
-    is_routed = (
-        "routed"
-        in mode
-    )
+    is_routed = "routed" in mode
 
     in_provision_network = False
 
     if ip_address:
         try:
-            in_provision_network = (
-                ipaddress.ip_address(
-                    ip_address
-                )
-                in PROVISION_NETWORK
-            )
+            in_provision_network = ipaddress.ip_address(ip_address) in PROVISION_NETWORK
         except ValueError:
             in_provision_network = False
 
     errors = []
 
     if not is_routed:
-        errors.append(
-            (
-                f"{name} não está em modo ROUTED."
-            )
-        )
+        errors.append((f"{name} não está em modo ROUTED."))
 
     if not ip_address:
-        errors.append(
-            (
-                f"{name} não possui IPv4 detectado."
-            )
-        )
+        errors.append((f"{name} não possui IPv4 detectado."))
 
     elif not in_provision_network:
-        errors.append(
-            (
-                f"{name} possui IP {ip_address}, "
-                "fora da rede 172.28.255.0/24."
-            )
-        )
+        errors.append((f"{name} possui IP {ip_address}, fora da rede 172.28.255.0/24."))
 
     return {
         "interface": name,
-        "mode": (
-            "ROUTED"
-            if is_routed
-            else mode.upper()
-        ),
+        "mode": ("ROUTED" if is_routed else mode.upper()),
         "ip_address": ip_address,
         "network": "172.28.255.0/24",
-        "valid": (
-            not errors
-        ),
+        "valid": (not errors),
         "errors": errors,
     }
 
@@ -298,83 +214,41 @@ def classify_interfaces(
 
     A Provision Port é sempre preservada.
     """
-    uplink_interface = str(
-        uplink_interface
-        or ""
-    ).strip()
+    uplink_interface = str(uplink_interface or "").strip()
 
     if not uplink_interface:
-        raise ValueError(
-            "Informe a interface de uplink."
-        )
+        raise ValueError("Informe a interface de uplink.")
 
     names = {
-        _interface_name(
-            interface
-        )
-        for interface
-        in interfaces
-        if _interface_name(
-            interface
-        )
+        _interface_name(interface)
+        for interface in interfaces
+        if _interface_name(interface)
     }
 
     if uplink_interface not in names:
         raise ValueError(
-            "A interface de uplink não existe "
-            "no inventário do equipamento."
+            "A interface de uplink não existe no inventário do equipamento."
         )
 
-    provision_interface = (
-        discover_provision_port(
-            interfaces
-        )
-    )
+    provision_interface = discover_provision_port(interfaces)
 
-    provision_validation = (
-        validate_provision_port(
-            provision_interface
-        )
-    )
+    provision_validation = validate_provision_port(provision_interface)
 
-    provision_name = (
-        provision_validation[
-            "interface"
-        ]
-    )
+    provision_name = provision_validation["interface"]
 
-    if not provision_validation[
-        "valid"
-    ]:
+    if not provision_validation["valid"]:
         raise ValueError(
-            (
-                "Provision Port inválida: "
-                + " ".join(
-                    provision_validation[
-                        "errors"
-                    ]
-                )
-            )
+            ("Provision Port inválida: " + " ".join(provision_validation["errors"]))
         )
 
-    if (
-        uplink_interface
-        == provision_name
-    ):
-        raise ValueError(
-            "A Provision Port não pode ser "
-            "utilizada como uplink."
-        )
+    if uplink_interface == provision_name:
+        raise ValueError("A Provision Port não pode ser utilizada como uplink.")
 
     user_ports = []
-    preserved_ports = [
-        provision_name
-    ]
+    preserved_ports = [provision_name]
 
     for interface in interfaces:
-        name = _interface_name(
-            interface
-        )
+        name = _interface_name(interface)
 
         if not name:
             continue
@@ -386,97 +260,52 @@ def classify_interfaces(
             continue
 
         mode = _normalized_text(
-            interface.get(
-                "mode"
-            )
-            or interface.get(
-                "mode_label"
-            )
-            or interface.get(
-                "vlan"
-            )
+            interface.get("mode")
+            or interface.get("mode_label")
+            or interface.get("vlan")
         )
 
-        port_channel = _normalized_text(
-            interface.get(
-                "port_channel"
-            )
-        )
+        port_channel = _normalized_text(interface.get("port_channel"))
 
-        etherchannel = _normalized_text(
-            interface.get(
-                "etherchannel"
-            )
-        )
+        etherchannel = _normalized_text(interface.get("etherchannel"))
 
-        lowered_name = (
-            name.lower()
-        )
+        lowered_name = name.lower()
 
-        is_port_channel = (
-            lowered_name.startswith(
-                "port-channel"
-            )
-            or lowered_name.startswith(
-                "po"
-            )
-        )
+        is_port_channel = lowered_name.startswith(
+            "port-channel"
+        ) or lowered_name.startswith("po")
 
-        is_routed = (
-            "routed"
-            in mode
-        )
+        is_routed = "routed" in mode
 
-        is_etherchannel_member = (
-            port_channel
-            not in {
-                "",
-                "-",
-                "none",
-                "não",
-                "nao",
-            }
-            or etherchannel
-            not in {
-                "",
-                "-",
-                "none",
-                "não",
-                "nao",
-            }
-        )
+        is_etherchannel_member = port_channel not in {
+            "",
+            "-",
+            "none",
+            "não",
+            "nao",
+        } or etherchannel not in {
+            "",
+            "-",
+            "none",
+            "não",
+            "nao",
+        }
 
         if (
-            not _is_physical_interface(
-                name
-            )
+            not _is_physical_interface(name)
             or is_port_channel
             or is_routed
             or is_etherchannel_member
         ):
-            preserved_ports.append(
-                name
-            )
+            preserved_ports.append(name)
             continue
 
-        user_ports.append(
-            name
-        )
+        user_ports.append(name)
 
     return InterfaceClassification(
         uplink=uplink_interface,
-        provision_port=(
-            provision_name
-        ),
-        provision_ip=(
-            provision_validation[
-                "ip_address"
-            ]
-        ),
+        provision_port=(provision_name),
+        provision_ip=(provision_validation["ip_address"]),
         user_ports=user_ports,
-        preserved_ports=list(
-            dict.fromkeys(
-                preserved_ports
-            )
-        ),
+        preserved_ports=list(dict.fromkeys(preserved_ports)),
     )

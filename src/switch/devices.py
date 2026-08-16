@@ -76,10 +76,7 @@ class DeviceManager:
 
     @property
     def persistent(self):
-        return (
-            self._database_path
-            is not None
-        )
+        return self._database_path is not None
 
     def enable_persistence(
         self,
@@ -87,13 +84,9 @@ class DeviceManager:
         database_path,
         key_path,
     ):
-        database_path = Path(
-            database_path
-        )
+        database_path = Path(database_path)
 
-        key_path = Path(
-            key_path
-        )
+        key_path = Path(key_path)
 
         database_path.parent.mkdir(
             parents=True,
@@ -105,15 +98,11 @@ class DeviceManager:
             exist_ok=True,
         )
 
-        self._database_path = (
-            database_path
-        )
+        self._database_path = database_path
 
         self._key_path = key_path
 
-        self._cipher = Fernet(
-            self._load_or_create_key()
-        )
+        self._cipher = Fernet(self._load_or_create_key())
 
         self._initialize_database()
         self._load_database()
@@ -126,9 +115,7 @@ class DeviceManager:
 
         key = Fernet.generate_key()
 
-        self._key_path.write_bytes(
-            key
-        )
+        self._key_path.write_bytes(key)
 
         try:
             os.chmod(
@@ -144,13 +131,9 @@ class DeviceManager:
         self,
     ):
         if self._database_path is None:
-            raise RuntimeError(
-                "Persistência não habilitada."
-            )
+            raise RuntimeError("Persistência não habilitada.")
 
-        return sqlite3.connect(
-            self._database_path
-        )
+        return sqlite3.connect(self._database_path)
 
     def _initialize_database(
         self,
@@ -176,42 +159,23 @@ class DeviceManager:
         value,
     ):
         if self._cipher is None:
-            raise RuntimeError(
-                "Cipher não inicializado."
-            )
+            raise RuntimeError("Cipher não inicializado.")
 
-        return self._cipher.encrypt(
-            (
-                value
-                or ""
-            ).encode(
-                "utf-8"
-            )
-        )
+        return self._cipher.encrypt((value or "").encode("utf-8"))
 
     def _decrypt(
         self,
         value,
     ):
         if self._cipher is None:
-            raise RuntimeError(
-                "Cipher não inicializado."
-            )
+            raise RuntimeError("Cipher não inicializado.")
 
         try:
-            return (
-                self._cipher.decrypt(
-                    value
-                )
-                .decode(
-                    "utf-8"
-                )
-            )
+            return self._cipher.decrypt(value).decode("utf-8")
 
         except InvalidToken as exc:
             raise RuntimeError(
-                "Não foi possível descriptografar "
-                "as credenciais persistidas."
+                "Não foi possível descriptografar as credenciais persistidas."
             ) from exc
 
     def _save_device(
@@ -249,12 +213,8 @@ class DeviceManager:
                     device.id,
                     device.host,
                     device.username,
-                    self._encrypt(
-                        device.password
-                    ),
-                    self._encrypt(
-                        device.secret
-                    ),
+                    self._encrypt(device.password),
+                    self._encrypt(device.secret),
                     device.hostname,
                     device.status,
                     device.error,
@@ -288,20 +248,14 @@ class DeviceManager:
                 id=row[0],
                 host=row[1],
                 username=row[2],
-                password=self._decrypt(
-                    row[3]
-                ),
-                secret=self._decrypt(
-                    row[4]
-                ),
+                password=self._decrypt(row[3]),
+                secret=self._decrypt(row[4]),
                 hostname=row[5],
                 status=row[6],
                 error=row[7],
             )
 
-            loaded[
-                device.id
-            ] = device
+            loaded[device.id] = device
 
         with self._lock:
             self._devices = loaded
@@ -314,38 +268,23 @@ class DeviceManager:
         password,
         secret="",
     ):
-        host = (
-            host
-            or ""
-        ).strip()
+        host = (host or "").strip()
 
-        username = (
-            username
-            or ""
-        ).strip()
+        username = (username or "").strip()
 
         if not host:
-            raise ValueError(
-                "Informe o IP ou hostname do equipamento."
-            )
+            raise ValueError("Informe o IP ou hostname do equipamento.")
 
         if not username:
-            raise ValueError(
-                "Informe o usuário SSH."
-            )
+            raise ValueError("Informe o usuário SSH.")
 
         if not password:
-            raise ValueError(
-                "Informe a senha SSH."
-            )
+            raise ValueError("Informe a senha SSH.")
 
         with self._lock:
             for device in self._devices.values():
                 if device.host == host:
-                    raise ValueError(
-                        f"O equipamento {host} "
-                        "já está cadastrado."
-                    )
+                    raise ValueError(f"O equipamento {host} já está cadastrado.")
 
             device = ManagedDevice(
                 id=str(uuid4()),
@@ -355,13 +294,9 @@ class DeviceManager:
                 secret=secret or "",
             )
 
-            self._devices[
-                device.id
-            ] = device
+            self._devices[device.id] = device
 
-        self._save_device(
-            device
-        )
+        self._save_device(device)
 
         return device
 
@@ -369,10 +304,7 @@ class DeviceManager:
         self,
         host,
     ):
-        host = (
-            host
-            or ""
-        ).strip()
+        host = (host or "").strip()
 
         with self._lock:
             for device in self._devices.values():
@@ -389,30 +321,18 @@ class DeviceManager:
         password,
         secret="",
     ):
-        host = (
-            host
-            or ""
-        ).strip()
+        host = (host or "").strip()
 
-        username = (
-            username
-            or ""
-        ).strip()
+        username = (username or "").strip()
 
         if not host:
-            raise ValueError(
-                "Informe o IP ou hostname do equipamento."
-            )
+            raise ValueError("Informe o IP ou hostname do equipamento.")
 
         if not username:
-            raise ValueError(
-                "Informe o usuário SSH."
-            )
+            raise ValueError("Informe o usuário SSH.")
 
         if not password:
-            raise ValueError(
-                "Informe a senha SSH."
-            )
+            raise ValueError("Informe a senha SSH.")
 
         with self._lock:
             existing = None
@@ -439,13 +359,9 @@ class DeviceManager:
                     secret=secret or "",
                 )
 
-                self._devices[
-                    device.id
-                ] = device
+                self._devices[device.id] = device
 
-        self._save_device(
-            device
-        )
+        self._save_device(device)
 
         return device
 
@@ -454,14 +370,10 @@ class DeviceManager:
         device_id,
     ):
         with self._lock:
-            device = self._devices.get(
-                device_id
-            )
+            device = self._devices.get(device_id)
 
         if device is None:
-            raise KeyError(
-                "Equipamento não encontrado."
-            )
+            raise KeyError("Equipamento não encontrado.")
 
         return device
 
@@ -476,9 +388,7 @@ class DeviceManager:
             )
 
         if device is None:
-            raise KeyError(
-                "Equipamento não encontrado."
-            )
+            raise KeyError("Equipamento não encontrado.")
 
         if self.persistent:
             with self._connect() as connection:
@@ -487,9 +397,7 @@ class DeviceManager:
                     DELETE FROM devices
                     WHERE id = ?
                     """,
-                    (
-                        device_id,
-                    ),
+                    (device_id,),
                 )
 
         return device
@@ -498,22 +406,15 @@ class DeviceManager:
         self,
     ):
         with self._lock:
-            devices = list(
-                self._devices.values()
-            )
+            devices = list(self._devices.values())
 
-        return [
-            device.public()
-            for device in devices
-        ]
+        return [device.public() for device in devices]
 
     def objects(
         self,
     ):
         with self._lock:
-            return list(
-                self._devices.values()
-            )
+            return list(self._devices.values())
 
     def clear(
         self,
@@ -523,9 +424,7 @@ class DeviceManager:
 
         if self.persistent:
             with self._connect() as connection:
-                connection.execute(
-                    "DELETE FROM devices"
-                )
+                connection.execute("DELETE FROM devices")
 
     def discover_many(
         self,
@@ -533,13 +432,7 @@ class DeviceManager:
         device_ids=None,
     ):
         if device_ids:
-            devices = [
-                self.get(
-                    device_id
-                )
-                for device_id
-                in device_ids
-            ]
+            devices = [self.get(device_id) for device_id in device_ids]
         else:
             devices = self.objects()
 
@@ -553,9 +446,7 @@ class DeviceManager:
 
         results = []
 
-        with ThreadPoolExecutor(
-            max_workers=workers
-        ) as executor:
+        with ThreadPoolExecutor(max_workers=workers) as executor:
             futures = {
                 executor.submit(
                     discover,
@@ -564,34 +455,22 @@ class DeviceManager:
                 for device in devices
             }
 
-            for future in as_completed(
-                futures
-            ):
-                device = futures[
-                    future
-                ]
+            for future in as_completed(futures):
+                device = futures[future]
 
                 try:
                     result = future.result()
 
-                    device.hostname = (
-                        result.get(
-                            "hostname"
-                        )
-                        or device.hostname
-                    )
+                    device.hostname = result.get("hostname") or device.hostname
 
                     device.status = "connected"
                     device.error = None
 
-                    self._save_device(
-                        device
-                    )
+                    self._save_device(device)
 
                     results.append(
                         {
-                            "device":
-                                device.public(),
+                            "device": device.public(),
                             "success": True,
                             **result,
                         }
@@ -601,14 +480,11 @@ class DeviceManager:
                     device.status = "error"
                     device.error = str(exc)
 
-                    self._save_device(
-                        device
-                    )
+                    self._save_device(device)
 
                     results.append(
                         {
-                            "device":
-                                device.public(),
+                            "device": device.public(),
                             "success": False,
                             "error": str(exc),
                             "interfaces": [],
@@ -617,11 +493,5 @@ class DeviceManager:
 
         return sorted(
             results,
-            key=lambda item: (
-                item[
-                    "device"
-                ][
-                    "host"
-                ]
-            ),
+            key=lambda item: item["device"]["host"],
         )

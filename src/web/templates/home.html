@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Networking Challenge</title>
+
+<style>
+:root {
+    --bg: #f4f6f8;
+    --card: #ffffff;
+    --border: #dfe3e8;
+    --text: #17202a;
+    --muted: #68737d;
+    --primary: #1769aa;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--text);
+    font-family: Inter, Arial, Helvetica, sans-serif;
+}
+
+.home-container {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 70px 24px;
+}
+
+.home-header {
+    margin-bottom: 32px;
+}
+
+.home-header h1 {
+    margin: 0;
+    font-size: 30px;
+}
+
+.home-header p {
+    margin: 8px 0 0;
+    color: var(--muted);
+}
+
+.module-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px;
+}
+
+.module-card {
+    display: flex;
+    flex-direction: column;
+    min-height: 240px;
+    padding: 28px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    text-decoration: none;
+    color: var(--text);
+    transition:
+        transform 0.15s ease,
+        box-shadow 0.15s ease,
+        border-color 0.15s ease;
+}
+
+.module-card:hover {
+    transform: translateY(-2px);
+    border-color: #b9c5cf;
+    box-shadow: 0 8px 24px rgba(23, 32, 42, 0.08);
+}
+
+.module-card h2 {
+    margin: 0 0 12px;
+    font-size: 21px;
+}
+
+.module-card p {
+    margin: 0;
+    color: var(--muted);
+    line-height: 1.5;
+}
+
+.module-action {
+    margin-top: auto;
+    padding-top: 28px;
+    color: var(--primary);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+@media (max-width: 760px) {
+    .module-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+</head>
+
+<body>
+<div class="home-container">
+
+    <header class="home-header">
+        <h1>Networking Challenge</h1>
+        <p>
+            Selecione o módulo de automação.
+        </p>
+    </header>
+
+    <main class="module-grid">
+
+        <a
+            class="module-card"
+            href="/switches"
+            id="home-switches"
+        >
+            <h2>Multi Switch</h2>
+
+            <p>
+                Gerenciamento, configuração, troubleshooting
+                e provisionamento de switches.
+            </p>
+
+            <span class="module-action">
+                Acessar Multi Switch →
+            </span>
+        </a>
+
+        <a
+            class="module-card"
+            href="/firewalls"
+            id="home-firewalls"
+        >
+            <h2>Firewall Deployment</h2>
+
+            <p>
+                Provisionamento de firewalls, Branch e Matriz,
+                integrado ao IPAM.
+            </p>
+
+            <span class="module-action">
+                Acessar Firewall Deployment →
+            </span>
+        </a>
+
+    </main>
+
+</div>
+</body>
+</html>

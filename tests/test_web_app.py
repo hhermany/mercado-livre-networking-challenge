@@ -85,7 +85,7 @@ def test_get_index_is_clean(monkeypatch):
 
     client = web_app.app.test_client()
 
-    response = client.get("/")
+    response = client.get("/switches")
 
     assert response.status_code == 200
     assert b"SUCESSO" not in response.data
@@ -97,7 +97,7 @@ def test_index_shows_switch_interfaces(monkeypatch):
 
     client = web_app.app.test_client()
 
-    response = client.get("/")
+    response = client.get("/switches")
 
     assert response.status_code == 200
     assert b"Gi0/0" in response.data
@@ -375,7 +375,7 @@ def test_inventory_failure_does_not_crash_get(monkeypatch):
 
     client = web_app.app.test_client()
 
-    response = client.get("/")
+    response = client.get("/switches")
 
     assert response.status_code == 200
     assert b"SSH indispon\xc3\xadvel" in response.data
@@ -568,7 +568,7 @@ def test_index_shows_current_vlans_before_apply(monkeypatch):
     configure_test_environment(monkeypatch)
 
     client = web_app.app.test_client()
-    response = client.get("/")
+    response = client.get("/switches")
 
     assert response.status_code == 200
     assert b"VLANs atuais" in response.data
@@ -580,7 +580,7 @@ def test_index_has_single_description_controls(monkeypatch):
     configure_test_environment(monkeypatch)
 
     client = web_app.app.test_client()
-    response = client.get("/")
+    response = client.get("/switches")
 
     html = response.data.decode()
 
@@ -596,7 +596,7 @@ def test_index_has_three_vlan_rows_without_numbered_labels(monkeypatch):
     configure_test_environment(monkeypatch)
 
     client = web_app.app.test_client()
-    response = client.get("/")
+    response = client.get("/switches")
 
     html = response.data.decode()
 
@@ -610,7 +610,7 @@ def test_interface_inventory_precedes_port_configuration(monkeypatch):
     configure_test_environment(monkeypatch)
 
     client = web_app.app.test_client()
-    response = client.get("/")
+    response = client.get("/switches")
 
     html = response.data.decode()
 
@@ -657,7 +657,7 @@ def test_index_shows_batch_configuration(monkeypatch):
     configure_test_environment(monkeypatch)
 
     client = web_app.app.test_client()
-    response = client.get("/")
+    response = client.get("/switches")
 
     assert response.status_code == 200
     assert b"Configura\xc3\xa7\xc3\xa3o de Portas" in response.data
@@ -1002,7 +1002,7 @@ def test_index_has_one_port_configuration_area(
     configure_test_environment(monkeypatch)
 
     client = web_app.app.test_client()
-    response = client.get("/")
+    response = client.get("/switches")
 
     html = response.data.decode()
 
@@ -1210,7 +1210,7 @@ def test_index_shows_detected_portfast_capability(
     configure_test_environment(monkeypatch)
 
     client = web_app.app.test_client()
-    response = client.get("/")
+    response = client.get("/switches")
 
     html = response.data.decode()
 
@@ -1315,7 +1315,7 @@ def test_interface_inventory_contains_port_selection(
     configure_test_environment(monkeypatch)
 
     client = web_app.app.test_client()
-    response = client.get("/")
+    response = client.get("/switches")
 
     html = response.data.decode()
 
@@ -1336,7 +1336,7 @@ def test_port_configuration_does_not_duplicate_interface_grid(
     configure_test_environment(monkeypatch)
 
     client = web_app.app.test_client()
-    response = client.get("/")
+    response = client.get("/switches")
 
     html = response.data.decode()
 
@@ -1352,7 +1352,7 @@ def test_port_configuration_uses_two_step_workflow(
     configure_test_environment(monkeypatch)
 
     client = web_app.app.test_client()
-    response = client.get("/")
+    response = client.get("/switches")
 
     html = response.data.decode()
 
@@ -1369,7 +1369,7 @@ def test_port_apply_button_starts_disabled(
     configure_test_environment(monkeypatch)
 
     client = web_app.app.test_client()
-    response = client.get("/")
+    response = client.get("/switches")
 
     html = response.data.decode()
 
@@ -1383,7 +1383,7 @@ def test_interface_checkbox_is_next_to_interface_name(
     configure_test_environment(monkeypatch)
 
     client = web_app.app.test_client()
-    response = client.get("/")
+    response = client.get("/switches")
 
     html = response.data.decode()
 
@@ -1397,7 +1397,7 @@ def test_interface_inventory_shows_voice_vlan_column(
     configure_test_environment(monkeypatch)
 
     client = web_app.app.test_client()
-    response = client.get("/")
+    response = client.get("/switches")
 
     html = response.data.decode()
 
@@ -1410,7 +1410,7 @@ def test_interface_inventory_shows_portfast_column(
     configure_test_environment(monkeypatch)
 
     client = web_app.app.test_client()
-    response = client.get("/")
+    response = client.get("/switches")
 
     html = response.data.decode()
 
@@ -1423,7 +1423,7 @@ def test_interface_description_empty_uses_double_dash(
     configure_test_environment(monkeypatch)
 
     client = web_app.app.test_client()
-    response = client.get("/")
+    response = client.get("/switches")
 
     html = response.data.decode()
 
@@ -1436,7 +1436,7 @@ def test_index_shows_troubleshooting_section(
     configure_test_environment(monkeypatch)
 
     client = web_app.app.test_client()
-    response = client.get("/")
+    response = client.get("/switches")
 
     html = response.data.decode()
 
@@ -1630,7 +1630,7 @@ def test_troubleshooting_ping_has_advanced_options(
     configure_test_environment(monkeypatch)
 
     client = web_app.app.test_client()
-    response = client.get("/")
+    response = client.get("/switches")
 
     html = response.data.decode()
 
@@ -1646,7 +1646,7 @@ def test_troubleshooting_traceroute_has_advanced_options(
     configure_test_environment(monkeypatch)
 
     client = web_app.app.test_client()
-    response = client.get("/")
+    response = client.get("/switches")
 
     html = response.data.decode()
 
@@ -1661,7 +1661,7 @@ def test_troubleshooting_ping_repeat_is_numeric_input(
     configure_test_environment(monkeypatch)
 
     client = web_app.app.test_client()
-    response = client.get("/")
+    response = client.get("/switches")
 
     html = response.data.decode()
 
@@ -1678,7 +1678,7 @@ def test_ping_ui_shows_all_operational_options(
     configure_test_environment(monkeypatch)
 
     client = web_app.app.test_client()
-    response = client.get("/")
+    response = client.get("/switches")
 
     html = response.data.decode()
 
@@ -1697,7 +1697,7 @@ def test_traceroute_ui_shows_probe_count(
     configure_test_environment(monkeypatch)
 
     client = web_app.app.test_client()
-    response = client.get("/")
+    response = client.get("/switches")
 
     html = response.data.decode()
 
@@ -1711,7 +1711,7 @@ def test_ui_has_no_svi_troubleshooting_wording(
     configure_test_environment(monkeypatch)
 
     client = web_app.app.test_client()
-    response = client.get("/")
+    response = client.get("/switches")
 
     html = response.data.decode()
 
@@ -1725,7 +1725,7 @@ def test_ping_ui_has_concurrency_control(
     configure_test_environment(monkeypatch)
 
     client = web_app.app.test_client()
-    response = client.get("/")
+    response = client.get("/switches")
 
     html = response.data.decode()
 
@@ -1741,7 +1741,7 @@ def test_traceroute_ui_has_probe_count(
     configure_test_environment(monkeypatch)
 
     client = web_app.app.test_client()
-    response = client.get("/")
+    response = client.get("/switches")
 
     html = response.data.decode()
 
@@ -1755,7 +1755,7 @@ def test_ping_result_has_no_raw_cisco_output_control(
     configure_test_environment(monkeypatch)
 
     client = web_app.app.test_client()
-    response = client.get("/")
+    response = client.get("/switches")
 
     html = response.data.decode()
 
@@ -1768,7 +1768,7 @@ def test_traceroute_result_has_no_raw_terminal_control(
     configure_test_environment(monkeypatch)
 
     client = web_app.app.test_client()
-    response = client.get("/")
+    response = client.get("/switches")
 
     html = response.data.decode()
 
@@ -1781,7 +1781,7 @@ def test_ping_uses_parallelism_wording(
     configure_test_environment(monkeypatch)
 
     client = web_app.app.test_client()
-    response = client.get("/")
+    response = client.get("/switches")
 
     html = response.data.decode()
 
@@ -1796,7 +1796,7 @@ def test_interface_inventory_has_mode_vlan_and_port_channel_columns(
 
     client = web_app.app.test_client()
 
-    response = client.get("/")
+    response = client.get("/switches")
 
     html = response.data.decode()
 
@@ -1885,7 +1885,7 @@ def test_index_shows_configuration_management(
     configure_test_environment(monkeypatch)
 
     client = web_app.app.test_client()
-    response = client.get("/")
+    response = client.get("/switches")
 
     html = response.data.decode()
 
@@ -2037,7 +2037,7 @@ def test_configuration_page_has_backup_button(
 
     client = web_app.app.test_client()
 
-    response = client.get("/")
+    response = client.get("/switches")
 
     html = response.data.decode()
 
@@ -2055,7 +2055,7 @@ def test_configuration_download_uses_single_selector(
 
     client = web_app.app.test_client()
 
-    response = client.get("/")
+    response = client.get("/switches")
 
     html = response.data.decode()
 
@@ -2079,7 +2079,7 @@ def test_backup_has_explanatory_text(
 
     client = web_app.app.test_client()
 
-    response = client.get("/")
+    response = client.get("/switches")
 
     html = response.data.decode()
 
@@ -2137,7 +2137,7 @@ def test_backup_ui_offers_local_and_ftp(
 
     client = web_app.app.test_client()
 
-    response = client.get("/")
+    response = client.get("/switches")
 
     html = response.data.decode()
 
@@ -2213,7 +2213,7 @@ def test_backup_ui_offers_sftp(
 
     client = web_app.app.test_client()
 
-    response = client.get("/")
+    response = client.get("/switches")
 
     html = response.data.decode()
 
@@ -2282,7 +2282,7 @@ def test_backup_ui_offers_tftp(
 
     client = web_app.app.test_client()
 
-    response = client.get("/")
+    response = client.get("/switches")
 
     html = response.data.decode()
 
@@ -2342,7 +2342,7 @@ def test_web_has_clear_divergence_feedback(
 
     client = web_app.app.test_client()
 
-    response = client.get("/")
+    response = client.get("/switches")
 
     html = response.data.decode().lower()
 
@@ -2356,7 +2356,7 @@ def test_multi_device_ui_is_available(
 
     client = web_app.app.test_client()
 
-    response = client.get("/")
+    response = client.get("/switches")
 
     html = response.data.decode()
 
@@ -2521,7 +2521,7 @@ def test_initial_page_does_not_access_any_switch(
     web_app.app.testing = False
 
     try:
-        response = web_app.app.test_client().get("/")
+        response = web_app.app.test_client().get("/switches")
 
     finally:
         web_app.app.testing = previous
@@ -2563,7 +2563,7 @@ def test_selected_device_controls_inventory(
         fake_inventory,
     )
 
-    response = web_app.app.test_client().get(f"/?device_id={device.id}")
+    response = web_app.app.test_client().get(f"/switches?device_id={device.id}")
 
     assert response.status_code == 200
 
@@ -2701,7 +2701,7 @@ def test_multi_switch_workspace_ui_exists(
 ):
     configure_test_environment(monkeypatch)
 
-    response = web_app.app.test_client().get("/")
+    response = web_app.app.test_client().get("/switches")
 
     html = response.data.decode()
 
@@ -2717,7 +2717,7 @@ def test_multi_device_cards_have_direct_selection(
 ):
     configure_test_environment(monkeypatch)
 
-    response = web_app.app.test_client().get("/")
+    response = web_app.app.test_client().get("/switches")
 
     html = response.data.decode()
 
@@ -2820,7 +2820,7 @@ def test_multi_switch_configuration_ui_is_real(
 ):
     configure_test_environment(monkeypatch)
 
-    response = web_app.app.test_client().get("/")
+    response = web_app.app.test_client().get("/switches")
 
     html = response.data.decode()
 
@@ -2920,7 +2920,7 @@ def test_multi_switch_preserves_operational_interface_features(
 ):
     configure_test_environment(monkeypatch)
 
-    response = web_app.app.test_client().get("/")
+    response = web_app.app.test_client().get("/switches")
 
     html = response.data.decode()
 
@@ -2942,7 +2942,7 @@ def test_multi_switch_uses_single_management_button(
 ):
     configure_test_environment(monkeypatch)
 
-    response = web_app.app.test_client().get("/")
+    response = web_app.app.test_client().get("/switches")
 
     html = response.data.decode()
 
@@ -2958,7 +2958,7 @@ def test_multi_general_configuration_ui_is_present(
 ):
     configure_test_environment(monkeypatch)
 
-    response = web_app.app.test_client().get("/")
+    response = web_app.app.test_client().get("/switches")
 
     html = response.data.decode()
 
@@ -2997,7 +2997,7 @@ def test_multi_configuration_management_ui_exists(
 ):
     configure_test_environment(monkeypatch)
 
-    response = web_app.app.test_client().get("/")
+    response = web_app.app.test_client().get("/switches")
 
     html = response.data.decode()
 
@@ -3069,7 +3069,7 @@ def test_multi_troubleshooting_ui_exists(
 ):
     configure_test_environment(monkeypatch)
 
-    response = web_app.app.test_client().get("/")
+    response = web_app.app.test_client().get("/switches")
 
     html = response.data.decode()
 
@@ -3130,7 +3130,7 @@ def test_multi_interface_quick_actions_ui_exists(
 ):
     configure_test_environment(monkeypatch)
 
-    response = web_app.app.test_client().get("/")
+    response = web_app.app.test_client().get("/switches")
 
     html = response.data.decode()
 
@@ -3251,7 +3251,7 @@ def test_provision_ui_exists(
 ):
     configure_test_environment(monkeypatch)
 
-    response = web_app.app.test_client().get("/")
+    response = web_app.app.test_client().get("/switches")
 
     html = response.data.decode()
 
@@ -3455,7 +3455,7 @@ def test_provision_ui_has_adjust_and_diff(
 ):
     configure_test_environment(monkeypatch)
 
-    response = web_app.app.test_client().get("/")
+    response = web_app.app.test_client().get("/switches")
 
     html = response.data.decode()
 

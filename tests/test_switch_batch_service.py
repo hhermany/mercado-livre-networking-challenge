@@ -26,24 +26,17 @@ class FakeBatchCiscoSwitch:
             ]
 
             if access_vlan is not None:
-                state_lines.append(
-                    f"Access Mode VLAN: {access_vlan}"
-                )
+                state_lines.append(f"Access Mode VLAN: {access_vlan}")
 
             if voice_vlan is not None:
-                state_lines.append(
-                    f"Voice VLAN: {voice_vlan}"
-                )
+                state_lines.append(f"Voice VLAN: {voice_vlan}")
 
             if remove_voice_vlan:
-                state_lines.append(
-                    "Voice VLAN: none"
-                )
+                state_lines.append("Voice VLAN: none")
 
             if admin_state == "down":
                 state_lines[-1] = (
-                    "GigabitEthernet0/1 is administratively down, "
-                    "line protocol is down"
+                    "GigabitEthernet0/1 is administratively down, line protocol is down"
                 )
 
             running_lines = [
@@ -51,39 +44,25 @@ class FakeBatchCiscoSwitch:
             ]
 
             if description is not None:
-                running_lines.append(
-                    f"description {description}"
-                )
+                running_lines.append(f"description {description}")
 
             if portfast_state == "enable":
-                running_lines.append(
-                    "spanning-tree portfast edge"
-                )
+                running_lines.append("spanning-tree portfast edge")
 
             if portfast_state == "disable":
-                running_lines.append(
-                    "spanning-tree portfast disable"
-                )
+                running_lines.append("spanning-tree portfast disable")
 
             stp_detail = ""
 
             if portfast_state == "enable":
-                stp_detail = (
-                    "The port is in the portfast edge mode"
-                )
+                stp_detail = "The port is in the portfast edge mode"
 
             if portfast_state == "disable":
-                stp_detail = (
-                    "Link type is point-to-point by default"
-                )
+                stp_detail = "Link type is point-to-point by default"
 
             validation[interface] = {
-                "interface_state": "\n".join(
-                    state_lines
-                ),
-                "running_config": "\n".join(
-                    running_lines
-                ),
+                "interface_state": "\n".join(state_lines),
+                "running_config": "\n".join(running_lines),
                 "stp_detail": stp_detail,
             }
 
@@ -98,9 +77,7 @@ def fake_backup(monkeypatch, tmp_path):
     monkeypatch.setattr(
         service,
         "save_backup",
-        lambda hostname, config: (
-            tmp_path / "backup.cfg"
-        ),
+        lambda hostname, config: tmp_path / "backup.cfg",
     )
 
 
@@ -138,9 +115,7 @@ def test_batch_configures_multiple_interfaces(
         "Gi0/1",
         "Gi0/3",
     ]
-    assert len(
-        result["interface_results"]
-    ) == 2
+    assert len(result["interface_results"]) == 2
 
 
 def test_batch_allows_remove_operations(
@@ -183,14 +158,9 @@ def test_batch_requires_configuration():
             ],
         )
     except ValueError as exc:
-        assert (
-            "pelo menos uma configuração"
-            in str(exc)
-        )
+        assert "pelo menos uma configuração" in str(exc)
     else:
-        raise AssertionError(
-            "ValueError esperado"
-        )
+        raise AssertionError("ValueError esperado")
 
 
 def test_batch_groups_changes_by_interface(
@@ -251,9 +221,7 @@ GigabitEthernet0/1 is up, line protocol is up (connected)
      0 output buffer failures, 0 output buffers swapped out
 """
 
-    health = service.classify_interface_health(
-        state
-    )
+    health = service.classify_interface_health(state)
 
     assert health["level"] == "healthy"
     assert health["label"] == "Porta funcional"
@@ -266,9 +234,7 @@ GigabitEthernet0/1 is up, line protocol is up (connected)
      2 lost carrier, 1 no carrier, 0 pause output
 """
 
-    health = service.classify_interface_health(
-        state
-    )
+    health = service.classify_interface_health(state)
 
     assert health["level"] == "danger"
     assert health["label"] == "Alerta físico/cabeamento"
@@ -284,16 +250,11 @@ GigabitEthernet0/1 is up, line protocol is up (connected)
      4 input errors, 4 CRC, 0 frame, 0 overrun, 0 ignored
 """
 
-    health = service.classify_interface_health(
-        state
-    )
+    health = service.classify_interface_health(state)
 
     assert health["level"] == "warning"
 
-    categories = [
-        issue["category"]
-        for issue in health["issues"]
-    ]
+    categories = [issue["category"] for issue in health["issues"]]
 
     assert "physical-duplex" in categories
 
@@ -306,16 +267,12 @@ GigabitEthernet0/1 is up, line protocol is up (connected)
      5 output buffer failures, 0 output buffers swapped out
 """
 
-    health = service.classify_interface_health(
-        state
-    )
+    health = service.classify_interface_health(state)
 
     assert health["level"] == "warning"
 
     congestion = next(
-        issue
-        for issue in health["issues"]
-        if issue["category"] == "congestion"
+        issue for issue in health["issues"] if issue["category"] == "congestion"
     )
 
     assert "output errors: 3" in congestion["detail"]
@@ -329,14 +286,9 @@ GigabitEthernet0/1 is up, line protocol is up (connected)
      0 output errors, 7 collisions, 0 interface resets
 """
 
-    health = service.classify_interface_health(
-        state
-    )
+    health = service.classify_interface_health(state)
 
-    categories = [
-        issue["category"]
-        for issue in health["issues"]
-    ]
+    categories = [issue["category"] for issue in health["issues"]]
 
     assert "duplex" in categories
 
@@ -351,15 +303,10 @@ GigabitEthernet0/1 is administratively down, line protocol is down
      0 output buffer failures, 0 output buffers swapped out
 """
 
-    health = service.classify_interface_health(
-        state
-    )
+    health = service.classify_interface_health(state)
 
     assert health["level"] == "neutral"
-    assert (
-        health["label"]
-        == "Administrativamente desativada"
-    )
+    assert health["label"] == "Administrativamente desativada"
 
 
 def test_batch_enables_portfast_edge(
@@ -389,14 +336,8 @@ def test_batch_enables_portfast_edge(
     )
 
     assert result["success"] is True
-    assert (
-        "Gi0/1: PortFast Edge habilitado"
-        in result["changes"]
-    )
-    assert (
-        "Gi0/3: PortFast Edge habilitado"
-        in result["changes"]
-    )
+    assert "Gi0/1: PortFast Edge habilitado" in result["changes"]
+    assert "Gi0/3: PortFast Edge habilitado" in result["changes"]
 
 
 def test_batch_disables_portfast(
@@ -425,10 +366,7 @@ def test_batch_disables_portfast(
     )
 
     assert result["success"] is True
-    assert (
-        "Gi0/1: PortFast desabilitado"
-        in result["changes"]
-    )
+    assert "Gi0/1: PortFast desabilitado" in result["changes"]
 
 
 def test_batch_rejects_invalid_portfast_state():
@@ -445,9 +383,7 @@ def test_batch_rejects_invalid_portfast_state():
     except ValueError as exc:
         assert "PortFast" in str(exc)
     else:
-        raise AssertionError(
-            "ValueError esperado"
-        )
+        raise AssertionError("ValueError esperado")
 
 
 def test_portfast_admin_down_does_not_require_operational_stp(
@@ -479,8 +415,7 @@ def test_portfast_admin_down_does_not_require_operational_stp(
                         "line protocol is down"
                     ),
                     "running_config": (
-                        f"interface {interface}\\n"
-                        " spanning-tree portfast edge"
+                        f"interface {interface}\\n spanning-tree portfast edge"
                     ),
                     "stp_detail": "",
                 }
@@ -521,45 +456,27 @@ def test_highlights_lost_carrier_as_danger():
         "1 lost carrier, 0 no carrier, 0 pause output"
     )
 
-    result = service.highlight_interface_counters(
-        summary
-    )
+    result = service.highlight_interface_counters(summary)
 
-    assert (
-        'counter-highlight-danger'
-        in result
-    )
+    assert "counter-highlight-danger" in result
 
     assert ">1 lost carrier</span>" in result
 
 
 def test_highlights_crc_as_warning():
-    summary = (
-        "3 input errors, 2 CRC, 0 frame, "
-        "0 overrun, 0 ignored"
-    )
+    summary = "3 input errors, 2 CRC, 0 frame, 0 overrun, 0 ignored"
 
-    result = service.highlight_interface_counters(
-        summary
-    )
+    result = service.highlight_interface_counters(summary)
 
-    assert (
-        'counter-highlight-warning'
-        in result
-    )
+    assert "counter-highlight-warning" in result
 
     assert ">2 CRC</span>" in result
 
 
 def test_does_not_highlight_zero_counters():
-    summary = (
-        "0 input errors, 0 CRC, "
-        "0 lost carrier"
-    )
+    summary = "0 input errors, 0 CRC, 0 lost carrier"
 
-    result = service.highlight_interface_counters(
-        summary
-    )
+    result = service.highlight_interface_counters(summary)
 
     assert "counter-highlight" not in result
     assert result == summary

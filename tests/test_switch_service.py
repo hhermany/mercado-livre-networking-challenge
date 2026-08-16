@@ -192,7 +192,6 @@ def test_requires_interface_for_voice_vlan():
         )
 
 
-
 def test_allows_admin_down_only(monkeypatch, tmp_path):
     monkeypatch.setattr(service, "CiscoSwitch", FakeCiscoSwitch)
     fake_backup(monkeypatch, tmp_path)
@@ -281,10 +280,7 @@ def test_allows_interface_description(monkeypatch, tmp_path):
     )
 
     assert result["success"] is True
-    assert (
-        "Gi0/0: Description alterada para HOST DE TESTES"
-        in result["changes"]
-    )
+    assert "Gi0/0: Description alterada para HOST DE TESTES" in result["changes"]
 
 
 def test_allows_remove_interface_description(monkeypatch, tmp_path):
@@ -351,6 +347,7 @@ def test_rejects_unvalidated_description_formats(description):
         match="Descrição inválida",
     ):
         service.validate_interface_description(description)
+
 
 def test_rejects_empty_operation():
     with pytest.raises(ValueError):
@@ -450,9 +447,7 @@ hostname SW-TESTE1
     monkeypatch.setattr(
         service,
         "save_backup",
-        lambda hostname, config: (
-            tmp_path / "backup.cfg"
-        ),
+        lambda hostname, config: tmp_path / "backup.cfg",
     )
 
     result = service.provision_switch(
@@ -469,17 +464,9 @@ hostname SW-TESTE1
 
     rendered = str(result).lower()
 
-    assert (
-        "vlan_dados" in rendered
-        or "vlan 10" in rendered
-        or "10" in rendered
-    )
+    assert "vlan_dados" in rendered or "vlan 10" in rendered or "10" in rendered
 
-    assert (
-        "missing" in result
-        or "diverg" in rendered
-        or result.get("success") is False
-    )
+    assert "missing" in result or "diverg" in rendered or result.get("success") is False
 
 
 def test_detects_hostname_divergence_after_configuration(
@@ -532,9 +519,7 @@ hostname SW-ERRADO
     monkeypatch.setattr(
         service,
         "save_backup",
-        lambda hostname, config: (
-            tmp_path / "backup.cfg"
-        ),
+        lambda hostname, config: tmp_path / "backup.cfg",
     )
 
     result = service.provision_switch(
@@ -551,16 +536,9 @@ hostname SW-ERRADO
 
     rendered = str(result).lower()
 
-    assert (
-        "sw-teste1" in rendered
-        or "hostname" in rendered
-    )
+    assert "sw-teste1" in rendered or "hostname" in rendered
 
-    assert (
-        "missing" in result
-        or "diverg" in rendered
-        or result.get("success") is False
-    )
+    assert "missing" in result or "diverg" in rendered or result.get("success") is False
 
 
 def test_cisco_default_interfaces_sends_ios_default_command(
@@ -587,9 +565,7 @@ def test_cisco_default_interfaces_sends_ios_default_command(
             commands,
             **kwargs,
         ):
-            commands_seen.extend(
-                commands
-            )
+            commands_seen.extend(commands)
             return "OK"
 
         def send_command(
@@ -623,15 +599,9 @@ def test_cisco_default_interfaces_sends_ios_default_command(
         "default interface Gi1/2",
     ]
 
-    assert (
-        "Gi1/1"
-        in result["validation"]
-    )
+    assert "Gi1/1" in result["validation"]
 
-    assert (
-        "Gi1/2"
-        in result["validation"]
-    )
+    assert "Gi1/2" in result["validation"]
 
 
 def test_cisco_bounce_interfaces_sends_shutdown_no_shutdown(
@@ -658,9 +628,7 @@ def test_cisco_bounce_interfaces_sends_shutdown_no_shutdown(
             commands,
             **kwargs,
         ):
-            commands_seen.extend(
-                commands
-            )
+            commands_seen.extend(commands)
             return "OK"
 
         def send_command(
@@ -700,12 +668,6 @@ def test_cisco_bounce_interfaces_sends_shutdown_no_shutdown(
         "no shutdown",
     ]
 
-    assert (
-        "Gi1/1"
-        in result["validation"]
-    )
+    assert "Gi1/1" in result["validation"]
 
-    assert (
-        "Gi1/2"
-        in result["validation"]
-    )
+    assert "Gi1/2" in result["validation"]

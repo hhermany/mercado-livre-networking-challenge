@@ -1,4 +1,5 @@
 import src.branch.next_id as next_id
+from src.branch.next_id import get_next_branch_id
 
 
 class FakeResponse:
@@ -31,3 +32,19 @@ def test_next_branch_id(monkeypatch):
     )
 
     assert next_id.get_next_branch_id() == 3
+
+
+def test_next_branch_id_starts_at_two(monkeypatch):
+    class FakeResponse:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"results": []}
+
+    monkeypatch.setattr(
+        "src.branch.next_id.requests.get",
+        lambda *args, **kwargs: FakeResponse(),
+    )
+
+    assert get_next_branch_id() == 2

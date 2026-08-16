@@ -1,89 +1,186 @@
 from ipaddress import IPv4Network
 
-from src.branch.addressing import build_branch_plan
-from src.templates.renderer import TemplateRenderer
+from src.branch.addressing import (
+    build_branch_plan,
+)
+from src.branch.paloalto_contract import (
+    build_paloalto_branch_plan,
+)
 
 
 def generate_paloalto_branch_config(
-    branch_id: int,
-    branch_wan1_ip: str,
-    branch_wan2_ip: str,
-    psk: str,
-) -> str:
-    plan = build_branch_plan(branch_id)
-    renderer = TemplateRenderer()
+    *,
+    branch_id,
+    branch_wan1_ip,
+    branch_wan2_ip,
+    psk,
+):
+    """
+    Gera configuracao incremental para adicionar
+    uma nova Branch ao Palo Alto do DC.
 
-    vpn1 = IPv4Network(plan.vpn1_prefix)
-    vpn2 = IPv4Network(plan.vpn2_prefix)
+    Mantem o contrato publico historico usado
+    por bundle, onboarding e Flask.
+    """
+
+    branch = build_branch_plan(branch_id)
+
+    pa = build_paloalto_branch_plan(branch_id)
+
+    vpn1 = IPv4Network(branch.vpn1_prefix)
+
+    vpn2 = IPv4Network(branch.vpn2_prefix)
 
     vpn1_hosts = list(vpn1.hosts())
+
     vpn2_hosts = list(vpn2.hosts())
 
-    tunnel1 = ((branch_id - 1) * 2) + 1
-    tunnel2 = tunnel1 + 1
+    # Contrato:
+    # primeiro usable = PA
+    # segundo usable  = FortiGate
+    vpn1_pa_ip = str(vpn1_hosts[0])
 
-    tunnel1_name = f"{plan.name}-VPN1"
-    tunnel2_name = f"{plan.name}-VPN2"
+    vpn1_fg_ip = str(vpn1_hosts[1])
 
-    ipsec1 = renderer.render(
-        "paloalto/ipsec_tunnel.j2",
-        {
-            "tunnel_name": tunnel1_name,
-            "wan_interface": "ethernet1/1",
-            "remote_public_ip": branch_wan1_ip,
-            "psk": psk,
-            "tunnel_interface": f"tunnel.{tunnel1}",
-        },
+    vpn2_pa_ip = str(vpn2_hosts[0])
+
+    vpn2_fg_ip = str(vpn2_hosts[1])
+
+    bgp_base = (
+        "set network virtual-router default protocol bgp peer-group IBGP-SDWAN peer"
     )
 
-    ipsec2 = renderer.render(
-        "paloalto/ipsec_tunnel.j2",
-        {
-            "tunnel_name": tunnel2_name,
-            "wan_interface": "ethernet1/3",
-            "remote_public_ip": branch_wan2_ip,
-            "psk": psk,
-            "tunnel_interface": f"tunnel.{tunnel2}",
-        },
-    )
-
-    peer1 = f"FG-BRANCH-{branch_id}-VPN1"
-    peer2 = f"FG-BRANCH-{branch_id}-VPN2"
-
-    bgp_base = "set network virtual-router default protocol bgp"
-    bgp_peer = f"{bgp_base} peer-group IBGP-SDWAN peer"
-
-    overlay_commands = [
+    commands = [
+        # ====================================================
+        # IKE GATEWAY VPN1
+        # ====================================================
         (
-            f"set network interface tunnel units tunnel.{tunnel1} "
-            f"ip {vpn1_hosts[0]}/{vpn1.prefixlen}"
+            "set network ike gateway "
+            f"{pa.ipsec1_name} "
+            "protocol ikev2 "
+            "ike-crypto-profile IKE-FGT-PA"
+        ),
+        (f"set network ike gateway {pa.ipsec1_name} protocol version ikev2"),
+        (
+            "set network ike gateway "
+            f"{pa.ipsec1_name} "
+            "local-address interface ethernet1/1"
+        ),
+        (f"set network ike gateway {pa.ipsec1_name} local-address ip 100.64.0.1/24"),
+        (f"set network ike gateway {pa.ipsec1_name} peer-address ip {branch_wan1_ip}"),
+        (
+            "set network ike gateway "
+            f"{pa.ipsec1_name} "
+            "authentication pre-shared-key "
+            f'key "{psk}"'
+        ),
+        # ====================================================
+        # IKE GATEWAY VPN2
+        # ====================================================
+        (
+            "set network ike gateway "
+            f"{pa.ipsec2_name} "
+            "protocol ikev2 "
+            "ike-crypto-profile IKE-FGT-PA"
+        ),
+        (f"set network ike gateway {pa.ipsec2_name} protocol version ikev2"),
+        (
+            "set network ike gateway "
+            f"{pa.ipsec2_name} "
+            "local-address interface ethernet1/3"
+        ),
+        (f"set network ike gateway {pa.ipsec2_name} local-address ip 100.100.0.1/24"),
+        (f"set network ike gateway {pa.ipsec2_name} peer-address ip {branch_wan2_ip}"),
+        (
+            "set network ike gateway "
+            f"{pa.ipsec2_name} "
+            "authentication pre-shared-key "
+            f'key "{psk}"'
+        ),
+        # ====================================================
+        # TUNNEL INTERFACES
+        # ====================================================
+        (f"set network interface tunnel units {pa.tunnel1_name} ip {vpn1_pa_ip}/30"),
+        (
+            "set network interface tunnel units "
+            f"{pa.tunnel1_name} "
+            "interface-management-profile "
+            "TUNNEL-MGMT"
+        ),
+        (f"set network interface tunnel units {pa.tunnel2_name} ip {vpn2_pa_ip}/30"),
+        (
+            "set network interface tunnel units "
+            f"{pa.tunnel2_name} "
+            "interface-management-profile "
+            "TUNNEL-MGMT"
+        ),
+        # ====================================================
+        # IPSEC TUNNELS
+        # ====================================================
+        (
+            "set network tunnel ipsec "
+            f"{pa.ipsec1_name} "
+            "auto-key ike-gateway "
+            f"{pa.ipsec1_name}"
         ),
         (
-            f"set network interface tunnel units tunnel.{tunnel2} "
-            f"ip {vpn2_hosts[0]}/{vpn2.prefixlen}"
+            "set network tunnel ipsec "
+            f"{pa.ipsec1_name} "
+            "auto-key ipsec-crypto-profile "
+            "IPSEC-FGT-PA"
         ),
-        f"set network virtual-router default interface tunnel.{tunnel1}",
-        f"set network virtual-router default interface tunnel.{tunnel2}",
-        f"set zone FILIAIS network layer3 tunnel.{tunnel1}",
-        f"set zone FILIAIS network layer3 tunnel.{tunnel2}",
-        f"{bgp_peer} {peer1} peer-address ip {vpn1_hosts[1]}",
         (
-            f"{bgp_peer} {peer1} local-address "
-            f"interface tunnel.{tunnel1}"
+            "set network tunnel ipsec "
+            f"{pa.ipsec1_name} "
+            "tunnel-interface "
+            f"{pa.tunnel1_name}"
         ),
-        f"{bgp_peer} {peer1} peer-as 65001",
-        f"{bgp_peer} {peer2} peer-address ip {vpn2_hosts[1]}",
         (
-            f"{bgp_peer} {peer2} local-address "
-            f"interface tunnel.{tunnel2}"
+            "set network tunnel ipsec "
+            f"{pa.ipsec2_name} "
+            "auto-key ike-gateway "
+            f"{pa.ipsec2_name}"
         ),
-        f"{bgp_peer} {peer2} peer-as 65001",
+        (
+            "set network tunnel ipsec "
+            f"{pa.ipsec2_name} "
+            "auto-key ipsec-crypto-profile "
+            "IPSEC-FGT-PA"
+        ),
+        (
+            "set network tunnel ipsec "
+            f"{pa.ipsec2_name} "
+            "tunnel-interface "
+            f"{pa.tunnel2_name}"
+        ),
+        # ====================================================
+        # ZONE COMPARTILHADA
+        #
+        # Policies existentes:
+        # FILIAIS-TO-DC
+        # DC-TO-FILIAIS
+        # ====================================================
+        (f"set zone FILIAIS network layer3 {pa.tunnel1_name}"),
+        (f"set zone FILIAIS network layer3 {pa.tunnel2_name}"),
+        # ====================================================
+        # VIRTUAL ROUTER
+        # ====================================================
+        (f"set network virtual-router default interface {pa.tunnel1_name}"),
+        (f"set network virtual-router default interface {pa.tunnel2_name}"),
+        # ====================================================
+        # BGP VPN1
+        # ====================================================
+        (f"{bgp_base} {pa.bgp_peer1_name} peer-address ip {vpn1_fg_ip}"),
+        (f"{bgp_base} {pa.bgp_peer1_name} local-address interface {pa.tunnel1_name}"),
+        (f"{bgp_base} {pa.bgp_peer1_name} local-address ip {vpn1_pa_ip}/30"),
+        (f"{bgp_base} {pa.bgp_peer1_name} peer-as 65001"),
+        # ====================================================
+        # BGP VPN2
+        # ====================================================
+        (f"{bgp_base} {pa.bgp_peer2_name} peer-address ip {vpn2_fg_ip}"),
+        (f"{bgp_base} {pa.bgp_peer2_name} local-address interface {pa.tunnel2_name}"),
+        (f"{bgp_base} {pa.bgp_peer2_name} local-address ip {vpn2_pa_ip}/30"),
+        (f"{bgp_base} {pa.bgp_peer2_name} peer-as 65001"),
     ]
 
-    return "\n\n".join(
-        [
-            ipsec1.strip(),
-            ipsec2.strip(),
-            "\n".join(overlay_commands),
-        ]
-    )
+    return "\n".join(commands)

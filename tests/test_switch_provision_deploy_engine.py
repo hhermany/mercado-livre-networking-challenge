@@ -10,14 +10,9 @@ class FakeConnection:
         outputs=None,
         running_config="",
     ):
-        self.outputs = list(
-            outputs
-            or []
-        )
+        self.outputs = list(outputs or [])
 
-        self.running_config = (
-            running_config
-        )
+        self.running_config = running_config
 
         self.sent_blocks = []
         self.show_commands = []
@@ -44,9 +39,7 @@ class FakeConnection:
         commands,
         **kwargs,
     ):
-        self.sent_blocks.append(
-            list(commands)
-        )
+        self.sent_blocks.append(list(commands))
 
         if self.outputs:
             return self.outputs.pop(0)
@@ -63,16 +56,12 @@ class FakeConnection:
         command,
         **kwargs,
     ):
-        self.show_commands.append(
-            command
-        )
+        self.show_commands.append(command)
 
         if command == "show running-config":
             return self.running_config
 
-        raise AssertionError(
-            f"Comando inesperado: {command}"
-        )
+        raise AssertionError(f"Comando inesperado: {command}")
 
 
 def build_switch(
@@ -104,16 +93,9 @@ def test_deploy_sends_candidate_block_by_block(
         outputs=[
             "hostname SW-01",
             "aaa new-model",
-            (
-                "aaa group server radius RAD\n"
-                "server name RAD1\n"
-                "server name RAD2"
-            ),
+            ("aaa group server radius RAD\nserver name RAD1\nserver name RAD2"),
         ],
-        running_config=(
-            "hostname SW-01\n"
-            "aaa new-model\n"
-        ),
+        running_config=("hostname SW-01\naaa new-model\n"),
     )
 
     switch = build_switch(
@@ -153,10 +135,7 @@ end
     assert result["blocks_sent"] == 3
     assert result["commands_sent"] == 5
 
-    assert (
-        result["saved"]
-        is False
-    )
+    assert result["saved"] is False
 
 
 def test_deploy_updates_prompt_after_hostname(
@@ -167,10 +146,7 @@ def test_deploy_updates_prompt_after_hostname(
             "hostname SW-NEW",
             "aaa new-model",
         ],
-        running_config=(
-            "hostname SW-NEW\n"
-            "aaa new-model\n"
-        ),
+        running_config=("hostname SW-NEW\naaa new-model\n"),
     )
 
     switch = build_switch(
@@ -187,10 +163,7 @@ aaa new-model
 """
     )
 
-    assert (
-        connection.prompt_updates
-        == 1
-    )
+    assert connection.prompt_updates == 1
 
 
 def test_deploy_stops_on_invalid_input(
@@ -199,11 +172,7 @@ def test_deploy_stops_on_invalid_input(
     connection = FakeConnection(
         outputs=[
             "hostname SW-01",
-            (
-                "bad command\n"
-                "% Invalid input detected "
-                "at '^' marker."
-            ),
+            ("bad command\n% Invalid input detected at '^' marker."),
             "aaa new-model",
         ],
         running_config="",
@@ -238,10 +207,7 @@ aaa new-model
         ],
     ]
 
-    assert (
-        "show running-config"
-        not in connection.show_commands
-    )
+    assert "show running-config" not in connection.show_commands
 
 
 def test_deploy_detects_incomplete_command(
@@ -303,9 +269,7 @@ def test_deploy_reads_running_config_after_success(
         outputs=[
             "aaa new-model",
         ],
-        running_config=(
-            "aaa new-model\n"
-        ),
+        running_config=("aaa new-model\n"),
     )
 
     switch = build_switch(
@@ -320,14 +284,9 @@ aaa new-model
 """
     )
 
-    assert connection.show_commands == [
-        "show running-config"
-    ]
+    assert connection.show_commands == ["show running-config"]
 
-    assert (
-        result["running_config"]
-        == "aaa new-model\n"
-    )
+    assert result["running_config"] == "aaa new-model\n"
 
 
 def test_deploy_enters_enable_when_secret_exists(
@@ -337,9 +296,7 @@ def test_deploy_enters_enable_when_secret_exists(
         outputs=[
             "aaa new-model",
         ],
-        running_config=(
-            "aaa new-model\n"
-        ),
+        running_config=("aaa new-model\n"),
     )
 
     switch = build_switch(
@@ -372,9 +329,7 @@ def test_empty_candidate_is_rejected(
         ValueError,
         match="Candidate vazio",
     ):
-        switch.deploy_config(
-            "!\n!\n"
-        )
+        switch.deploy_config("!\n!\n")
 
     assert connection.sent_blocks == []
 
@@ -386,9 +341,7 @@ def test_deploy_does_not_save_startup_config(
         outputs=[
             "hostname SW-01",
         ],
-        running_config=(
-            "hostname SW-01\n"
-        ),
+        running_config=("hostname SW-01\n"),
     )
 
     switch = build_switch(
@@ -403,22 +356,10 @@ hostname SW-01
 """
     )
 
-    all_commands = [
-        command
-        for block
-        in connection.sent_blocks
-        for command
-        in block
-    ]
+    all_commands = [command for block in connection.sent_blocks for command in block]
 
-    assert (
-        "write memory"
-        not in all_commands
-    )
+    assert "write memory" not in all_commands
 
-    assert (
-        "copy running-config startup-config"
-        not in all_commands
-    )
+    assert "copy running-config startup-config" not in all_commands
 
     assert result["saved"] is False

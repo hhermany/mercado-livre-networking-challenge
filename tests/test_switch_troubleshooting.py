@@ -21,14 +21,9 @@ Vlan100                unassigned      YES unset  down                  down
 
 
 def test_parse_l3_interfaces_includes_routed_physical_and_svi():
-    result = parse_l3_interfaces(
-        SHOW_IP_INTERFACE_BRIEF
-    )
+    result = parse_l3_interfaces(SHOW_IP_INTERFACE_BRIEF)
 
-    names = [
-        item["name"]
-        for item in result
-    ]
+    names = [item["name"] for item in result]
 
     assert names == [
         "GigabitEthernet0/0",
@@ -39,9 +34,7 @@ def test_parse_l3_interfaces_includes_routed_physical_and_svi():
 
 
 def test_parse_l3_interface_physical_routed():
-    result = parse_l3_interfaces(
-        SHOW_IP_INTERFACE_BRIEF
-    )
+    result = parse_l3_interfaces(SHOW_IP_INTERFACE_BRIEF)
 
     interface = result[0]
 
@@ -51,37 +44,23 @@ def test_parse_l3_interface_physical_routed():
         "status": "up",
         "protocol": "up",
         "operational": True,
-        "label": (
-            "GigabitEthernet0/0 - 172.28.255.210"
-        ),
+        "label": ("GigabitEthernet0/0 - 172.28.255.210"),
     }
 
 
 def test_parse_l3_interfaces_includes_operational_svis():
-    result = parse_l3_interfaces(
-        SHOW_IP_INTERFACE_BRIEF
-    )
+    result = parse_l3_interfaces(SHOW_IP_INTERFACE_BRIEF)
 
-    vlan10 = next(
-        item
-        for item in result
-        if item["name"] == "Vlan10"
-    )
+    vlan10 = next(item for item in result if item["name"] == "Vlan10")
 
     assert vlan10["ip_address"] == "192.168.10.254"
     assert vlan10["operational"] is True
 
 
 def test_parse_l3_interfaces_preserves_down_interface():
-    result = parse_l3_interfaces(
-        SHOW_IP_INTERFACE_BRIEF
-    )
+    result = parse_l3_interfaces(SHOW_IP_INTERFACE_BRIEF)
 
-    vlan50 = next(
-        item
-        for item in result
-        if item["name"] == "Vlan50"
-    )
+    vlan50 = next(item for item in result if item["name"] == "Vlan50")
 
     assert vlan50["operational"] is False
     assert vlan50["status"] == "administratively down"
@@ -89,14 +68,9 @@ def test_parse_l3_interfaces_preserves_down_interface():
 
 
 def test_parse_l3_interfaces_ignores_unassigned():
-    result = parse_l3_interfaces(
-        SHOW_IP_INTERFACE_BRIEF
-    )
+    result = parse_l3_interfaces(SHOW_IP_INTERFACE_BRIEF)
 
-    names = {
-        item["name"]
-        for item in result
-    }
+    names = {item["name"] for item in result}
 
     assert "GigabitEthernet0/1" not in names
     assert "GigabitEthernet0/2" not in names
@@ -104,26 +78,18 @@ def test_parse_l3_interfaces_ignores_unassigned():
 
 
 def test_parse_single_ipv4_target():
-    assert parse_ipv4_targets(
-        "8.8.8.8"
-    ) == [
-        "8.8.8.8"
-    ]
+    assert parse_ipv4_targets("8.8.8.8") == ["8.8.8.8"]
 
 
 def test_parse_multiple_ipv4_targets():
-    assert parse_ipv4_targets(
-        "8.8.8.8, 1.1.1.1"
-    ) == [
+    assert parse_ipv4_targets("8.8.8.8, 1.1.1.1") == [
         "8.8.8.8",
         "1.1.1.1",
     ]
 
 
 def test_parse_ipv4_range():
-    assert parse_ipv4_targets(
-        "192.168.10.1-192.168.10.4"
-    ) == [
+    assert parse_ipv4_targets("192.168.10.1-192.168.10.4") == [
         "192.168.10.1",
         "192.168.10.2",
         "192.168.10.3",
@@ -132,11 +98,7 @@ def test_parse_ipv4_range():
 
 
 def test_parse_combined_targets_and_range():
-    assert parse_ipv4_targets(
-        "8.8.8.8,"
-        "192.168.10.1-192.168.10.3,"
-        "1.1.1.1"
-    ) == [
+    assert parse_ipv4_targets("8.8.8.8,192.168.10.1-192.168.10.3,1.1.1.1") == [
         "8.8.8.8",
         "192.168.10.1",
         "192.168.10.2",
@@ -147,10 +109,7 @@ def test_parse_combined_targets_and_range():
 
 def test_parse_targets_deduplicates_preserving_order():
     assert parse_ipv4_targets(
-        "8.8.8.8,"
-        "192.168.10.1-192.168.10.2,"
-        "8.8.8.8,"
-        "192.168.10.2"
+        "8.8.8.8,192.168.10.1-192.168.10.2,8.8.8.8,192.168.10.2"
     ) == [
         "8.8.8.8",
         "192.168.10.1",
@@ -165,11 +124,7 @@ def test_parse_targets_deduplicates_preserving_order():
         "not-an-ip",
         "300.1.1.1",
         "192.168.10.10-192.168.10.1",
-        (
-            "192.168.10.1-"
-            "192.168.10.2-"
-            "192.168.10.3"
-        ),
+        ("192.168.10.1-192.168.10.2-192.168.10.3"),
     ],
 )
 def test_parse_targets_rejects_invalid_values(value):
@@ -189,9 +144,7 @@ def test_parse_targets_enforces_limit():
 
 
 def test_find_l3_interface_case_insensitive():
-    interfaces = parse_l3_interfaces(
-        SHOW_IP_INTERFACE_BRIEF
-    )
+    interfaces = parse_l3_interfaces(SHOW_IP_INTERFACE_BRIEF)
 
     result = find_l3_interface_by_name(
         interfaces,
@@ -202,9 +155,7 @@ def test_find_l3_interface_case_insensitive():
 
 
 def test_validate_source_accepts_routed_physical_interface():
-    interfaces = parse_l3_interfaces(
-        SHOW_IP_INTERFACE_BRIEF
-    )
+    interfaces = parse_l3_interfaces(SHOW_IP_INTERFACE_BRIEF)
 
     result = validate_source_interface(
         interfaces,
@@ -216,9 +167,7 @@ def test_validate_source_accepts_routed_physical_interface():
 
 
 def test_validate_source_accepts_svi():
-    interfaces = parse_l3_interfaces(
-        SHOW_IP_INTERFACE_BRIEF
-    )
+    interfaces = parse_l3_interfaces(SHOW_IP_INTERFACE_BRIEF)
 
     result = validate_source_interface(
         interfaces,
@@ -229,9 +178,7 @@ def test_validate_source_accepts_svi():
 
 
 def test_validate_source_rejects_non_operational_interface():
-    interfaces = parse_l3_interfaces(
-        SHOW_IP_INTERFACE_BRIEF
-    )
+    interfaces = parse_l3_interfaces(SHOW_IP_INTERFACE_BRIEF)
 
     with pytest.raises(
         ValueError,
@@ -244,9 +191,7 @@ def test_validate_source_rejects_non_operational_interface():
 
 
 def test_validate_source_rejects_unknown_interface():
-    interfaces = parse_l3_interfaces(
-        SHOW_IP_INTERFACE_BRIEF
-    )
+    interfaces = parse_l3_interfaces(SHOW_IP_INTERFACE_BRIEF)
 
     with pytest.raises(
         ValueError,
@@ -296,9 +241,7 @@ Success rate is 0 percent (0/5)
 
 
 def test_parse_targets_has_no_default_quantity_limit():
-    targets = parse_ipv4_targets(
-        "10.10.0.1-10.10.0.100"
-    )
+    targets = parse_ipv4_targets("10.10.0.1-10.10.0.100")
 
     assert len(targets) == 100
     assert targets[0] == "10.10.0.1"
@@ -332,23 +275,13 @@ VRF info: (vrf in name/id, vrf out name/id)
 SW-TESTE1#
 """
 
-    result = extract_traceroute_result(
-        output
-    )
+    result = extract_traceroute_result(output)
 
-    assert result.startswith(
-        "VRF info:"
-    )
+    assert result.startswith("VRF info:")
 
-    assert (
-        "1 172.28.255.254"
-        in result
-    )
+    assert "1 172.28.255.254" in result
 
-    assert (
-        "11 8.8.8.8"
-        in result
-    )
+    assert "11 8.8.8.8" in result
 
     assert "Protocol [ip]" not in result
     assert "Target IP address" not in result
@@ -356,9 +289,7 @@ SW-TESTE1#
 
 
 def test_parse_targets_has_no_default_limit():
-    targets = parse_ipv4_targets(
-        "10.10.0.1-10.10.0.100"
-    )
+    targets = parse_ipv4_targets("10.10.0.1-10.10.0.100")
 
     assert len(targets) == 100
     assert targets[0] == "10.10.0.1"
@@ -392,13 +323,9 @@ VRF info: (vrf in name/id, vrf out name/id)
 SW-TESTE1#
 """
 
-    result = extract_traceroute_result(
-        output
-    )
+    result = extract_traceroute_result(output)
 
-    assert result.startswith(
-        "VRF info:"
-    )
+    assert result.startswith("VRF info:")
 
     assert "1 172.28.255.254" in result
     assert "11 8.8.8.8" in result
@@ -413,31 +340,21 @@ def test_split_targets_balances_workers():
         split_targets_for_workers,
     )
 
-    targets = [
-        f"192.0.2.{value}"
-        for value in range(1, 11)
-    ]
+    targets = [f"192.0.2.{value}" for value in range(1, 11)]
 
     result = split_targets_for_workers(
         targets,
         workers=4,
     )
 
-    assert [
-        len(chunk)
-        for chunk in result
-    ] == [
+    assert [len(chunk) for chunk in result] == [
         3,
         3,
         2,
         2,
     ]
 
-    assert [
-        target
-        for chunk in result
-        for target in chunk
-    ] == targets
+    assert [target for chunk in result for target in chunk] == targets
 
 
 def test_split_targets_never_creates_more_workers_than_targets():

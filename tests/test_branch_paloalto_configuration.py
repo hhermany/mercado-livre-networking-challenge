@@ -22,10 +22,10 @@ def test_generate_paloalto_branch_2():
     assert "tunnel.3" in config
     assert "tunnel.4" in config
 
-    assert "169.255.2.1/30" in config
-    assert "169.255.2.5/30" in config
-    assert "169.255.2.2" in config
-    assert "169.255.2.6" in config
+    assert "169.255.0.1/30" in config
+    assert "169.255.0.5/30" in config
+    assert "169.255.0.2" in config
+    assert "169.255.0.6" in config
 
     assert "FG-BRANCH-2-VPN1" in config
     assert "FG-BRANCH-2-VPN2" in config

@@ -23,9 +23,7 @@ version 15.2
 hostname SW1
 """
 
-    result = normalize_config_text(
-        config
-    )
+    result = normalize_config_text(config)
 
     assert "Building configuration" not in result
     assert "Current configuration" not in result
@@ -42,24 +40,18 @@ Using 1541 out of 262144 bytes, uncompressed size = 2819 bytes
 version 15.2
 """
 
-    result = normalize_config_text(
-        config
-    )
+    result = normalize_config_text(config)
 
     assert "Using 1541" not in result
     assert "version 15.2" in result
 
 
 def test_extract_hostname():
-    assert extract_hostname(
-        "version 15.2\nhostname SW-TESTE1\n"
-    ) == "SW-TESTE1"
+    assert extract_hostname("version 15.2\nhostname SW-TESTE1\n") == "SW-TESTE1"
 
 
 def test_extract_hostname_fallback():
-    assert extract_hostname(
-        "version 15.2\n"
-    ) == "switch"
+    assert extract_hostname("version 15.2\n") == "switch"
 
 
 @pytest.mark.parametrize(
@@ -71,16 +63,12 @@ def test_extract_hostname_fallback():
     ],
 )
 def test_validate_config_filename(filename):
-    assert validate_config_filename(
-        filename
-    )
+    assert validate_config_filename(filename)
 
 
 def test_validate_config_filename_rejects_binary():
     with pytest.raises(ValueError):
-        validate_config_filename(
-            "switch.exe"
-        )
+        validate_config_filename("switch.exe")
 
 
 def test_build_backup_filename():
@@ -97,9 +85,7 @@ def test_build_backup_filename():
         ),
     )
 
-    assert result == (
-        "SW-TESTE1_running_20260814_010203.cfg"
-    )
+    assert result == ("SW-TESTE1_running_20260814_010203.cfg")
 
 
 def test_compare_detects_running_only_interface():
@@ -136,10 +122,7 @@ interface GigabitEthernet0/0
 
     assert section.status == "running_only"
 
-    assert (
-        " switchport mode trunk"
-        in section.added_lines
-    )
+    assert " switchport mode trunk" in section.added_lines
 
 
 def test_compare_detects_modified_interface():
@@ -169,15 +152,9 @@ interface GigabitEthernet1/2
 
     assert section.status == "modified"
 
-    assert (
-        " switchport access vlan 101"
-        in section.removed_lines
-    )
+    assert " switchport access vlan 101" in section.removed_lines
 
-    assert (
-        " switchport mode trunk"
-        in section.added_lines
-    )
+    assert " switchport mode trunk" in section.added_lines
 
 
 def test_compare_identical_configs():
@@ -236,35 +213,21 @@ ip ssh client algorithm encryption aes128-ctr aes192-ctr aes256-ctr
 
     assert global_section.removed_lines == ()
 
-    assert global_section.added_lines == (
-        "ip route 0.0.0.0 0.0.0.0 "
-        "172.28.255.254",
-    )
+    assert global_section.added_lines == ("ip route 0.0.0.0 0.0.0.0 172.28.255.254",)
 
-    assert (
-        "ip ssh version 2"
-        not in global_section.added_lines
-    )
+    assert "ip ssh version 2" not in global_section.added_lines
 
-    assert (
-        "ip ssh version 2"
-        not in global_section.removed_lines
-    )
+    assert "ip ssh version 2" not in global_section.removed_lines
 
 
 def test_configuration_flows_do_not_implicitly_save():
     from pathlib import Path
 
-    source = Path(
-        "src/switch/cisco.py"
-    ).read_text()
+    source = Path("src/switch/cisco.py").read_text()
 
     assert "conn.save_config()" not in source
 
-    assert (
-        "copy running-config startup-config"
-        in source
-    )
+    assert "copy running-config startup-config" in source
 
 
 def test_aligns_same_configuration_topics_side_by_side():
@@ -291,25 +254,13 @@ interface GigabitEthernet0/2
 
     assert len(section.rows) == 2
 
-    assert (
-        section.rows[0].startup_line
-        == " switchport access vlan 101"
-    )
+    assert section.rows[0].startup_line == " switchport access vlan 101"
 
-    assert (
-        section.rows[0].running_line
-        == " switchport access vlan 50"
-    )
+    assert section.rows[0].running_line == " switchport access vlan 50"
 
-    assert (
-        section.rows[1].startup_line
-        == " spanning-tree portfast edge"
-    )
+    assert section.rows[1].startup_line == " spanning-tree portfast edge"
 
-    assert (
-        section.rows[1].running_line
-        == " spanning-tree portfast disable"
-    )
+    assert section.rows[1].running_line == " spanning-tree portfast disable"
 
 
 def test_save_config_backup_creates_timestamped_file(
@@ -348,29 +299,18 @@ interface GigabitEthernet0/1
         ),
     )
 
-    assert path.name == (
-        "SW-TESTE1_running_"
-        "20260814_103045.cfg"
-    )
+    assert path.name == ("SW-TESTE1_running_20260814_103045.cfg")
 
     assert path.parent == tmp_path
     assert path.exists()
 
-    content = path.read_text(
-        encoding="utf-8"
-    )
+    content = path.read_text(encoding="utf-8")
 
     assert "hostname SW-TESTE1" in content
 
-    assert (
-        "interface GigabitEthernet0/1"
-        in content
-    )
+    assert "interface GigabitEthernet0/1" in content
 
-    assert (
-        "Building configuration"
-        not in content
-    )
+    assert "Building configuration" not in content
 
 
 def test_backup_filename_sanitizes_hostname(
@@ -428,25 +368,12 @@ def test_create_switch_backup(
         local_directory=tmp_path,
     )
 
-    assert (
-        result["hostname"]
-        == "SW-TESTE1"
-    )
+    assert result["hostname"] == "SW-TESTE1"
 
-    assert (
-        result["config_type"]
-        == "running"
-    )
+    assert result["config_type"] == "running"
 
-    assert (
-        result["filename"].startswith(
-            "SW-TESTE1_running_"
-        )
-    )
+    assert result["filename"].startswith("SW-TESTE1_running_")
 
     assert result["size"] > 0
 
-    assert (
-        tmp_path
-        / result["filename"]
-    ).exists()
+    assert (tmp_path / result["filename"]).exists()

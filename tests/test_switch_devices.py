@@ -52,17 +52,13 @@ def test_remove_device():
         password="secret",
     )
 
-    manager.remove(
-        device.id
-    )
+    manager.remove(device.id)
 
     assert manager.list() == []
 
 
 def test_parallel_discovery():
-    manager = DeviceManager(
-        max_workers=2
-    )
+    manager = DeviceManager(max_workers=2)
 
     first = manager.add(
         host="192.0.2.10",
@@ -80,13 +76,7 @@ def test_parallel_discovery():
         time.sleep(0.1)
 
         return {
-            "hostname": (
-                "SW1"
-                if device.host.endswith(
-                    ".10"
-                )
-                else "SW2"
-            ),
+            "hostname": ("SW1" if device.host.endswith(".10") else "SW2"),
             "interfaces": [],
         }
 
@@ -100,17 +90,11 @@ def test_parallel_discovery():
         ],
     )
 
-    elapsed = (
-        time.monotonic()
-        - started
-    )
+    elapsed = time.monotonic() - started
 
     assert len(results) == 2
 
-    assert all(
-        item["success"]
-        for item in results
-    )
+    assert all(item["success"] for item in results)
 
     # Duas chamadas de 100 ms devem executar
     # simultaneamente, não sequencialmente.
@@ -118,9 +102,7 @@ def test_parallel_discovery():
 
 
 def test_device_failure_is_isolated():
-    manager = DeviceManager(
-        max_workers=2
-    )
+    manager = DeviceManager(max_workers=2)
 
     first = manager.add(
         host="192.0.2.10",
@@ -136,9 +118,7 @@ def test_device_failure_is_isolated():
 
     def discover(device):
         if device.id == second.id:
-            raise RuntimeError(
-                "SSH timeout"
-            )
+            raise RuntimeError("SSH timeout")
 
         return {
             "hostname": "SW1",
@@ -153,22 +133,11 @@ def test_device_failure_is_isolated():
         ],
     )
 
-    success = [
-        item
-        for item in results
-        if item["success"]
-    ]
+    success = [item for item in results if item["success"]]
 
-    failures = [
-        item
-        for item in results
-        if not item["success"]
-    ]
+    failures = [item for item in results if not item["success"]]
 
     assert len(success) == 1
     assert len(failures) == 1
 
-    assert (
-        failures[0]["error"]
-        == "SSH timeout"
-    )
+    assert failures[0]["error"] == "SSH timeout"

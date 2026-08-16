@@ -1,4 +1,3 @@
-
 import src.switch.service as service
 import src.web.app as web_app
 

@@ -15,12 +15,8 @@ class InterfaceClassification:
     uplink: str
     provision_port: str
     provision_ip: str | None = None
-    user_ports: list[str] = field(
-        default_factory=list
-    )
-    preserved_ports: list[str] = field(
-        default_factory=list
-    )
+    user_ports: list[str] = field(default_factory=list)
+    preserved_ports: list[str] = field(default_factory=list)
 
 
 @dataclass(frozen=True)

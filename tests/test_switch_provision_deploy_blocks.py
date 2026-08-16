@@ -22,19 +22,13 @@ interface Vlan255
 end
 """
 
-    blocks = split_candidate_blocks(
-        config
-    )
+    blocks = split_candidate_blocks(config)
 
     assert len(blocks) == 4
 
-    assert blocks[0].commands == (
-        "hostname SW-01",
-    )
+    assert blocks[0].commands == ("hostname SW-01",)
 
-    assert blocks[1].commands == (
-        "aaa new-model",
-    )
+    assert blocks[1].commands == ("aaa new-model",)
 
     assert blocks[2].commands == (
         "aaa group server radius RAD",
@@ -45,10 +39,7 @@ end
     assert blocks[3].commands == (
         "interface Vlan255",
         "description ## MANAGEMENT ##",
-        (
-            "ip address 10.10.10.1 "
-            "255.255.255.0"
-        ),
+        ("ip address 10.10.10.1 255.255.255.0"),
         "no shutdown",
     )
 
@@ -61,9 +52,7 @@ archive
 !
 """
 
-    blocks = split_candidate_blocks(
-        config
-    )
+    blocks = split_candidate_blocks(config)
 
     assert blocks[0].commands == (
         "archive",
@@ -83,21 +72,13 @@ radius server RAD1
 !
 """
 
-    blocks = split_candidate_blocks(
-        config
-    )
+    blocks = split_candidate_blocks(config)
 
     assert len(blocks) == 1
 
-    assert (
-        blocks[0].first_command
-        == "radius server RAD1"
-    )
+    assert blocks[0].first_command == "radius server RAD1"
 
-    assert (
-        "key 7 094F471A1A0A"
-        in blocks[0].commands
-    )
+    assert "key 7 094F471A1A0A" in blocks[0].commands
 
 
 def test_interface_range_context_is_preserved():
@@ -112,21 +93,13 @@ interface range Gi0/1 - 3
 !
 """
 
-    blocks = split_candidate_blocks(
-        config
-    )
+    blocks = split_candidate_blocks(config)
 
     assert len(blocks) == 1
 
-    assert (
-        blocks[0].commands[0]
-        == "interface range Gi0/1 - 3"
-    )
+    assert blocks[0].commands[0] == "interface range Gi0/1 - 3"
 
-    assert (
-        blocks[0].commands[-1]
-        == "dot1x pae authenticator"
-    )
+    assert blocks[0].commands[-1] == "dot1x pae authenticator"
 
 
 def test_wrappers_are_removed():
@@ -138,28 +111,15 @@ hostname SW-01
 end
 """
 
-    blocks = split_candidate_blocks(
-        config
-    )
+    blocks = split_candidate_blocks(config)
 
-    commands = [
-        command
-        for block in blocks
-        for command in block.commands
-    ]
+    commands = [command for block in blocks for command in block.commands]
 
-    assert commands == [
-        "hostname SW-01"
-    ]
+    assert commands == ["hostname SW-01"]
 
 
 def test_empty_candidate():
-    assert (
-        split_candidate_blocks(
-            "!\n!\n"
-        )
-        == []
-    )
+    assert split_candidate_blocks("!\n!\n") == []
 
 
 def test_candidate_command_count():
@@ -173,9 +133,4 @@ vlan 10
 !
 """
 
-    assert (
-        candidate_command_count(
-            config
-        )
-        == 4
-    )
+    assert candidate_command_count(config) == 4

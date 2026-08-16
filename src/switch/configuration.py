@@ -69,9 +69,7 @@ class ConfigComparison:
 
     @property
     def changed_count(self):
-        return len(
-            self.changed_sections
-        )
+        return len(self.changed_sections)
 
 
 def normalize_config_text(value):
@@ -91,10 +89,7 @@ def normalize_config_text(value):
     for raw_line in text.splitlines():
         line = raw_line.rstrip()
 
-        if any(
-            pattern.match(line)
-            for pattern in VOLATILE_PATTERNS
-        ):
+        if any(pattern.match(line) for pattern in VOLATILE_PATTERNS):
             continue
 
         cleaned.append(line)
@@ -105,10 +100,7 @@ def normalize_config_text(value):
     while cleaned and not cleaned[-1].strip():
         cleaned.pop()
 
-    return (
-        "\n".join(cleaned)
-        + ("\n" if cleaned else "")
-    )
+    return "\n".join(cleaned) + ("\n" if cleaned else "")
 
 
 def extract_hostname(config_text):
@@ -129,19 +121,12 @@ def extract_hostname(config_text):
 
 def validate_config_filename(filename):
     if not filename:
-        raise ValueError(
-            "Arquivo de configuração não informado."
-        )
+        raise ValueError("Arquivo de configuração não informado.")
 
-    suffix = Path(
-        filename
-    ).suffix.lower()
+    suffix = Path(filename).suffix.lower()
 
     if suffix not in ALLOWED_CONFIG_EXTENSIONS:
-        raise ValueError(
-            "Formato de arquivo inválido. "
-            "Use .cfg, .conf ou .txt."
-        )
+        raise ValueError("Formato de arquivo inválido. Use .cfg, .conf ou .txt.")
 
     return True
 
@@ -151,26 +136,13 @@ def build_backup_filename(
     config_type,
     timestamp=None,
 ):
-    timestamp = (
-        timestamp
-        or datetime.now()
-    )
+    timestamp = timestamp or datetime.now()
 
     safe_hostname = "".join(
-        char
-        if (
-            char.isalnum()
-            or char in "-_"
-        )
-        else "_"
-        for char in hostname
+        char if (char.isalnum() or char in "-_") else "_" for char in hostname
     )
 
-    return (
-        f"{safe_hostname}_"
-        f"{config_type}_"
-        f"{timestamp:%Y%m%d_%H%M%S}.cfg"
-    )
+    return f"{safe_hostname}_{config_type}_{timestamp:%Y%m%d_%H%M%S}.cfg"
 
 
 def _split_cisco_blocks(config_text):
@@ -191,9 +163,7 @@ def _split_cisco_blocks(config_text):
     em posições diferentes da running/startup continuem
     sendo reconhecidos como iguais.
     """
-    text = normalize_config_text(
-        config_text
-    )
+    text = normalize_config_text(config_text)
 
     hierarchical_prefixes = (
         "interface ",
@@ -216,9 +186,7 @@ def _split_cisco_blocks(config_text):
 
         if line.strip() == "!":
             if current:
-                raw_blocks.append(
-                    tuple(current)
-                )
+                raw_blocks.append(tuple(current))
 
                 current = []
 
@@ -230,9 +198,7 @@ def _split_cisco_blocks(config_text):
         current.append(line)
 
     if current:
-        raw_blocks.append(
-            tuple(current)
-        )
+        raw_blocks.append(tuple(current))
 
     blocks = {}
     global_lines = []
@@ -241,14 +207,10 @@ def _split_cisco_blocks(config_text):
     for block in raw_blocks:
         first = block[0].strip()
 
-        hierarchical = first.startswith(
-            hierarchical_prefixes
-        )
+        hierarchical = first.startswith(hierarchical_prefixes)
 
         if not hierarchical:
-            global_lines.extend(
-                block
-            )
+            global_lines.extend(block)
             continue
 
         base_key = first
@@ -258,15 +220,9 @@ def _split_cisco_blocks(config_text):
             0,
         )
 
-        occurrences[
-            base_key
-        ] = count + 1
+        occurrences[base_key] = count + 1
 
-        key = (
-            base_key
-            if count == 0
-            else f"{base_key}#{count + 1}"
-        )
+        key = base_key if count == 0 else f"{base_key}#{count + 1}"
 
         blocks[key] = {
             "name": first,
@@ -280,12 +236,11 @@ def _split_cisco_blocks(config_text):
     if global_lines:
         blocks["__global__"] = {
             "name": "Configuração global",
-            "lines": tuple(
-                global_lines
-            ),
+            "lines": tuple(global_lines),
         }
 
     return blocks
+
 
 def _command_identity(line):
     command = line.strip()
@@ -375,14 +330,10 @@ def _command_identity(line):
     tokens = command.split()
 
     if len(tokens) >= 3:
-        return " ".join(
-            tokens[:3]
-        )
+        return " ".join(tokens[:3])
 
     if len(tokens) >= 2:
-        return " ".join(
-            tokens[:2]
-        )
+        return " ".join(tokens[:2])
 
     return command
 
@@ -391,48 +342,31 @@ def _align_changed_lines(
     removed_lines,
     added_lines,
 ):
-    removed = list(
-        removed_lines
-    )
+    removed = list(removed_lines)
 
-    added = list(
-        added_lines
-    )
+    added = list(added_lines)
 
     rows = []
     used_added = set()
 
     # Primeiro tenta parear comandos do mesmo tipo.
     for old_line in removed:
-        old_identity = _command_identity(
-            old_line
-        )
+        old_identity = _command_identity(old_line)
 
         match_index = None
 
-        for index, new_line in enumerate(
-            added
-        ):
+        for index, new_line in enumerate(added):
             if index in used_added:
                 continue
 
-            if (
-                _command_identity(
-                    new_line
-                )
-                == old_identity
-            ):
+            if _command_identity(new_line) == old_identity:
                 match_index = index
                 break
 
         if match_index is not None:
-            new_line = added[
-                match_index
-            ]
+            new_line = added[match_index]
 
-            used_added.add(
-                match_index
-            )
+            used_added.add(match_index)
 
             rows.append(
                 ConfigDiffRow(
@@ -452,9 +386,7 @@ def _align_changed_lines(
             )
 
     # Depois acrescenta comandos exclusivos da running.
-    for index, new_line in enumerate(
-        added
-    ):
+    for index, new_line in enumerate(added):
         if index in used_added:
             continue
 
@@ -466,9 +398,7 @@ def _align_changed_lines(
             )
         )
 
-    return tuple(
-        rows
-    )
+    return tuple(rows)
 
 
 def _changed_lines(
@@ -490,17 +420,13 @@ def _changed_lines(
             "replace",
             "delete",
         }:
-            removed.extend(
-                startup_lines[i1:i2]
-            )
+            removed.extend(startup_lines[i1:i2])
 
         if tag in {
             "replace",
             "insert",
         }:
-            added.extend(
-                running_lines[j1:j2]
-            )
+            added.extend(running_lines[j1:j2])
 
     return (
         tuple(removed),
@@ -514,54 +440,34 @@ def compare_cisco_configs(
     left_label="startup-config",
     right_label="running-config",
 ):
-    startup_blocks = _split_cisco_blocks(
-        startup_text
-    )
+    startup_blocks = _split_cisco_blocks(startup_text)
 
-    running_blocks = _split_cisco_blocks(
-        running_text
-    )
+    running_blocks = _split_cisco_blocks(running_text)
 
-    ordered_keys = list(
-        startup_blocks
-    )
+    ordered_keys = list(startup_blocks)
 
-    ordered_keys.extend(
-        key
-        for key in running_blocks
-        if key not in startup_blocks
-    )
+    ordered_keys.extend(key for key in running_blocks if key not in startup_blocks)
 
     differences = []
     total_added = 0
     total_removed = 0
 
     for key in ordered_keys:
-        startup = startup_blocks.get(
-            key
-        )
+        startup = startup_blocks.get(key)
 
-        running = running_blocks.get(
-            key
-        )
+        running = running_blocks.get(key)
 
         if startup is None:
-            added = tuple(
-                running["lines"]
-            )
+            added = tuple(running["lines"])
 
-            total_added += len(
-                added
-            )
+            total_added += len(added)
 
             differences.append(
                 ConfigSectionDiff(
                     name=running["name"],
                     status="running_only",
                     startup_lines=(),
-                    running_lines=tuple(
-                        running["lines"]
-                    ),
+                    running_lines=tuple(running["lines"]),
                     removed_lines=(),
                     added_lines=added,
                     rows=tuple(
@@ -578,21 +484,15 @@ def compare_cisco_configs(
             continue
 
         if running is None:
-            removed = tuple(
-                startup["lines"]
-            )
+            removed = tuple(startup["lines"])
 
-            total_removed += len(
-                removed
-            )
+            total_removed += len(removed)
 
             differences.append(
                 ConfigSectionDiff(
                     name=startup["name"],
                     status="startup_only",
-                    startup_lines=tuple(
-                        startup["lines"]
-                    ),
+                    startup_lines=tuple(startup["lines"]),
                     running_lines=(),
                     removed_lines=removed,
                     added_lines=(),
@@ -609,13 +509,9 @@ def compare_cisco_configs(
 
             continue
 
-        startup_lines = tuple(
-            startup["lines"]
-        )
+        startup_lines = tuple(startup["lines"])
 
-        running_lines = tuple(
-            running["lines"]
-        )
+        running_lines = tuple(running["lines"])
 
         if startup_lines == running_lines:
             continue
@@ -625,13 +521,9 @@ def compare_cisco_configs(
             running_lines,
         )
 
-        total_removed += len(
-            removed
-        )
+        total_removed += len(removed)
 
-        total_added += len(
-            added
-        )
+        total_added += len(added)
 
         differences.append(
             ConfigSectionDiff(
@@ -651,9 +543,7 @@ def compare_cisco_configs(
     return ConfigComparison(
         left_label=left_label,
         right_label=right_label,
-        changed_sections=tuple(
-            differences
-        ),
+        changed_sections=tuple(differences),
         added_lines=total_added,
         removed_lines=total_removed,
     )
@@ -668,9 +558,7 @@ def save_config_backup(
     local_directory=None,
 ):
     directory = Path(
-        local_directory
-        if local_directory is not None
-        else backup_directory
+        local_directory if local_directory is not None else backup_directory
     )
 
     directory.mkdir(
@@ -684,13 +572,9 @@ def save_config_backup(
         timestamp=timestamp,
     )
 
-    destination = (
-        directory / filename
-    )
+    destination = directory / filename
 
-    normalized = normalize_config_text(
-        config_text
-    )
+    normalized = normalize_config_text(config_text)
 
     destination.write_text(
         normalized,

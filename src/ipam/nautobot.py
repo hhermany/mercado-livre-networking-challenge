@@ -48,10 +48,7 @@ class NautobotIPAMProvider(IPAMProvider):
 
         parent_id = self._get_parent_prefix_id(parent_prefix)
 
-        url = (
-            f"{self.base_url}/api/ipam/prefixes/"
-            f"{parent_id}/available-prefixes/"
-        )
+        url = f"{self.base_url}/api/ipam/prefixes/{parent_id}/available-prefixes/"
 
         payload = {
             "prefix_length": prefix_length,
@@ -99,8 +96,6 @@ class NautobotIPAMProvider(IPAMProvider):
         results = response.json()["results"]
 
         if len(results) != 1:
-            raise ValueError(
-                f"Expected exactly one parent prefix: {parent_prefix}"
-            )
+            raise ValueError(f"Expected exactly one parent prefix: {parent_prefix}")
 
         return results[0]["id"]

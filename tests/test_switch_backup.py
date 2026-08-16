@@ -17,9 +17,7 @@ class FakeFTP:
         self.content = None
         self.closed = False
 
-        self.__class__.instances.append(
-            self
-        )
+        self.__class__.instances.append(self)
 
     def connect(
         self,
@@ -117,20 +115,13 @@ def test_ftp_backup_upload(
     assert ftp.passive is True
     assert ftp.directory == "/configs"
 
-    assert ftp.command == (
-        "STOR SW1.cfg"
-    )
+    assert ftp.command == ("STOR SW1.cfg")
 
-    assert ftp.content == (
-        b"hostname SW1\n"
-    )
+    assert ftp.content == (b"hostname SW1\n")
 
     assert result.protocol == "ftp"
 
-    assert result.destination == (
-        "ftp://192.0.2.10:21"
-        "/configs/SW1.cfg"
-    )
+    assert result.destination == ("ftp://192.0.2.10:21/configs/SW1.cfg")
 
 
 def test_ftp_backup_requires_credentials():
@@ -158,11 +149,7 @@ def test_local_backup_storage(
 
     assert result.protocol == "local"
 
-    assert (
-        tmp_path / "SW1.cfg"
-    ).read_bytes() == (
-        b"hostname SW1\n"
-    )
+    assert (tmp_path / "SW1.cfg").read_bytes() == (b"hostname SW1\n")
 
 
 class FakeSFTPFile:
@@ -219,9 +206,7 @@ class FakeSFTPClient:
 
         remote_file = FakeSFTPFile()
 
-        self.files[
-            filename
-        ] = remote_file
+        self.files[filename] = remote_file
 
         return remote_file
 
@@ -229,13 +214,7 @@ class FakeSFTPClient:
         self,
         filename,
     ):
-        return FakeSFTPAttributes(
-            len(
-                self.files[
-                    filename
-                ].content
-            )
-        )
+        return FakeSFTPAttributes(len(self.files[filename].content))
 
     def close(self):
         self.closed = True
@@ -250,9 +229,7 @@ class FakeSSHClient:
         self.closed = False
         self.sftp = FakeSFTPClient()
 
-        self.__class__.instances.append(
-            self
-        )
+        self.__class__.instances.append(self)
 
     def load_system_host_keys(self):
         pass
@@ -301,35 +278,19 @@ def test_sftp_backup_upload(
 
     client = FakeSSHClient.instances[0]
 
-    assert client.connected[
-        "hostname"
-    ] == "192.0.2.20"
+    assert client.connected["hostname"] == "192.0.2.20"
 
-    assert client.connected[
-        "port"
-    ] == 22
+    assert client.connected["port"] == 22
 
-    assert client.connected[
-        "username"
-    ] == "admin"
+    assert client.connected["username"] == "admin"
 
-    assert client.sftp.directory == (
-        "/configs"
-    )
+    assert client.sftp.directory == ("/configs")
 
-    assert (
-        client.sftp.files[
-            "SW1.cfg"
-        ].content
-        == b"hostname SW1\n"
-    )
+    assert client.sftp.files["SW1.cfg"].content == b"hostname SW1\n"
 
     assert result.protocol == "sftp"
 
-    assert result.destination == (
-        "sftp://192.0.2.20:22"
-        "/configs/SW1.cfg"
-    )
+    assert result.destination == ("sftp://192.0.2.20:22/configs/SW1.cfg")
 
 
 def test_sftp_requires_credentials():
@@ -370,24 +331,16 @@ def test_tftp_backup_upload(
             local_name,
             timeout,
         ):
-            captured[
-                "remote_name"
-            ] = remote_name
+            captured["remote_name"] = remote_name
 
-            captured[
-                "timeout"
-            ] = timeout
+            captured["timeout"] = timeout
 
-            captured[
-                "content"
-            ] = open(
+            captured["content"] = open(
                 local_name,
                 "rb",
             ).read()
 
-    fake_module = types.SimpleNamespace(
-        TftpClient=FakeTftpClient
-    )
+    fake_module = types.SimpleNamespace(TftpClient=FakeTftpClient)
 
     monkeypatch.setitem(
         sys.modules,
@@ -403,28 +356,17 @@ def test_tftp_backup_upload(
         remote_directory="/configs",
     )
 
-    assert captured[
-        "host"
-    ] == "192.0.2.30"
+    assert captured["host"] == "192.0.2.30"
 
-    assert captured[
-        "port"
-    ] == 69
+    assert captured["port"] == 69
 
-    assert captured[
-        "remote_name"
-    ] == "configs/SW1.cfg"
+    assert captured["remote_name"] == "configs/SW1.cfg"
 
-    assert captured[
-        "content"
-    ] == b"hostname SW1\n"
+    assert captured["content"] == b"hostname SW1\n"
 
     assert result.protocol == "tftp"
 
-    assert result.destination == (
-        "tftp://192.0.2.30:69/"
-        "configs/SW1.cfg"
-    )
+    assert result.destination == ("tftp://192.0.2.30:69/configs/SW1.cfg")
 
 
 def test_tftp_requires_host():

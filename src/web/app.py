@@ -18,6 +18,16 @@ from flask import (
     url_for,
 )
 
+from src.branch.bundle import generate_branch_bundle
+from src.branch.models import (
+    BranchWANInput,
+    IPsecPhase1Input,
+    IPsecPhase2Input,
+)
+from src.branch.provisioning import BranchProvisioner
+from src.devices.fortigate import discover_managed_fortigate
+from src.devices.fortigate_manager import FortiGateManager
+from src.devices.paloalto_manager import PaloAltoManager
 from src.switch.batch import (
     build_selection_preview,
     combine_interface_selection,
@@ -54,10 +64,15 @@ from src.switch.service import (
     run_switch_traceroute,
     save_running_to_startup,
 )
+from src.vpn.capabilities import intersect_capabilities
 
 load_dotenv(".env")
 
 app = Flask(__name__)
+
+fortigate_manager = FortiGateManager()
+
+_firewall_candidates = {}
 
 
 device_manager = DeviceManager(max_workers=4)
@@ -2736,12 +2751,582 @@ def api_discover_devices():
 
 @app.get("/")
 def index():
+    if request.args.get("device_id"):
+        return redirect(
+            url_for(
+                "switches",
+                device_id=request.args.get("device_id"),
+            )
+        )
+
+    return render_template("home.html")
+
+
+@app.get("/switches")
+def switches():
     return render_page()
+
+
+@app.get("/api/firewalls")
+def api_firewalls():
+    return jsonify(
+        {
+            "success": True,
+            "devices": fortigate_manager.list(),
+        }
+    )
+
+
+@app.post("/api/firewalls")
+def api_add_firewall():
+    payload = (
+        request.get_json(
+            silent=True,
+        )
+        or {}
+    )
+
+    try:
+        device = fortigate_manager.upsert(
+            host=payload.get("host"),
+            username=payload.get("username"),
+            password=payload.get("password"),
+        )
+
+        discovery = discover_managed_fortigate(device)
+
+        device.hostname = discovery.get("hostname")
+        device.status = "connected"
+        device.error = None
+
+        fortigate_manager.save(device)
+
+        result = device.public()
+        result["version"] = discovery.get("version")
+        result["serial"] = discovery.get("serial")
+
+        return jsonify(
+            {
+                "success": True,
+                "device": result,
+            }
+        )
+
+    except Exception as exc:
+        try:
+            device.status = "error"
+            device.error = str(exc)
+        except UnboundLocalError:
+            pass
+
+        return jsonify(
+            {
+                "success": False,
+                "error": str(exc),
+            }
+        ), 400
+
+
+@app.delete("/api/firewalls/<device_id>")
+def api_delete_firewall(device_id):
+    try:
+        fortigate_manager.remove(device_id)
+
+    except KeyError as exc:
+        return jsonify(
+            {
+                "success": False,
+                "error": str(exc),
+            }
+        ), 404
+
+    return jsonify(
+        {
+            "success": True,
+        }
+    )
+
+
+@app.get("/api/firewalls/<device_id>/ipsec-capabilities")
+def api_firewall_ipsec_capabilities(
+    device_id,
+):
+    try:
+        device = fortigate_manager.get(device_id)
+
+        if device.status != "connected":
+            raise ValueError("O FortiGate selecionado nao esta conectado.")
+
+        from src.devices.fortigate import (
+            FortiGateDriver,
+        )
+
+        driver = FortiGateDriver(**device.credentials())
+
+        fortigate_capabilities = driver.discover_ipsec_capabilities()
+
+        paloalto_host = os.getenv("PALOALTO_HOST", "").strip()
+        paloalto_username = os.getenv("PALOALTO_USERNAME", "").strip()
+        paloalto_password = os.getenv("PALOALTO_PASSWORD", "")
+
+        if not all(
+            (
+                paloalto_host,
+                paloalto_username,
+                paloalto_password,
+            )
+        ):
+            raise ValueError(
+                "Palo Alto nao configurado. "
+                "Defina PALOALTO_HOST, PALOALTO_USERNAME "
+                "e PALOALTO_PASSWORD."
+            )
+
+        paloalto = PaloAltoManager(
+            host=paloalto_host,
+            username=paloalto_username,
+            password=paloalto_password,
+        )
+
+        paloalto_capabilities = paloalto.discover_ipsec_capabilities()
+
+        compatible = intersect_capabilities(
+            fortigate_capabilities,
+            paloalto_capabilities,
+        )
+
+        return jsonify(
+            {
+                "success": True,
+                "fortigate": {
+                    "ike_versions": fortigate_capabilities.ike_versions,
+                    "phase1_proposals": (fortigate_capabilities.phase1_proposals),
+                    "phase1_dh_groups": (fortigate_capabilities.phase1_dh_groups),
+                    "phase2_proposals": (fortigate_capabilities.phase2_proposals),
+                    "phase2_dh_groups": (fortigate_capabilities.phase2_dh_groups),
+                },
+                "paloalto": {
+                    "ike_versions": paloalto_capabilities.ike_versions,
+                    "phase1_proposals": (paloalto_capabilities.phase1_proposals),
+                    "phase1_dh_groups": (paloalto_capabilities.phase1_dh_groups),
+                    "phase2_proposals": (paloalto_capabilities.phase2_proposals),
+                    "phase2_dh_groups": (paloalto_capabilities.phase2_dh_groups),
+                },
+                "compatible": {
+                    "ike_versions": compatible.ike_versions,
+                    "phase1_proposals": compatible.phase1_proposals,
+                    "phase1_dh_groups": compatible.phase1_dh_groups,
+                    "phase2_proposals": compatible.phase2_proposals,
+                    "phase2_dh_groups": compatible.phase2_dh_groups,
+                },
+                "paloalto_ready": True,
+                "message": (
+                    "Capabilities FortiGate x Palo Alto calculadas com sucesso."
+                ),
+            }
+        )
+
+    except (
+        KeyError,
+        ValueError,
+        RuntimeError,
+    ) as exc:
+        return jsonify(
+            {
+                "success": False,
+                "error": str(exc),
+            }
+        ), 400
+
+    except Exception as exc:
+        return jsonify(
+            {
+                "success": False,
+                "error": str(exc),
+            }
+        ), 500
+
+
+@app.get("/api/firewalls/provision/plan")
+def api_firewall_provision_plan():
+    try:
+        plan = BranchProvisioner().plan()
+
+        return jsonify(
+            {
+                "success": True,
+                "plan": {
+                    "branch_id": plan.branch_id,
+                    "name": plan.name,
+                    "hostname": plan.hostname,
+                    "lan_prefix": plan.lan_prefix,
+                    "loopback_prefix": plan.loopback_prefix,
+                    "vpn1_prefix": plan.vpn1_prefix,
+                    "vpn2_prefix": plan.vpn2_prefix,
+                },
+            }
+        )
+
+    except Exception as exc:
+        return jsonify(
+            {
+                "success": False,
+                "error": str(exc),
+            }
+        ), 400
+
+
+@app.post("/api/firewalls/provision/candidates")
+def api_firewall_provision_candidate():
+    payload = (
+        request.get_json(
+            silent=True,
+        )
+        or {}
+    )
+
+    device_id = str(
+        payload.get(
+            "device_id",
+            "",
+        )
+        or ""
+    ).strip()
+
+    if not device_id:
+        return jsonify(
+            {
+                "success": False,
+                "error": "Selecione um FortiGate.",
+            }
+        ), 400
+
+    try:
+        device = fortigate_manager.get(device_id)
+
+        if device.status != "connected":
+            raise ValueError("O FortiGate selecionado nao esta conectado.")
+
+        provisioner = BranchProvisioner()
+
+        plan = provisioner.plan()
+
+        hostname = str(
+            payload.get(
+                "hostname",
+                "",
+            )
+            or plan.hostname
+        ).strip()
+
+        wan = BranchWANInput(
+            wan1_ip=str(
+                payload.get(
+                    "wan1_ip",
+                    "",
+                )
+                or ""
+            ).strip(),
+            wan1_gateway=str(
+                payload.get(
+                    "wan1_gateway",
+                    "",
+                )
+                or ""
+            ).strip(),
+            wan2_ip=str(
+                payload.get(
+                    "wan2_ip",
+                    "",
+                )
+                or ""
+            ).strip(),
+            wan2_gateway=str(
+                payload.get(
+                    "wan2_gateway",
+                    "",
+                )
+                or ""
+            ).strip(),
+        )
+
+        phase1 = IPsecPhase1Input(
+            ike_version=2,
+            proposal="des-sha256",
+            dh_group=14,
+            psk=str(
+                payload.get(
+                    "phase1_psk",
+                    "",
+                )
+                or ""
+            ),
+        )
+
+        phase2 = IPsecPhase2Input(
+            proposal="des-sha256",
+            dh_group=14,
+        )
+
+        required = {
+            "Hostname": hostname,
+            "WAN1 IP/prefixo": wan.wan1_ip,
+            "WAN1 Gateway": wan.wan1_gateway,
+            "WAN2 IP/prefixo": wan.wan2_ip,
+            "WAN2 Gateway": wan.wan2_gateway,
+            "Phase1 Proposal": phase1.proposal,
+            "Phase1 PSK": phase1.psk,
+            "Phase2 Proposal": phase2.proposal,
+        }
+
+        missing = [name for name, value in required.items() if not value]
+
+        if missing:
+            raise ValueError("Campos obrigatorios: " + ", ".join(missing))
+
+        dc_wan1_ip = os.getenv(
+            "DC_WAN1_IP",
+            "100.64.0.1",
+        )
+
+        dc_wan2_ip = os.getenv(
+            "DC_WAN2_IP",
+            "100.100.0.1",
+        )
+
+        bundle = generate_branch_bundle(
+            branch_id=plan.branch_id,
+            wan=wan,
+            phase1=phase1,
+            phase2=phase2,
+            dc_wan1_ip=dc_wan1_ip,
+            dc_wan2_ip=dc_wan2_ip,
+            hostname=hostname,
+        )
+
+        candidate_id = uuid4().hex
+
+        _firewall_candidates[candidate_id] = {
+            "id": candidate_id,
+            "device_id": device_id,
+            "device": device.public(),
+            "branch_id": plan.branch_id,
+            "name": plan.name,
+            "hostname": bundle.hostname,
+            "plan": {
+                "lan_prefix": plan.lan_prefix,
+                "loopback_prefix": plan.loopback_prefix,
+                "vpn1_prefix": plan.vpn1_prefix,
+                "vpn2_prefix": plan.vpn2_prefix,
+            },
+            "wan": {
+                "wan1_ip": wan.wan1_ip,
+                "wan1_gateway": wan.wan1_gateway,
+                "wan2_ip": wan.wan2_ip,
+                "wan2_gateway": wan.wan2_gateway,
+            },
+            "fortigate_config": bundle.fortigate,
+            "paloalto_config": bundle.paloalto,
+        }
+
+        return jsonify(
+            {
+                "success": True,
+                "candidate_id": candidate_id,
+                "branch_id": plan.branch_id,
+                "name": plan.name,
+                "hostname": bundle.hostname,
+                "plan": {
+                    "lan_prefix": plan.lan_prefix,
+                    "loopback_prefix": plan.loopback_prefix,
+                    "vpn1_prefix": plan.vpn1_prefix,
+                    "vpn2_prefix": plan.vpn2_prefix,
+                },
+            }
+        )
+
+    except (
+        KeyError,
+        ValueError,
+    ) as exc:
+        return jsonify(
+            {
+                "success": False,
+                "error": str(exc),
+            }
+        ), 400
+
+    except Exception as exc:
+        return jsonify(
+            {
+                "success": False,
+                "error": str(exc),
+            }
+        ), 500
+
+
+@app.get("/api/firewalls/provision/candidates/<candidate_id>")
+def api_firewall_candidate(candidate_id):
+    candidate = _firewall_candidates.get(candidate_id)
+
+    if candidate is None:
+        return jsonify(
+            {
+                "success": False,
+                "error": "Candidate nao encontrado.",
+            }
+        ), 404
+
+    return jsonify(
+        {
+            "success": True,
+            "candidate": {
+                "id": candidate["id"],
+                "device": candidate["device"],
+                "branch_id": candidate["branch_id"],
+                "name": candidate["name"],
+                "hostname": candidate["hostname"],
+                "plan": candidate["plan"],
+                "wan": candidate["wan"],
+                "config": candidate["fortigate_config"],
+            },
+        }
+    )
+
+
+@app.get("/api/firewalls/provision/candidates/<candidate_id>/download")
+def api_firewall_candidate_download(
+    candidate_id,
+):
+    candidate = _firewall_candidates.get(candidate_id)
+
+    if candidate is None:
+        return jsonify(
+            {
+                "success": False,
+                "error": "Candidate nao encontrado.",
+            }
+        ), 404
+
+    filename = candidate["hostname"] + "_Branch.cfg"
+
+    return send_file(
+        BytesIO(candidate["fortigate_config"].encode("utf-8")),
+        mimetype="text/plain",
+        as_attachment=True,
+        download_name=filename,
+    )
+
+
+@app.post("/api/firewalls/provision/candidates/<candidate_id>/deploy")
+def api_firewall_candidate_deploy(
+    candidate_id,
+):
+    from src.branch.deployment import (
+        BranchDeploymentError,
+        deploy_candidate,
+    )
+
+    candidate = _firewall_candidates.get(candidate_id)
+
+    if candidate is None:
+        return jsonify(
+            {
+                "success": False,
+                "error": "Candidate nao encontrado.",
+            }
+        ), 404
+
+    try:
+        device = fortigate_manager.get(candidate["device_id"])
+
+        paloalto_host = os.getenv(
+            "PALOALTO_HOST",
+            "",
+        ).strip()
+
+        paloalto_username = os.getenv(
+            "PALOALTO_USERNAME",
+            "",
+        ).strip()
+
+        paloalto_password = os.getenv(
+            "PALOALTO_PASSWORD",
+            "",
+        )
+
+        if not all(
+            (
+                paloalto_host,
+                paloalto_username,
+                paloalto_password,
+            )
+        ):
+            raise ValueError("Palo Alto nao configurado no ambiente.")
+
+        result = deploy_candidate(
+            candidate=candidate,
+            device=device,
+            paloalto_host=(paloalto_host),
+            paloalto_username=(paloalto_username),
+            paloalto_password=(paloalto_password),
+        )
+
+        device.hostname = result.hostname
+        device.status = "connected"
+        device.error = None
+
+        fortigate_manager.save(device)
+
+        candidate["deployment"] = {
+            "success": True,
+            "output_dir": result.output_dir,
+        }
+
+        return jsonify(
+            {
+                "success": True,
+                "branch_id": result.branch_id,
+                "name": result.name,
+                "hostname": result.hostname,
+                "nautobot_reserved": result.nautobot_reserved,
+                "paloalto_applied": result.paloalto_applied,
+                "fortigate_applied": result.fortigate_applied,
+                "fortigate_validated": result.fortigate_validated,
+                "output_dir": result.output_dir,
+            }
+        )
+
+    except BranchDeploymentError as exc:
+        return jsonify(
+            {
+                "success": False,
+                "error": str(exc),
+                "stage": exc.stage,
+                "resources_reserved": exc.resources_reserved,
+            }
+        ), 500
+
+    except (
+        KeyError,
+        ValueError,
+    ) as exc:
+        return jsonify(
+            {
+                "success": False,
+                "error": str(exc),
+            }
+        ), 400
+
+
+@app.get("/firewalls")
+def firewalls():
+    return render_template("firewalls.html")
 
 
 @app.post("/")
 def stale_root_post():
-    return redirect(url_for("index"))
+    return redirect(url_for("switches"))
 
 
 @app.post("/apply-hostname")
@@ -3587,6 +4172,11 @@ if __name__ == "__main__":
     device_manager.enable_persistence(
         database_path=".runtime/devices.sqlite3",
         key_path=".runtime/device-manager.key",
+    )
+
+    fortigate_manager.enable_persistence(
+        database_path=".runtime/fortigates.sqlite3",
+        key_path=".runtime/fortigates.key",
     )
     app.run(
         host="0.0.0.0",

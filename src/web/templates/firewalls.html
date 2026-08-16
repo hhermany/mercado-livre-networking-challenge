@@ -1,0 +1,1729 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>Firewall Deployment - Networking Challenge</title>
+
+<style>
+:root {
+    --bg: #f4f6f8;
+    --card: #ffffff;
+    --border: #dfe3e8;
+    --text: #17202a;
+    --muted: #68737d;
+    --primary: #1769aa;
+    --success: #218739;
+    --danger: #b42318;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: Inter, Arial, Helvetica, sans-serif;
+}
+
+.container {
+    max-width: 1540px;
+    margin: 0 auto;
+    padding: 28px 24px 60px;
+}
+
+.back-link {
+    display: inline-block;
+    margin-bottom: 20px;
+    color: var(--primary);
+    text-decoration: none;
+    font-weight: 600;
+}
+
+header h1 {
+    margin: 0;
+    font-size: 28px;
+}
+
+header p {
+    margin: 7px 0 0;
+    color: var(--muted);
+}
+
+.card {
+    margin-top: 22px;
+    padding: 24px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+}
+
+.card h2 {
+    margin: 0 0 6px;
+    font-size: 19px;
+}
+
+.card-description {
+    margin: 0 0 20px;
+    color: var(--muted);
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: 2fr 1.4fr 1.4fr auto;
+    gap: 12px;
+    align-items: end;
+}
+
+.field label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.field input {
+    width: 100%;
+    min-height: 40px;
+    padding: 9px 11px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+button {
+    min-height: 40px;
+    padding: 9px 16px;
+    border: 0;
+    border-radius: 6px;
+    background: var(--primary);
+    color: white;
+    cursor: pointer;
+    font-weight: 700;
+}
+
+button:disabled {
+    opacity: .55;
+    cursor: not-allowed;
+}
+
+.message {
+    display: none;
+    margin-top: 16px;
+    padding: 11px 13px;
+    border-radius: 6px;
+}
+
+.message.ok {
+    display: block;
+    background: #eaf7ed;
+    color: #176b2c;
+}
+
+.message.error {
+    display: block;
+    background: #fdecec;
+    color: var(--danger);
+}
+
+.device-table {
+    width: 100%;
+    margin-top: 18px;
+    border-collapse: collapse;
+}
+
+.device-table th,
+.device-table td {
+    padding: 12px 10px;
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+    vertical-align: middle;
+}
+
+.device-table th {
+    font-size: 12px;
+    color: var(--muted);
+    text-transform: uppercase;
+}
+
+.status-connected {
+    color: var(--success);
+    font-weight: 700;
+}
+
+.status-error {
+    color: var(--danger);
+    font-weight: 700;
+}
+
+.remove-button {
+    min-height: 32px;
+    padding: 6px 10px;
+    background: var(--danger);
+}
+
+.provision-placeholder {
+    color: var(--muted);
+    line-height: 1.6;
+}
+
+.selected-count {
+    margin-top: 14px;
+    font-size: 13px;
+    color: var(--muted);
+}
+
+
+.provision-grid {
+    display: grid;
+    grid-template-columns:
+        repeat(
+            3,
+            minmax(220px, 1fr)
+        );
+    gap: 14px;
+    margin-bottom: 20px;
+}
+
+.wan-row {
+    display: grid;
+    grid-template-columns:
+        repeat(
+            2,
+            minmax(220px, 1fr)
+        );
+    gap: 14px;
+    margin-bottom: 20px;
+}
+
+.provision-grid select {
+    width: 100%;
+    min-height: 40px;
+    padding: 9px 11px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: white;
+}
+
+.readonly-field input {
+    background: #f5f7f9;
+}
+
+#provision-card h3 {
+    margin: 22px 0 12px;
+    font-size: 15px;
+}
+
+.provision-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 22px;
+    padding-top: 18px;
+    border-top: 1px solid var(--border);
+}
+
+.button-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 40px;
+    padding: 9px 16px;
+    border-radius: 6px;
+    background: var(--primary);
+    color: white;
+    text-decoration: none;
+    font-weight: 700;
+}
+
+.button-link.disabled {
+    opacity: .55;
+    pointer-events: none;
+}
+
+.candidate-summary {
+    margin-top: 18px;
+    padding: 14px;
+    background: #f5f7f9;
+    border-radius: 6px;
+    line-height: 1.6;
+}
+
+.candidate-preview {
+    margin-top: 18px;
+}
+
+.candidate-preview pre {
+    max-height: 600px;
+    overflow: auto;
+    padding: 16px;
+    background: #111820;
+    color: #e7edf2;
+    border-radius: 6px;
+    white-space: pre;
+    font-size: 12px;
+}
+
+@media (max-width: 850px) {
+    .form-grid,
+    .provision-grid,
+    .wan-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ==========================================================
+   Managed FortiGates
+   Mesmo padrão visual utilizado no MultiSwitch.
+   ========================================================== */
+
+.managed-device-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 14px;
+}
+
+.managed-firewall-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+
+    min-height: 52px;
+    padding: 10px 14px;
+
+    background: #f7f9fb;
+    border: 1px solid #d5dee8;
+    border-radius: 8px;
+}
+
+.managed-firewall-main {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+
+    min-width: 0;
+    flex: 1;
+}
+
+.managed-firewall-hostname {
+    font-weight: 700;
+    font-size: 15px;
+    color: #111827;
+    white-space: nowrap;
+}
+
+.managed-firewall-ip {
+    font-size: 11px;
+    color: #64748b;
+    white-space: nowrap;
+}
+
+.managed-firewall-user {
+    font-size: 12px;
+    color: #64748b;
+    white-space: nowrap;
+}
+
+.managed-firewall-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    white-space: nowrap;
+}
+
+.firewall-select-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin: 0;
+
+    font-size: 11px;
+    font-weight: 400;
+    cursor: pointer;
+}
+
+.firewall-status-badge {
+    display: inline-flex;
+    align-items: center;
+
+    padding: 3px 8px;
+    border-radius: 999px;
+
+    font-size: 10px;
+    font-weight: 600;
+}
+
+.firewall-status-connected {
+    color: #147a25;
+    background: #eaf7ec;
+}
+
+.firewall-status-new {
+    color: #6b7280;
+    background: #eef2f6;
+}
+
+.firewall-status-error {
+    color: #b42318;
+    background: #feeceb;
+}
+
+.firewall-remove-button {
+    min-height: auto;
+    padding: 5px 10px;
+
+    font-size: 10px;
+    font-weight: 500;
+
+    color: #475569;
+    background: #ffffff;
+
+    border: 1px solid #ccd5df;
+    border-radius: 5px;
+}
+
+.firewall-remove-button:hover {
+    background: #f5f7f9;
+}
+
+.managed-device-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    margin-top: 14px;
+    padding: 12px 14px;
+
+    background: #f7f9fb;
+    border: 1px solid #d5dee8;
+    border-radius: 8px;
+
+    font-size: 11px;
+    color: #475569;
+}
+
+#manage-selected-firewalls {
+    min-height: auto;
+    padding: 9px 18px;
+}
+
+@media (max-width: 900px) {
+    .managed-firewall-card {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .managed-firewall-actions {
+        width: 100%;
+        justify-content: flex-start;
+        flex-wrap: wrap;
+    }
+
+    .managed-device-footer {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 10px;
+    }
+}
+
+
+.firewall-management-status {
+    margin: 8px 0 14px 0;
+    padding: 8px 12px;
+
+    color: #475569;
+    background: #f7f9fb;
+
+    border: 1px solid #d5dee8;
+    border-radius: 6px;
+
+    font-size: 12px;
+}
+
+.firewall-management-status.active {
+    color: #166534;
+    background: #ecf8ef;
+    border-color: #cce8d2;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <a class="back-link" href="/">
+        ← Networking Challenge
+    </a>
+
+    <header>
+        <h1>Firewall Deployment</h1>
+        <p>
+            Provisionamento automatizado de filiais FortiGate.
+        </p>
+    </header>
+
+
+    <section class="card">
+
+        <h2>Managed FortiGates</h2>
+
+        <p class="card-description">
+            Conecte os FortiGates que serão gerenciados
+            pela automação.
+        </p>
+
+        <form
+            id="firewall-form"
+            class="form-grid"
+        >
+
+            <div class="field">
+                <label for="host">
+                    IP / Hostname
+                </label>
+
+                <input
+                    id="host"
+                    name="host"
+                    placeholder="172.28.255.x"
+                    required
+                >
+            </div>
+
+            <div class="field">
+                <label for="username">
+                    Usuário
+                </label>
+
+                <input
+                    id="username"
+                    name="username"
+                    autocomplete="username"
+                    required
+                >
+            </div>
+
+            <div class="field">
+                <label for="password">
+                    Senha
+                </label>
+
+                <input
+                    id="password"
+                    name="password"
+                    type="password"
+                    autocomplete="current-password"
+                    required
+                >
+            </div>
+
+            <button
+                id="connect-button"
+                type="submit"
+            >
+                Conectar / Descobrir
+            </button>
+
+        </form>
+
+        <div
+            id="message"
+            class="message"
+        ></div>
+
+        <div
+    id="device-list"
+    class="managed-device-list"
+></div>
+
+<div class="managed-device-footer">
+    <span id="selected-count">
+        0 FortiGate(s) selecionado(s)
+    </span>
+
+    <button
+        id="manage-selected-firewalls"
+        type="button"
+    >
+        Gerenciar selecionados
+    </button>
+</div>
+
+        
+
+    </section>
+
+
+    <section class="card" id="provision-card">
+
+        <h2>Provision</h2>
+<div
+    id="firewall-management-status"
+    class="firewall-management-status"
+>
+    Nenhum FortiGate em gerenciamento.
+</div>
+
+
+        <p class="card-description">
+            O Nautobot/IPAM define automaticamente Branch ID,
+            LAN, Loopback e redes dos túneis.
+            Gerar Template não reserva endereços.
+        </p>
+
+        <div class="provision-grid">
+
+            <div class="field">
+                <label for="provision-hostname">
+                    Hostname
+                </label>
+                <input
+                    id="provision-hostname"
+                    placeholder="FW-BRANCH-X"
+                >
+            </div>
+
+            <div class="field readonly-field">
+                <label>Branch</label>
+                <input id="plan-name" readonly>
+            </div>
+
+            <div class="field readonly-field">
+                <label>LAN</label>
+                <input id="plan-lan" readonly>
+            </div>
+
+            <div class="field readonly-field">
+                <label>Loopback</label>
+                <input id="plan-loopback" readonly>
+            </div>
+
+            <div class="field readonly-field">
+                <label>VPN1-PA-DC</label>
+                <input id="plan-vpn1" readonly>
+                <div
+                    id="vpn1-endpoints"
+                    class="vpn-endpoint-info"
+                >
+                    <span>Palo Alto: -</span>
+                    <span>FortiGate: -</span>
+                </div>
+            </div>
+
+            <div class="field readonly-field">
+                <label>VPN2-PA-DC</label>
+                <input id="plan-vpn2" readonly>
+                <div
+                    id="vpn2-endpoints"
+                    class="vpn-endpoint-info"
+                >
+                    <span>Palo Alto: -</span>
+                    <span>FortiGate: -</span>
+                </div>
+            </div>
+
+        </div>
+
+        <h3>WAN 1 / port2</h3>
+
+        <div class="wan-row">
+
+            <div class="field">
+                <label for="wan1-ip">
+                    IP / prefixo
+                </label>
+                <input
+                    id="wan1-ip"
+                    placeholder="100.64.0.3/24"
+                >
+            </div>
+
+            <div class="field">
+                <label for="wan1-gateway">
+                    Gateway
+                </label>
+                <input
+                    id="wan1-gateway"
+                    placeholder="100.64.0.1"
+                >
+            </div>
+
+        </div>
+
+        <h3>WAN 2 / port3</h3>
+
+        <div class="wan-row">
+
+            <div class="field">
+                <label for="wan2-ip">
+                    IP / prefixo
+                </label>
+                <input
+                    id="wan2-ip"
+                    placeholder="100.100.0.3/24"
+                >
+            </div>
+
+            <div class="field">
+                <label for="wan2-gateway">
+                    Gateway
+                </label>
+                <input
+                    id="wan2-gateway"
+                    placeholder="100.100.0.1"
+                >
+            </div>
+
+        </div>
+
+        <h3>IPsec Phase 1</h3>
+
+        <div class="provision-grid">
+
+            <div class="field">
+                <label for="phase1-ike">
+                    IKE Version
+                </label>
+                <input
+                    id="phase1-ike"
+                    value="2"
+                    readonly
+                >
+            </div>
+
+            <div class="field">
+                <label for="phase1-proposal">
+                    Proposal
+                </label>
+                <input
+                    id="phase1-proposal"
+                    value="des-sha256"
+                    readonly
+                >
+            </div>
+
+            <div class="field">
+                <label for="phase1-dh">
+                    DH Group
+                </label>
+                <input
+                    id="phase1-dh"
+                    value="14"
+                    readonly
+                >
+            </div>
+
+            <div class="field">
+                <label for="phase1-psk">
+                    PSK
+                </label>
+                <input
+                    id="phase1-psk"
+                    type="password"
+                >
+            </div>
+
+        </div>
+
+        <h3>IPsec Phase 2</h3>
+
+        <div class="provision-grid">
+
+            <div class="field">
+                <label for="phase2-proposal">
+                    Proposal
+                </label>
+                <input
+                    id="phase2-proposal"
+                    value="des-sha256"
+                    readonly
+                >
+            </div>
+
+            <div class="field">
+                <label for="phase2-dh">
+                    DH Group
+                </label>
+                <input
+                    id="phase2-dh"
+                    value="14"
+                    readonly
+                >
+            </div>
+
+        </div>
+
+        <div class="provision-actions">
+            <button
+                id="generate-template"
+                type="button"
+            >
+                Gerar Template
+            </button>
+
+            <button
+                id="view-template"
+                type="button"
+                disabled
+            >
+                Visualizar Template
+            </button>
+
+            <a
+                id="download-template"
+                class="button-link disabled"
+                href="#"
+            >
+                Baixar Template
+            </a>
+
+            <button
+                id="deploy-config"
+                type="button"
+                disabled
+            >
+                Deploy Config
+            </button>
+        </div>
+
+        <div
+            id="provision-message"
+            class="message"
+        ></div>
+
+        <div
+            id="candidate-summary"
+            class="candidate-summary"
+            hidden
+        ></div>
+
+        <div
+            id="candidate-preview"
+            class="candidate-preview"
+            hidden
+        >
+            <h3>FortiGate Candidate</h3>
+            <pre id="candidate-config"></pre>
+        </div>
+
+    </section>
+
+</div>
+
+
+<script>
+const form = document.getElementById("firewall-form");
+const message = document.getElementById("message");
+const deviceList = document.getElementById("device-list");
+const selectedCount = document.getElementById("selected-count");
+const connectButton = document.getElementById("connect-button");
+
+function setMessage(text, type) {
+    message.textContent = text;
+    message.className = "message " + type;
+}
+
+async function updateSelectedCount() {
+    const selected = Array.from(
+        document.querySelectorAll(
+            ".device-select:checked"
+        )
+    );
+
+    selectedCount.textContent =
+        `${selected.length} FortiGate(s) selecionado(s)`;
+
+    if (selected.length === 1) {
+        setProvisionMessage(
+            "Padrao IPsec: IKEv2 / des-sha256 / DH14.",
+            "ok"
+        );
+    }
+}
+
+async function loadDevices() {
+    const response = await fetch(
+        "/api/firewalls"
+    );
+
+    const data = await response.json();
+
+    deviceList.innerHTML = "";
+
+    for (const device of data.devices || []) {
+        const card =
+            document.createElement("div");
+
+        card.className =
+            "managed-firewall-card";
+
+        const hostname =
+            device.hostname
+            || device.host;
+
+        const status =
+            device.status
+            || "new";
+
+        let statusLabel = "Cadastrado";
+        let statusClass =
+            "firewall-status-new";
+
+        if (status === "connected") {
+            statusLabel = "Conectado";
+            statusClass =
+                "firewall-status-connected";
+        } else if (status === "error") {
+            statusLabel = "Erro";
+            statusClass =
+                "firewall-status-error";
+        }
+
+        card.innerHTML = `
+            <div class="managed-firewall-main">
+                <span class="managed-firewall-hostname">
+                    ${hostname}
+                </span>
+
+                <span class="managed-firewall-ip">
+                    ${device.host}
+                </span>
+
+                <span class="managed-firewall-user">
+                    ${device.username || ""}
+                </span>
+            </div>
+
+            <div class="managed-firewall-actions">
+                <label class="firewall-select-label">
+                    <input
+                        type="checkbox"
+                        class="device-select"
+                        value="${device.id}"
+                    >
+                    Selecionar
+                </label>
+
+                <span
+                    class="
+                        firewall-status-badge
+                        ${statusClass}
+                    "
+                >
+                    ${statusLabel}
+                </span>
+
+                <button
+                    type="button"
+                    class="firewall-remove-button"
+                    data-device-id="${device.id}"
+                >
+                    Remover
+                </button>
+            </div>
+        `;
+
+        deviceList.appendChild(card);
+    }
+
+    document
+        .querySelectorAll(
+            ".device-select"
+        )
+        .forEach(
+            checkbox => {
+                checkbox.addEventListener(
+                    "change",
+                    updateSelectedCount
+                );
+            }
+        );
+
+    document
+        .querySelectorAll(
+            ".firewall-remove-button"
+        )
+        .forEach(
+            button => {
+                button.addEventListener(
+                    "click",
+                    async () => {
+                        const deviceId =
+                            button.dataset.deviceId;
+
+                        const response =
+                            await fetch(
+                                `/api/firewalls/${deviceId}`,
+                                {
+                                    method: "DELETE"
+                                }
+                            );
+
+                        const data =
+                            await response.json();
+
+                        if (!response.ok) {
+                            setMessage(
+                                data.error
+                                || "Falha ao remover FortiGate.",
+                                "error"
+                            );
+                            return;
+                        }
+
+                        await loadDevices();
+                        await updateSelectedCount();
+                    }
+                );
+            }
+        );
+
+    await updateSelectedCount();
+}
+
+
+async function removeDevice(deviceId) {
+
+    const response = await fetch(
+        `/api/firewalls/${deviceId}`,
+        {
+            method: "DELETE"
+        }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+        setMessage(
+            data.error || "Falha ao remover FortiGate.",
+            "error"
+        );
+        return;
+    }
+
+    setMessage(
+        "FortiGate removido.",
+        "ok"
+    );
+
+    await loadDevices();
+}
+
+
+form.addEventListener(
+    "submit",
+    async (event) => {
+
+        event.preventDefault();
+
+        connectButton.disabled = true;
+        connectButton.textContent = "Conectando...";
+
+        const payload = {
+            host:
+                document.getElementById("host").value,
+            username:
+                document.getElementById("username").value,
+            password:
+                document.getElementById("password").value
+        };
+
+        try {
+
+            const response = await fetch(
+                "/api/firewalls",
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+                    body: JSON.stringify(payload)
+                }
+            );
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(
+                    data.error ||
+                    "Falha ao conectar ao FortiGate."
+                );
+            }
+
+            setMessage(
+                `Conectado: ${data.device.hostname}`,
+                "ok"
+            );
+
+            document.getElementById(
+                "password"
+            ).value = "";
+
+            await loadDevices();
+
+        } catch (error) {
+
+            setMessage(
+                error.message,
+                "error"
+            );
+
+        } finally {
+
+            connectButton.disabled = false;
+            connectButton.textContent =
+                "Conectar / Descobrir";
+        }
+    }
+);
+
+
+let firewallCandidateId = null;
+
+const generateTemplateButton =
+    document.getElementById(
+        "generate-template"
+    );
+
+const viewTemplateButton =
+    document.getElementById(
+        "view-template"
+    );
+
+const downloadTemplate =
+    document.getElementById(
+        "download-template"
+    );
+
+const deployConfigButton =
+    document.getElementById(
+        "deploy-config"
+    );
+
+const provisionMessage =
+    document.getElementById(
+        "provision-message"
+    );
+
+const candidateSummary =
+    document.getElementById(
+        "candidate-summary"
+    );
+
+const candidatePreview =
+    document.getElementById(
+        "candidate-preview"
+    );
+
+const candidateConfig =
+    document.getElementById(
+        "candidate-config"
+    );
+
+
+function selectedFirewallIds() {
+    return Array.from(
+        document.querySelectorAll(
+            ".device-select:checked"
+        )
+    ).map(
+        element => element.value
+    );
+}
+
+
+function setProvisionMessage(
+    text,
+    type
+) {
+    provisionMessage.textContent = text;
+    provisionMessage.className =
+        "message " + type;
+}
+
+
+
+
+function ipv4ToNumber(ip) {
+    return ip
+        .split(".")
+        .map(Number)
+        .reduce(
+            (value, octet) =>
+                ((value << 8) + octet) >>> 0,
+            0
+        );
+}
+
+
+function numberToIPv4(value) {
+    return [
+        (value >>> 24) & 255,
+        (value >>> 16) & 255,
+        (value >>> 8) & 255,
+        value & 255
+    ].join(".");
+}
+
+
+function vpnEndpoints(prefix) {
+    const [ip, prefixLength] =
+        prefix.split("/");
+
+    if (prefixLength !== "30") {
+        throw new Error(
+            "Prefixo VPN deve ser /30."
+        );
+    }
+
+    const network =
+        ipv4ToNumber(ip);
+
+    return {
+        paloalto:
+            numberToIPv4(
+                (network + 1) >>> 0
+            ),
+
+        fortigate:
+            numberToIPv4(
+                (network + 2) >>> 0
+            )
+    };
+}
+
+
+function renderVpnEndpoints(
+    elementId,
+    prefix
+) {
+    const endpoints =
+        vpnEndpoints(prefix);
+
+    const element =
+        document.getElementById(
+            elementId
+        );
+
+    if (!element) {
+        return;
+    }
+
+    element.innerHTML = `
+        <span>
+            Palo Alto: ${endpoints.paloalto}
+        </span>
+
+        <span>
+            FortiGate: ${endpoints.fortigate}
+        </span>
+    `;
+}
+
+
+async function loadProvisionPlan() {
+
+    try {
+        const response = await fetch(
+            "/api/firewalls/provision/plan"
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                data.error ||
+                "Falha ao consultar Nautobot."
+            );
+        }
+
+        const plan = data.plan;
+
+        document.getElementById(
+            "plan-name"
+        ).value = plan.name;
+
+        document.getElementById(
+            "plan-lan"
+        ).value = plan.lan_prefix;
+
+        document.getElementById(
+            "plan-loopback"
+        ).value = plan.loopback_prefix;
+
+        document.getElementById(
+            "plan-vpn1"
+        ).value = plan.vpn1_prefix;
+
+        document.getElementById(
+            "plan-vpn2"
+        ).value = plan.vpn2_prefix;
+
+        renderVpnEndpoints(
+            "vpn1-endpoints",
+            plan.vpn1_prefix
+        );
+
+        renderVpnEndpoints(
+            "vpn2-endpoints",
+            plan.vpn2_prefix
+        );
+
+        const hostname =
+            document.getElementById(
+                "provision-hostname"
+            );
+
+        if (!hostname.value.trim()) {
+            hostname.value =
+                plan.hostname;
+        }
+
+    } catch (error) {
+        setProvisionMessage(
+            error.message,
+            "error"
+        );
+    }
+}
+
+
+generateTemplateButton.addEventListener(
+    "click",
+    async () => {
+
+        const selected =
+            selectedFirewallIds();
+
+        if (selected.length !== 1) {
+            setProvisionMessage(
+                "Selecione exatamente um FortiGate para gerar este Candidate.",
+                "error"
+            );
+            return;
+        }
+
+
+        generateTemplateButton.disabled =
+            true;
+
+        generateTemplateButton.textContent =
+            "Gerando...";
+
+        firewallCandidateId = null;
+
+        deployConfigButton.disabled =
+            true;
+
+        viewTemplateButton.disabled =
+            true;
+
+        downloadTemplate.classList.add(
+            "disabled"
+        );
+
+        downloadTemplate.href = "#";
+
+        candidatePreview.hidden = true;
+        candidateSummary.hidden = true;
+
+        try {
+
+            const payload = {
+                device_id:
+                    selected[0],
+
+                hostname:
+                    document.getElementById(
+                        "provision-hostname"
+                    ).value,
+
+                wan1_ip:
+                    document.getElementById(
+                        "wan1-ip"
+                    ).value,
+
+                wan1_gateway:
+                    document.getElementById(
+                        "wan1-gateway"
+                    ).value,
+
+                wan2_ip:
+                    document.getElementById(
+                        "wan2-ip"
+                    ).value,
+
+                wan2_gateway:
+                    document.getElementById(
+                        "wan2-gateway"
+                    ).value,
+
+                phase1_ike_version:
+                    document.getElementById(
+                        "phase1-ike"
+                    ).value,
+
+                phase1_proposal:
+                    document.getElementById(
+                        "phase1-proposal"
+                    ).value,
+
+                phase1_dh_group:
+                    document.getElementById(
+                        "phase1-dh"
+                    ).value,
+
+                phase1_psk:
+                    document.getElementById(
+                        "phase1-psk"
+                    ).value,
+
+                phase2_proposal:
+                    document.getElementById(
+                        "phase2-proposal"
+                    ).value,
+
+                phase2_dh_group:
+                    document.getElementById(
+                        "phase2-dh"
+                    ).value
+            };
+
+            const response = await fetch(
+                "/api/firewalls/provision/candidates",
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+                    body:
+                        JSON.stringify(
+                            payload
+                        )
+                }
+            );
+
+            const data =
+                await response.json();
+
+            if (!response.ok) {
+                throw new Error(
+                    data.error ||
+                    "Falha ao gerar Candidate."
+                );
+            }
+
+            firewallCandidateId =
+                data.candidate_id;
+
+            deployConfigButton.disabled =
+                false;
+
+            candidateSummary.innerHTML =
+                "<strong>"
+                + data.hostname
+                + "</strong><br>"
+                + data.name
+                + " · LAN "
+                + data.plan.lan_prefix
+                + " · Loopback "
+                + data.plan.loopback_prefix
+                + "<br>VPN1 "
+                + data.plan.vpn1_prefix
+                + " · VPN2 "
+                + data.plan.vpn2_prefix;
+
+            candidateSummary.hidden =
+                false;
+
+            viewTemplateButton.disabled =
+                false;
+
+            downloadTemplate.classList.remove(
+                "disabled"
+            );
+
+            downloadTemplate.href =
+                "/api/firewalls/provision/candidates/"
+                + firewallCandidateId
+                + "/download";
+
+            setProvisionMessage(
+                "Template gerado. Nenhum endereco foi reservado no Nautobot e nenhum firewall foi alterado.",
+                "ok"
+            );
+
+        } catch (error) {
+
+            setProvisionMessage(
+                error.message,
+                "error"
+            );
+
+        } finally {
+
+            generateTemplateButton.disabled =
+                false;
+
+            generateTemplateButton.textContent =
+                "Gerar Template";
+        }
+    }
+);
+
+
+viewTemplateButton.addEventListener(
+    "click",
+    async () => {
+
+        if (!firewallCandidateId) {
+            return;
+        }
+
+        try {
+
+            const response = await fetch(
+                "/api/firewalls/provision/candidates/"
+                + firewallCandidateId
+            );
+
+            const data =
+                await response.json();
+
+            if (!response.ok) {
+                throw new Error(
+                    data.error ||
+                    "Candidate nao encontrado."
+                );
+            }
+
+            candidateConfig.textContent =
+                data.candidate.config;
+
+            candidatePreview.hidden =
+                false;
+
+            candidatePreview.scrollIntoView(
+                {
+                    behavior: "smooth",
+                    block: "nearest"
+                }
+            );
+
+        } catch (error) {
+
+            setProvisionMessage(
+                error.message,
+                "error"
+            );
+        }
+    }
+);
+
+
+
+
+deployConfigButton.addEventListener(
+    "click",
+    async () => {
+        if (!firewallCandidateId) {
+            setProvisionMessage(
+                "Gere um Candidate antes "
+                + "do Deploy.",
+                "error"
+            );
+            return;
+        }
+
+        const confirmed =
+            window.confirm(
+                "CONFIRMAR DEPLOY REAL?\n\n"
+                + "O Nautobot reservara "
+                + "os enderecos da filial "
+                + "e as configuracoes serao "
+                + "aplicadas no Palo Alto "
+                + "e no FortiGate selecionado."
+            );
+
+        if (!confirmed) {
+            return;
+        }
+
+        deployConfigButton.disabled =
+            true;
+
+        deployConfigButton.textContent =
+            "Deploy em andamento...";
+
+        try {
+            const response = await fetch(
+                "/api/firewalls/provision/"
+                + "candidates/"
+                + firewallCandidateId
+                + "/deploy",
+                {
+                    method: "POST"
+                }
+            );
+
+            const data =
+                await response.json();
+
+            if (!response.ok) {
+                let detail =
+                    data.error
+                    || "Falha no Deploy.";
+
+                if (
+                    data.resources_reserved
+                ) {
+                    detail += (
+                        " Os recursos permanecem "
+                        + "reservados no Nautobot "
+                        + "para evitar reutilizacao."
+                    );
+                }
+
+                throw new Error(
+                    detail
+                );
+            }
+
+            setProvisionMessage(
+                data.hostname
+                + " provisionado. "
+                + "Nautobot atualizado, "
+                + "Palo Alto aplicado e "
+                + "FortiGate validado.",
+                "ok"
+            );
+
+            candidateSummary.innerHTML +=
+                "<br><strong>"
+                + "DEPLOY CONCLUIDO"
+                + "</strong>";
+
+            await loadDevices();
+
+            await loadProvisionPlan();
+
+        } catch (error) {
+            setProvisionMessage(
+                error.message,
+                "error"
+            );
+
+        } finally {
+            deployConfigButton.textContent =
+                "Deploy Config";
+        }
+    }
+);
+
+
+const manageSelectedFirewallsButton =
+    document.getElementById(
+        "manage-selected-firewalls"
+    );
+
+if (manageSelectedFirewallsButton) {
+    manageSelectedFirewallsButton.addEventListener(
+        "click",
+        () => {
+            const selected =
+                selectedFirewallIds();
+
+            if (selected.length === 0) {
+                setProvisionMessage(
+                    "Selecione pelo menos um FortiGate.",
+                    "error"
+                );
+                return;
+            }
+
+            const selectedNames = Array.from(
+                document.querySelectorAll(
+                    ".device-select:checked"
+                )
+            ).map(
+                checkbox => {
+                    const card =
+                        checkbox.closest(
+                            ".managed-firewall-card"
+                        );
+
+                    const hostname =
+                        card?.querySelector(
+                            ".managed-firewall-hostname"
+                        );
+
+                    return (
+                        hostname?.textContent.trim()
+                        || checkbox.value
+                    );
+                }
+            );
+
+            const managementStatus =
+                document.getElementById(
+                    "firewall-management-status"
+                );
+
+            if (managementStatus) {
+                managementStatus.textContent =
+                    "Gerenciando: "
+                    + selectedNames.join(", ");
+
+                managementStatus.classList.add(
+                    "active"
+                );
+            }
+
+            setProvisionMessage(
+                selected.length === 1
+                    ? (
+                        "1 FortiGate em gerenciamento."
+                    )
+                    : (
+                        `${selected.length} FortiGates `
+                        + "em gerenciamento."
+                    ),
+                "ok"
+            );
+
+            const provisionTarget =
+                document.getElementById(
+                    "firewall-management-status"
+                )
+                || document.getElementById(
+                    "provision-hostname"
+                );
+
+            if (provisionTarget) {
+                provisionTarget.scrollIntoView({
+                    behavior: "smooth",
+                    block: "start"
+                });
+            }
+        }
+    );
+}
+
+
+loadProvisionPlan();
+
+
+loadDevices();
+</script>
+
+</body>
+</html>

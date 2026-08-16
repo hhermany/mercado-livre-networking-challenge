@@ -14,10 +14,7 @@ class FakeTroubleshootingSwitch:
                     "status": "up",
                     "protocol": "up",
                     "operational": True,
-                    "label": (
-                        "GigabitEthernet0/0 - "
-                        "172.28.255.210"
-                    ),
+                    "label": ("GigabitEthernet0/0 - 172.28.255.210"),
                 },
                 {
                     "name": "Vlan10",
@@ -55,8 +52,7 @@ class FakeTroubleshootingSwitch:
                 f"repeat {repeat} timeout {timeout}"
             ),
             "output": (
-                "Success rate is 100 percent (5/5), "
-                "round-trip min/avg/max = 1/2/3 ms"
+                "Success rate is 100 percent (5/5), round-trip min/avg/max = 1/2/3 ms"
             ),
         }
 
@@ -84,7 +80,6 @@ class FakeTroubleshootingSwitch:
             for destination in destinations
         ]
 
-
     def traceroute(
         self,
         destination,
@@ -100,11 +95,7 @@ class FakeTroubleshootingSwitch:
             "timeout": timeout,
             "probe_count": probe_count,
             "max_ttl": max_ttl,
-            "output": (
-                "Tracing the route to "
-                f"{destination}\n"
-                "  1 192.168.10.1 1 msec"
-            ),
+            "output": (f"Tracing the route to {destination}\n  1 192.168.10.1 1 msec"),
         }
 
 
@@ -138,26 +129,17 @@ def test_run_switch_ping_multiple_targets(
         username="admin",
         password="password",
         source_interface="Vlan10",
-        targets=(
-            "8.8.8.8,"
-            "192.168.20.1-192.168.20.2"
-        ),
+        targets=("8.8.8.8,192.168.20.1-192.168.20.2"),
     )
 
     assert result["count"] == 3
-    assert [
-        item["destination"]
-        for item in result["results"]
-    ] == [
+    assert [item["destination"] for item in result["results"]] == [
         "8.8.8.8",
         "192.168.20.1",
         "192.168.20.2",
     ]
 
-    assert all(
-        item["success"] is True
-        for item in result["results"]
-    )
+    assert all(item["success"] is True for item in result["results"])
 
 
 def test_run_switch_ping_rejects_down_source(
@@ -180,9 +162,7 @@ def test_run_switch_ping_rejects_down_source(
     except ValueError as exc:
         assert "não está operacional" in str(exc)
     else:
-        raise AssertionError(
-            "ValueError esperado"
-        )
+        raise AssertionError("ValueError esperado")
 
 
 def test_traceroute_uses_interface_ip_as_extended_source(
@@ -203,10 +183,7 @@ def test_traceroute_uses_interface_ip_as_extended_source(
                         "status": "up",
                         "protocol": "up",
                         "operational": True,
-                        "label": (
-                            "GigabitEthernet0/0 - "
-                            "172.28.255.210"
-                        ),
+                        "label": ("GigabitEthernet0/0 - 172.28.255.210"),
                     }
                 ],
                 "raw": "",
@@ -271,17 +248,9 @@ def test_traceroute_uses_interface_ip_as_extended_source(
         "max_ttl": 15,
     }
 
-    assert (
-        result["source_interface"]
-        == "GigabitEthernet0/0"
-    )
+    assert result["source_interface"] == "GigabitEthernet0/0"
 
-    assert (
-        result["source_ip"]
-        == "172.28.255.210"
-    )
-
-
+    assert result["source_ip"] == "172.28.255.210"
 
 
 def test_run_switch_ping_accepts_routed_physical_source(
@@ -302,23 +271,17 @@ def test_run_switch_ping_accepts_routed_physical_source(
         repeat=2,
     )
 
-    assert (
-        result["source"]["name"]
-        == "GigabitEthernet0/0"
-    )
+    assert result["source"]["name"] == "GigabitEthernet0/0"
 
-    assert (
-        result["source"]["ip_address"]
-        == "172.28.255.210"
-    )
+    assert result["source"]["ip_address"] == "172.28.255.210"
+
+
 def test_ping_batch_partitions_targets_across_workers(
     monkeypatch,
 ):
     calls = []
 
-    class BatchSwitch(
-        FakeTroubleshootingSwitch
-    ):
+    class BatchSwitch(FakeTroubleshootingSwitch):
         def ping_many(
             self,
             destinations,
@@ -328,16 +291,12 @@ def test_ping_batch_partitions_targets_across_workers(
             size=100,
             df_bit=False,
         ):
-            calls.append(
-                list(destinations)
-            )
+            calls.append(list(destinations))
 
             return [
                 {
                     "destination": destination,
-                    "command": (
-                        f"ping {destination}"
-                    ),
+                    "command": (f"ping {destination}"),
                     "output": (
                         "Success rate is 100 percent "
                         "(1/1), round-trip "
@@ -369,30 +328,19 @@ def test_ping_batch_partitions_targets_across_workers(
 
     assert len(calls) == 4
 
-    assert sorted(
-        len(batch)
-        for batch in calls
-    ) == [
+    assert sorted(len(batch) for batch in calls) == [
         25,
         25,
         25,
         25,
     ]
 
-    tested_targets = {
-        target
-        for batch in calls
-        for target in batch
-    }
+    tested_targets = {target for batch in calls for target in batch}
 
     assert len(tested_targets) == 100
 
-    assert [
-        item["destination"]
-        for item in result["results"]
-    ] == [
-        f"10.0.0.{value}"
-        for value in range(1, 101)
+    assert [item["destination"] for item in result["results"]] == [
+        f"10.0.0.{value}" for value in range(1, 101)
     ]
 
 
@@ -414,9 +362,7 @@ def test_ping_batch_partitions_work_across_workers(
                         "status": "up",
                         "protocol": "up",
                         "operational": True,
-                        "label": (
-                            "Vlan10 - 192.168.10.254"
-                        ),
+                        "label": ("Vlan10 - 192.168.10.254"),
                     }
                 ],
                 "raw": "",
@@ -438,9 +384,7 @@ def test_ping_batch_partitions_work_across_workers(
             return [
                 {
                     "destination": destination,
-                    "command": (
-                        f"ping {destination}"
-                    ),
+                    "command": (f"ping {destination}"),
                     "output": (
                         "Success rate is 100 percent "
                         "(1/1), round-trip "
@@ -474,10 +418,7 @@ def test_ping_batch_partitions_work_across_workers(
     # 4 lotes de 25 destinos.
     assert len(calls) == 4
 
-    assert sorted(
-        len(batch)
-        for batch in calls
-    ) == [
+    assert sorted(len(batch) for batch in calls) == [
         25,
         25,
         25,
@@ -485,21 +426,14 @@ def test_ping_batch_partitions_work_across_workers(
     ]
 
     # Nenhum endereço perdido ou duplicado.
-    tested = [
-        target
-        for batch in calls
-        for target in batch
-    ]
+    tested = [target for batch in calls for target in batch]
 
     assert len(tested) == 100
     assert len(set(tested)) == 100
 
     # O resultado entregue ao usuário
     # continua em ordem.
-    assert [
-        item["destination"]
-        for item in result["results"]
-    ] == [
+    assert [item["destination"] for item in result["results"]] == [
         f"10.0.0.{value}"
         for value in range(
             1,
@@ -552,12 +486,8 @@ def test_parallel_ping_preserves_target_order(
 
     assert result["count"] == 20
 
-    assert [
-        item["destination"]
-        for item in result["results"]
-    ] == [
-        f"10.0.0.{value}"
-        for value in range(1, 21)
+    assert [item["destination"] for item in result["results"]] == [
+        f"10.0.0.{value}" for value in range(1, 21)
     ]
 
     assert result["concurrency"] == 4
@@ -609,6 +539,8 @@ def test_parallel_ping_rejects_more_than_eight_workers(
             targets="10.0.0.1",
             concurrency=9,
         )
+
+
 def test_run_switch_traceroute(
     monkeypatch,
 ):
@@ -625,9 +557,7 @@ def test_run_switch_traceroute(
                         "status": "up",
                         "protocol": "up",
                         "operational": True,
-                        "label": (
-                            "Vlan10 - 192.168.10.254"
-                        ),
+                        "label": ("Vlan10 - 192.168.10.254"),
                     }
                 ],
                 "raw": "",
@@ -697,9 +627,7 @@ def test_run_switch_traceroute(
     assert result["max_ttl"] == 20
 
     # Output mostrado ao operador.
-    assert result["output"].startswith(
-        "VRF info:"
-    )
+    assert result["output"].startswith("VRF info:")
 
     assert "192.168.10.1" in result["output"]
     assert "8.8.8.8" in result["output"]

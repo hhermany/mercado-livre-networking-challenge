@@ -47,10 +47,7 @@ def split_candidate_blocks(config_text):
 
         current.clear()
 
-    for raw_line in str(
-        config_text
-        or ""
-    ).splitlines():
+    for raw_line in str(config_text or "").splitlines():
         stripped = raw_line.strip()
 
         if not stripped:
@@ -67,9 +64,7 @@ def split_candidate_blocks(config_text):
         }:
             continue
 
-        current.append(
-            stripped
-        )
+        current.append(stripped)
 
     flush()
 
@@ -77,9 +72,4 @@ def split_candidate_blocks(config_text):
 
 
 def candidate_command_count(config_text):
-    return sum(
-        len(block.commands)
-        for block in split_candidate_blocks(
-            config_text
-        )
-    )
+    return sum(len(block.commands) for block in split_candidate_blocks(config_text))

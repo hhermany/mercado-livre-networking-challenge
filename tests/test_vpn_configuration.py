@@ -40,9 +40,6 @@ def test_generate_vendor_configs() -> None:
     assert 'edit "SITE-001-WAN-1-DC-01-WAN-1"' in config.fortigate
     assert "set remote-gw 198.51.100.10" in config.fortigate
 
-    assert (
-        "set network ike gateway SITE-001-WAN-1-DC-01-WAN-1"
-        in config.paloalto
-    )
+    assert "set network ike gateway SITE-001-WAN-1-DC-01-WAN-1" in config.paloalto
     assert "peer-address ip 203.0.113.10" in config.paloalto
     assert "tunnel-interface tunnel.10" in config.paloalto

@@ -10,6 +10,28 @@ class BranchWANInput:
 
 
 @dataclass(frozen=True)
+class IPsecPhase1Input:
+    ike_version: int
+    proposal: str
+    dh_group: int
+    psk: str
+
+
+@dataclass(frozen=True)
+class IPsecPhase2Input:
+    proposal: str
+    dh_group: int
+
+
+@dataclass(frozen=True)
+class BranchProvisionInput:
+    hostname: str
+    wan: BranchWANInput
+    phase1: IPsecPhase1Input
+    phase2: IPsecPhase2Input
+
+
+@dataclass(frozen=True)
 class BranchActivation:
     branch_id: int
     wan: BranchWANInput
