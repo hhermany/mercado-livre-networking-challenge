@@ -36,22 +36,24 @@ O provisionamento utiliza parâmetros relacionados a:
 
 Os principais pools utilizados no laboratório são:
 
-- LAN das filiais: 10.0.0.0/16
-- Loopbacks de gerenciamento: 172.31.255.0/24
-- Overlays VPN: 169.255.0.0/16
-- LAN do datacenter: 10.255.255.0/24
-- Servidor central e destino do SLA: 10.255.255.1
+- LAN das filiais: `10.0.0.0/16`
+- Loopbacks de gerenciamento: `172.31.255.0/24`
+- Overlays VPN: `169.255.0.0/16`
+- LAN do datacenter: `10.255.255.0/24`
+- Servidor central e destino do SLA: `10.255.255.1`
+
+O endereço `169.255.1.0/30` especificado no enunciado do desafio é contemplado por esse modelo e representa um dos blocos `/30` disponíveis dentro do pool `169.255.0.0/16`.
+
+Na implementação, em vez de manter um único `/30` fixo, o Nautobot/IPAM controla a alocação dos blocos de overlay para cada túnel e filial, permitindo a expansão do ambiente sem reutilização ou sobreposição de endereços. Em cada `/30`, o primeiro endereço utilizável é atribuído ao Palo Alto e o segundo ao FortiGate.
 
 As loopbacks seguem uma convenção determinística:
 
-- BRANCH-1: 172.31.255.1/32
-- BRANCH-2: 172.31.255.2/32
-- BRANCH-3: 172.31.255.3/32
-- BRANCH-X: 172.31.255.X/32
+- BRANCH-1: `172.31.255.1/32`
+- BRANCH-2: `172.31.255.2/32`
+- BRANCH-3: `172.31.255.3/32`
+- BRANCH-X: `172.31.255.X/32`
 
-Para cada overlay /30, o primeiro endereço utilizável é destinado ao Palo Alto e o segundo ao FortiGate.
-
-O Nautobot é utilizado como Source of Truth e IPAM para controlar os recursos e reduzir o risco de overlap.
+O Nautobot é utilizado como Source of Truth e IPAM para controlar os recursos de endereçamento e reduzir o risco de overlap.
 
 ## 5. Phase 1 e Phase 2
 
