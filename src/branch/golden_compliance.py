@@ -591,18 +591,64 @@ class FortiGateGoldenCompliance:
         # UNDERLAY / STATIC
         # ----------------------------------------------------
 
-        golden_static_empty = "set gateway" not in static_golden
-
-        candidate_static_empty = (
-            "config router static" not in candidate
-            or "set gateway" not in candidate[candidate.find("config router static") :]
+        static_required = (
+            'edit 100',
+            'set sdwan-zone "WAN-INTERNET"',
         )
+
+        golden_ok, golden_missing = self._contains_all(
+            static_golden,
+            static_required,
+        )
+
+        static_start = candidate.find(
+            "config router static"
+        )
+
+        if static_start >= 0:
+            static_end = candidate.find(
+                "\nend",
+                static_start,
+            )
+
+            candidate_static = (
+                candidate[static_start:]
+                if static_end < 0
+                else candidate[
+                    static_start:
+                    static_end + len("\nend")
+                ]
+            )
+        else:
+            candidate_static = ""
+
+        candidate_ok, candidate_missing = self._contains_all(
+            candidate_static,
+            static_required,
+        )
+
+        # Detecta qualquer static route direta pelos
+        # underlays físicos, inclusive se um segundo bloco
+        # "config router static" for adicionado ao Candidate.
+        unexpected_static = (
+            'set device "port2"' in candidate
+            or 'set device "port3"' in candidate
+        )
+
+        missing = list(golden_missing) + list(candidate_missing)
+
+        if unexpected_static:
+            missing.append(
+                "static route direta por port2/port3"
+            )
 
         checks.append(
             self._check(
                 "Static routing",
-                golden_static_empty and candidate_static_empty,
-                ("Golden atual nao possui static default."),
+                golden_ok
+                and candidate_ok
+                and not unexpected_static,
+                ", ".join(missing),
             )
         )
 
@@ -692,14 +738,77 @@ class FortiGateGoldenCompliance:
             )
         )
 
+        sdwan_members = self._sdwan_members(candidate)
+
+        underlay_required = (
+            'edit 1',
+            'set interface "port2"',
+            'set zone "WAN-INTERNET"',
+            'set gateway',
+            'edit 2',
+            'set interface "port3"',
+        )
+
+        overlay_required = (
+            'edit 3',
+            'set interface "VPN1-PA-DC"',
+            'set zone "VPN-DC"',
+            'edit 4',
+            'set interface "VPN2-PA-DC"',
+        )
+
+        underlay_ok, underlay_missing = self._contains_all(
+            sdwan_members,
+            underlay_required,
+        )
+
+        overlay_ok, overlay_missing = self._contains_all(
+            sdwan_members,
+            overlay_required,
+        )
+
         checks.append(
             self._check(
-                "Underlay outside SD-WAN",
-                (
-                    'set interface "port2"' not in self._sdwan_members(candidate)
-                    and 'set interface "port3"' not in self._sdwan_members(candidate)
-                ),
-                ("port2/port3 apareceram como membros SD-WAN."),
+                "WAN SD-WAN underlay",
+                underlay_ok,
+                ", ".join(underlay_missing),
+            )
+        )
+
+        checks.append(
+            self._check(
+                "VPN SD-WAN overlay",
+                overlay_ok,
+                ", ".join(overlay_missing),
+            )
+        )
+
+        sdwan_start = candidate.find("config system sdwan")
+
+        sdwan_section = (
+            candidate[sdwan_start:]
+            if sdwan_start >= 0
+            else ""
+        )
+
+        internet_sla_required = (
+            'edit "SLA_INTERNET"',
+            'set server "8.8.8.8"',
+            'set members 1 2',
+        )
+
+        internet_sla_ok, internet_sla_missing = (
+            self._contains_all(
+                sdwan_section,
+                internet_sla_required,
+            )
+        )
+
+        checks.append(
+            self._check(
+                "Internet SLA",
+                internet_sla_ok,
+                ", ".join(internet_sla_missing),
             )
         )
 

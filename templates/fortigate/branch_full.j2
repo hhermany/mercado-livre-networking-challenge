@@ -46,6 +46,14 @@ end
 
 
 
+config router static
+    edit 100
+        set distance 1
+        set sdwan-zone "WAN-INTERNET"
+    next
+end
+
+
 config system dhcp server
     edit 2
         set default-gateway {{ lan_gateway }}
@@ -72,6 +80,10 @@ config firewall address
 
     edit "DC-SERVER-1"
         set subnet 10.255.255.1 255.255.255.255
+    next
+
+    edit "NET-DC"
+        set subnet 10.255.255.0 255.255.255.0
     next
 end
 
@@ -251,15 +263,30 @@ config system sdwan
     config zone
         edit "VPN-DC"
         next
+
+        edit "WAN-INTERNET"
+        next
     end
 
     config members
         edit 1
+            set interface "port2"
+            set zone "WAN-INTERNET"
+            set gateway 100.64.0.1
+        next
+
+        edit 2
+            set interface "port3"
+            set zone "WAN-INTERNET"
+            set gateway 100.100.0.1
+        next
+
+        edit 3
             set interface "VPN1-PA-DC"
             set zone "VPN-DC"
         next
 
-        edit 2
+        edit 4
             set interface "VPN2-PA-DC"
             set zone "VPN-DC"
         next
@@ -272,7 +299,7 @@ config system sdwan
             set probe-timeout 250
             set failtime 2
             set recoverytime 10
-            set members 1 2
+            set members 3 4
 
             config sla
                 edit 1
@@ -282,17 +309,35 @@ config system sdwan
                 next
             end
         next
+
+        edit "SLA_INTERNET"
+            set server "8.8.8.8"
+            set protocol ping
+            set interval 1000
+            set probe-timeout 500
+            set failtime 3
+            set recoverytime 3
+            set members 1 2
+
+            config sla
+                edit 1
+                    set latency-threshold 150
+                    set jitter-threshold 30
+                    set packetloss-threshold 5
+                next
+            end
+        next
     end
 
     config neighbor
         edit "{{ vpn1_dc_ip }}"
-            set member 1
+            set member 3
             set health-check "SLA_DC"
             set sla-id 1
         next
 
         edit "{{ vpn2_dc_ip }}"
-            set member 2
+            set member 4
             set health-check "SLA_DC"
             set sla-id 1
         next
@@ -303,11 +348,27 @@ config system sdwan
             set name "TO-DC"
             set mode sla
             set minimum-sla-meet-members 1
-            set dst "all"
+            set dst "NET-DC"
             set src "all"
 
             config sla
                 edit "SLA_DC"
+                    set id 1
+                next
+            end
+
+            set priority-members 3 4
+            set tie-break cfg-order
+        next
+
+        edit 2
+            set name "TO-INTERNET"
+            set mode sla
+            set dst "all"
+            set src "all"
+
+            config sla
+                edit "SLA_INTERNET"
                     set id 1
                 next
             end

@@ -59,12 +59,14 @@ def test_wan_configuration_is_rendered():
     assert "set ip 100.100.0.3 255.255.255.0" in config
     assert "set allowaccess ping" in config
 
-    # Golden real:
-    # peers IPsec diretamente conectados.
-    # Nao existem static defaults por WAN.
-    assert "set gateway 100.64.0.1" not in config
-    assert "set gateway 100.100.0.1" not in config
-    assert "config router static" not in config
+    # Golden atual:
+    # port2/port3 formam o underlay WAN-INTERNET.
+    # A default route utiliza a zona SD-WAN e os
+    # gateways dos dois links físicos.
+    assert "set gateway 100.64.0.1" in config
+    assert "set gateway 100.100.0.1" in config
+    assert "config router static" in config
+    assert 'set sdwan-zone "WAN-INTERNET"' in config
 
 
 def test_fortigate_vpn_crypto_is_parameterized():

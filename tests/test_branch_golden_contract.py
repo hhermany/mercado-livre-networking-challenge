@@ -192,19 +192,13 @@ def test_branch_real_golden_vpn_interfaces():
     assert 'set interface "port3"' in vpn2
 
 
-def test_branch_real_golden_sdwan_overlay_members():
+def test_branch_real_golden_sdwan_members():
     config = _generate(2)
 
     start = config.index("config system sdwan")
-
     section = config[start:]
 
-    assert 'set interface "VPN1-PA-DC"' in section
-
-    assert 'set interface "VPN2-PA-DC"' in section
-
     members_start = section.index("config members")
-
     members_end = section.index(
         "\n    end",
         members_start,
@@ -212,9 +206,13 @@ def test_branch_real_golden_sdwan_overlay_members():
 
     members = section[members_start:members_end]
 
-    assert 'set interface "port2"' not in members
+    assert 'set interface "port2"' in members
+    assert 'set interface "port3"' in members
+    assert 'set interface "VPN1-PA-DC"' in members
+    assert 'set interface "VPN2-PA-DC"' in members
 
-    assert 'set interface "port3"' not in members
+    assert 'set zone "WAN-INTERNET"' in members
+    assert 'set zone "VPN-DC"' in members
 
 
 def test_branch_real_golden_bgp_contract():
@@ -243,9 +241,12 @@ def test_branch_real_golden_community_lists():
         assert f'edit "{name}"' in config
 
 
-def test_branch_real_golden_has_no_static_default():
+def test_branch_real_golden_has_sdwan_default():
     config = _generate(2)
 
-    assert "config router static" not in config or (
-        "set gateway" not in config[config.find("config router static") :]
-    )
+    assert "config router static" in config
+
+    start = config.index("config router static")
+    section = config[start:]
+
+    assert 'set sdwan-zone "WAN-INTERNET"' in section
