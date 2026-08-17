@@ -22942,6 +22942,251 @@ strong {
 
 </style>
 
+
+<script id="switch-layout-final-order">
+(function () {
+    function commonAncestor(a, b) {
+        if (!a || !b) return null;
+
+        const parents = new Set();
+        let node = a;
+
+        while (node) {
+            parents.add(node);
+            node = node.parentElement;
+        }
+
+        node = b;
+
+        while (node) {
+            if (parents.has(node)) {
+                return node;
+            }
+            node = node.parentElement;
+        }
+
+        return null;
+    }
+
+    function headingByText(text) {
+        return Array.from(
+            document.querySelectorAll("h1, h2, h3, h4")
+        ).find(function (element) {
+            return element.textContent.trim().toLowerCase()
+                === text.toLowerCase();
+        });
+    }
+
+    function smallestContainer(a, b) {
+        return commonAncestor(a, b);
+    }
+
+    function layout() {
+        const workspace =
+            document.getElementById("multi-switch-workspace");
+
+        const grid =
+            document.getElementById("multi-switch-grid");
+
+        const operations =
+            document.getElementById("multi-switch-operations");
+
+        /*
+         * 1. Operações Multi-Switch:
+         * imediatamente abaixo das VLANs/interfaces.
+         */
+        if (workspace && grid && operations) {
+            workspace.insertBefore(
+                operations,
+                grid.nextSibling
+            );
+        }
+
+        /*
+         * 2. Provision:
+         * retirar da região operacional e colocar
+         * imediatamente antes de Troubleshooting.
+         */
+        const provisionHeading =
+            headingByText("Provision");
+
+        const provisionDownload =
+            document.getElementById("provision-download");
+
+        const troubleshootingHeading =
+            headingByText("Troubleshooting");
+
+        if (
+            provisionHeading
+            && provisionDownload
+            && troubleshootingHeading
+        ) {
+            const provision =
+                smallestContainer(
+                    provisionHeading,
+                    provisionDownload
+                );
+
+            let troubleshooting =
+                troubleshootingHeading;
+
+            while (
+                troubleshooting.parentElement
+                && troubleshooting.parentElement !== document.body
+                && (
+                    troubleshooting.parentElement.tagName === "SECTION"
+                    || troubleshooting.parentElement.classList.contains("card")
+                    || troubleshooting.parentElement.classList.contains("panel")
+                )
+            ) {
+                troubleshooting =
+                    troubleshooting.parentElement;
+            }
+
+            if (
+                provision
+                && troubleshooting
+                && provision !== troubleshooting
+                && troubleshooting.parentElement
+            ) {
+                troubleshooting.parentElement.insertBefore(
+                    provision,
+                    troubleshooting
+                );
+            }
+        }
+    }
+
+    if (document.readyState === "loading") {
+        document.addEventListener(
+            "DOMContentLoaded",
+            layout
+        );
+    } else {
+        layout();
+    }
+})();
+</script>
+
+
+<script id="stale-managed-device-cleanup">
+(function () {
+    function currentDeviceIds() {
+        return new Set(
+            Array.from(
+                document.querySelectorAll(
+                    ".managed-switch[data-device-id]"
+                )
+            )
+            .map(function (item) {
+                return item.dataset.deviceId;
+            })
+            .filter(Boolean)
+        );
+    }
+
+    function removeStaleDeviceCards() {
+        const validIds = currentDeviceIds();
+
+        document.querySelectorAll(
+            '[data-device-id]'
+        ).forEach(function (element) {
+            const id = element.dataset.deviceId;
+
+            if (
+                id
+                && !validIds.has(id)
+                && !element.classList.contains("managed-switch")
+            ) {
+                const card =
+                    element.closest(
+                        ".tshoot-device,"
+                        + ".troubleshooting-device,"
+                        + ".multi-tshoot-device,"
+                        + ".device-card"
+                    );
+
+                if (card) {
+                    card.remove();
+                }
+            }
+        });
+
+        /*
+         * Fallback para cards de troubleshooting
+         * gerados sem data-device-id no container pai.
+         *
+         * Se um checkbox contém UUID que não existe
+         * mais no inventário gerenciado, remove o card.
+         */
+        document.querySelectorAll(
+            'input[type="checkbox"]'
+        ).forEach(function (checkbox) {
+            const value = checkbox.value;
+
+            if (
+                value
+                && /^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(value)
+                && !validIds.has(value)
+            ) {
+                const card =
+                    checkbox.closest(
+                        ".tshoot-device,"
+                        + ".troubleshooting-device,"
+                        + ".multi-tshoot-device,"
+                        + ".device-card"
+                    );
+
+                if (card) {
+                    card.remove();
+                }
+            }
+        });
+    }
+
+    function cleanup() {
+        removeStaleDeviceCards();
+
+        /*
+         * Dispara change para que contadores/
+         * paralelismo sejam recalculados.
+         */
+        document.querySelectorAll(
+            'input[type="checkbox"]:checked'
+        ).forEach(function (checkbox) {
+            checkbox.dispatchEvent(
+                new Event("change", { bubbles: true })
+            );
+        });
+    }
+
+    if (document.readyState === "loading") {
+        document.addEventListener(
+            "DOMContentLoaded",
+            function () {
+                setTimeout(cleanup, 200);
+                setTimeout(cleanup, 1000);
+            }
+        );
+    } else {
+        setTimeout(cleanup, 200);
+        setTimeout(cleanup, 1000);
+    }
+
+    const observer = new MutationObserver(function () {
+        removeStaleDeviceCards();
+    });
+
+    observer.observe(
+        document.body,
+        {
+            childList: true,
+            subtree: true
+        }
+    );
+})();
+</script>
+
 </body>
 </html>
 

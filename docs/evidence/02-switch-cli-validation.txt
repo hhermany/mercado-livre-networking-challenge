@@ -1,0 +1,94 @@
+NETWORK AUTOMATION CHALLENGE - SWITCH CLI VALIDATION
+Target: 172.28.255.210
+
+========================================================================
+show running-config | include ^hostname
+========================================================================
+hostname SW-TESTE2
+
+========================================================================
+show vlan brief
+========================================================================
+
+VLAN Name                             Status    Ports
+---- -------------------------------- --------- -------------------------------
+1    default                          active    Gi1/1, Gi1/2, Gi1/3
+10   VLAN_DADOS                       active    Gi0/1, Gi1/0
+20   VLAN_VOZ                         active    Gi0/1, Gi0/3
+50   VLAN_SEGURANCA                   active    Gi0/2
+100  VLAN0100                         active    
+101  MAXAQUEU                         active    Gi0/3
+102  MACAXEU2                         active    
+103  MACAXEU3                         active    
+155  VLAN0155                         active    
+200  TESTE1                           active    
+201  TESTE2                           active    
+1002 fddi-default                     act/unsup 
+1003 token-ring-default               act/unsup 
+1004 fddinet-default                  act/unsup 
+1005 trnet-default                    act/unsup 
+
+========================================================================
+show running-config | section ^interface
+========================================================================
+interface Port-channel1
+ switchport trunk allowed vlan 10,20
+ switchport trunk encapsulation dot1q
+ switchport mode trunk
+interface GigabitEthernet0/0
+ no switchport
+ ip address 172.28.255.210 255.255.255.0
+ negotiation auto
+interface GigabitEthernet0/1
+ description ## HOST DE TESTES ##
+ switchport access vlan 10
+ switchport mode access
+ switchport voice vlan 20
+ negotiation auto
+ spanning-tree portfast edge
+interface GigabitEthernet0/2
+ description TESTE DEPOIS DA RUNN NAO SALVAR
+ switchport access vlan 50
+ switchport mode access
+ negotiation auto
+interface GigabitEthernet0/3
+ switchport access vlan 101
+ switchport mode access
+ switchport voice vlan 20
+ mtu 9600
+ shutdown
+ negotiation auto
+ spanning-tree portfast edge
+interface GigabitEthernet1/0
+ switchport access vlan 10
+ switchport mode access
+ negotiation auto
+ spanning-tree portfast edge
+interface GigabitEthernet1/1
+ negotiation auto
+interface GigabitEthernet1/2
+ switchport trunk allowed vlan 10,20
+ switchport trunk encapsulation dot1q
+ switchport mode trunk
+ shutdown
+ negotiation auto
+ channel-group 1 mode active
+interface GigabitEthernet1/3
+ switchport trunk allowed vlan 10,20
+ switchport trunk encapsulation dot1q
+ switchport mode trunk
+ shutdown
+ negotiation auto
+ channel-group 1 mode active
+interface Vlan10
+ ip address 192.168.10.254 255.255.255.0
+interface Vlan20
+ ip address 192.168.20.254 255.255.255.0
+interface Vlan50
+ ip address 192.168.50.254 255.255.255.0
+
+========================================================================
+show startup-config | include ^hostname
+========================================================================
+hostname SW-TESTE2
+

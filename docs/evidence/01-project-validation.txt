@@ -1,0 +1,96 @@
+NETWORK AUTOMATION CHALLENGE - EVIDENCIAS
+Data: Sun Aug 16 22:21:33 -03 2026
+
+=== QUALITY GATE ===
+All checks passed!
+........................................................................ [ 14%]
+........................................................................ [ 29%]
+........................................................................ [ 43%]
+........................................................................ [ 58%]
+........................................................................ [ 72%]
+........................................................................ [ 87%]
+...............................................................          [100%]
+495 passed in 25.71s
+
+=== ARQUIVOS DE BACKUP ===
+2026-08-14 11:27  backups/SWITCH_2026-08-14_11-27-53.cfg
+2026-08-14 11:29  backups/SWITCH_2026-08-14_11-29-15.cfg
+2026-08-14 11:30  backups/SWITCH_2026-08-14_11-30-44.cfg
+2026-08-14 11:30  backups/SWITCH_2026-08-14_11-30-45.cfg
+2026-08-14 11:31  backups/SWITCH_2026-08-14_11-31-10.cfg
+2026-08-14 11:31  backups/SWITCH_2026-08-14_11-31-11.cfg
+2026-08-14 11:31  backups/SWITCH_2026-08-14_11-31-55.cfg
+2026-08-14 11:39  backups/SWITCH_2026-08-14_11-39-07.cfg
+2026-08-14 11:39  backups/SWITCH_2026-08-14_11-39-27.cfg
+2026-08-14 11:39  backups/SWITCH_2026-08-14_11-39-49.cfg
+2026-08-14 11:48  backups/SWITCH_2026-08-14_11-48-44.cfg
+2026-08-14 11:55  backups/SWITCH_2026-08-14_11-55-24.cfg
+2026-08-14 12:01  backups/SWITCH_2026-08-14_12-01-05.cfg
+2026-08-14 12:11  backups/SWITCH_2026-08-14_12-11-12.cfg
+2026-08-14 12:16  backups/SWITCH_2026-08-14_12-16-32.cfg
+2026-08-14 12:20  backups/SWITCH_2026-08-14_12-20-21.cfg
+2026-08-14 12:20  backups/SWITCH_2026-08-14_12-20-22.cfg
+2026-08-14 12:23  backups/SWITCH_2026-08-14_12-23-46.cfg
+2026-08-14 12:26  backups/SWITCH_2026-08-14_12-26-52.cfg
+2026-08-14 12:45  backups/SW-NOVO2_2026-08-14_12-45-09.cfg
+2026-08-14 12:45  backups/SW-TESTE2_2026-08-14_12-45-09.cfg
+2026-08-14 12:54  backups/SW-NOVO1_2026-08-14_12-54-30.cfg
+2026-08-14 12:54  backups/SW-NOVO_2026-08-14_12-54-07.cfg
+2026-08-14 14:20  backups/SW-NOVO1_running_20260814_142039.cfg
+2026-08-14 14:22  backups/SW-NOVO1_running_20260814_142254.cfg
+2026-08-14 14:23  backups/SW-NOVO1_running_20260814_142301.cfg
+2026-08-14 14:32  backups/SW-NOVO1_running_20260814_143220.cfg
+2026-08-14 14:32  backups/SW-TESTE2_running_20260814_143220.cfg
+2026-08-16 20:36  backups/SW-BRANCH-2_2026-08-16_20-36-32.cfg
+2026-08-16 20:37  backups/SWITCH_2026-08-16_20-37-43.cfg
+
+=== CONFIGURACOES GERADAS ===
+2026-08-13 15:08  generated/FW-BRANCH-2.conf
+2026-08-16 21:08  generated/BRANCH-3/fortigate.conf
+2026-08-16 21:08  generated/BRANCH-3/paloalto.set
+2026-08-16 21:19  generated/BRANCH-2/fortigate.conf
+2026-08-16 21:19  generated/BRANCH-2/paloalto.set
+
+=== GOLDEN BASELINE ===
+golden/FW-BRANCH-1-golden.conf
+golden/firewall_address.conf
+golden/firewall_addrgrp.conf
+golden/firewall_policy.conf
+golden/ipsec_phase1.conf
+golden/ipsec_phase2.conf
+golden/paloalto/FW-DC-PA-golden.conf
+golden/paloalto/ethernet_interfaces.conf
+golden/paloalto/ike_crypto_profiles.conf
+golden/paloalto/ike_gateways.conf
+golden/paloalto/ipsec_crypto_profiles.conf
+golden/paloalto/ipsec_tunnels.conf
+golden/paloalto/system_info.conf
+golden/paloalto/tunnel_interfaces.conf
+golden/paloalto/virtual_router.conf
+golden/router_aspath_list.conf
+golden/router_bgp.conf
+golden/router_community_list.conf
+golden/router_prefix_list.conf
+golden/router_route_map.conf
+golden/router_static.conf
+golden/service_custom.conf
+golden/service_group.conf
+golden/system_interface.conf
+golden/system_sdwan.conf
+
+=== DOCUMENTACAO ===
+docs/VPN_AUTOMATION_PLAN.md
+docs/architecture.md
+docs/evidence/01-project-validation.txt
+
+=== GIT ===
+7c6000e docs: finalize project documentation
+2e7d016 release: finalize automated branch deployment
+36ac66e feat: complete automated branch firewall onboarding
+4fff26d feat: complete Cisco switch automation MVP
+f1e9f07 feat: add multi-switch interface quick actions
+3cdcddd feat: complete multi-switch management and troubleshooting
+a03c262 feat: add multi-device switch management foundation
+dbfcdcd Adiciona testes de validacao pos-configuracao do switch
+d4a7fbe Adiciona gerenciamento, diff e backup remoto de configuracoes Cisco
+7409f76 Adiciona gerenciamento e comparacao de configuracoes Cisco
