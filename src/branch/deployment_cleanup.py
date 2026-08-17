@@ -1,5 +1,5 @@
-from pathlib import Path
 import shutil
+from pathlib import Path
 
 from src.branch.paloalto_cleanup import (
     generate_paloalto_branch_cleanup,

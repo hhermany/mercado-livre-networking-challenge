@@ -3322,8 +3322,8 @@ def api_firewall_candidate_deploy(
 
 @app.get("/api/firewalls/deployments")
 def api_firewall_deployments():
-    from pathlib import Path
     import re
+    from pathlib import Path
 
     root = Path("generated")
 
