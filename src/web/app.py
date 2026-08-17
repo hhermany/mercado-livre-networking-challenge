@@ -3319,6 +3319,154 @@ def api_firewall_candidate_deploy(
         ), 400
 
 
+
+@app.get("/api/firewalls/deployments")
+def api_firewall_deployments():
+    from pathlib import Path
+    import re
+
+    root = Path("generated")
+
+    deployments = []
+
+    if root.exists():
+        for directory in sorted(
+            root.glob("BRANCH-*")
+        ):
+            if not directory.is_dir():
+                continue
+
+            match = re.fullmatch(
+                r"BRANCH-(\d+)",
+                directory.name,
+            )
+
+            if not match:
+                continue
+
+            branch_id = int(
+                match.group(1)
+            )
+
+            deployments.append(
+                {
+                    "branch_id": branch_id,
+                    "name": directory.name,
+                    "status": "DEPLOYED",
+                    "can_destroy": (
+                        branch_id != 1
+                    ),
+                }
+            )
+
+    return jsonify(
+        {
+            "ok": True,
+            "deployments": deployments,
+        }
+    )
+
+
+@app.post(
+    "/api/firewalls/deployments/"
+    "<int:branch_id>/destroy"
+)
+def api_firewall_destroy_deployment(
+    branch_id,
+):
+    import os
+
+    from src.branch.deployment_cleanup import (
+        destroy_branch_deployment,
+    )
+
+    if branch_id == 1:
+        return jsonify(
+            {
+                "ok": False,
+                "error": (
+                    "BRANCH-1 e a golden "
+                    "e nao pode ser destruida."
+                ),
+            }
+        ), 400
+
+    host = os.getenv(
+        "PALOALTO_HOST"
+    )
+    username = os.getenv(
+        "PALOALTO_USERNAME"
+    )
+    password = os.getenv(
+        "PALOALTO_PASSWORD"
+    )
+
+    if not all(
+        (
+            host,
+            username,
+            password,
+        )
+    ):
+        return jsonify(
+            {
+                "ok": False,
+                "error": (
+                    "Credenciais do Palo Alto "
+                    "nao estao configuradas no .env."
+                ),
+            }
+        ), 500
+
+    try:
+        result = destroy_branch_deployment(
+            branch_id=branch_id,
+            paloalto_host=host,
+            paloalto_username=username,
+            paloalto_password=password,
+        )
+
+    except Exception as exc:
+        return jsonify(
+            {
+                "ok": False,
+                "error": str(exc),
+            }
+        ), 500
+
+    warnings = result[
+        "nautobot"
+    ].get(
+        "warnings",
+        [],
+    )
+
+    return jsonify(
+        {
+            "ok": not warnings,
+            "branch_id": branch_id,
+            "message": (
+                f"BRANCH-{branch_id} destruida."
+                if not warnings
+                else (
+                    f"BRANCH-{branch_id}: "
+                    "cleanup parcial."
+                )
+            ),
+            "warnings": warnings,
+            "deleted": result[
+                "nautobot"
+            ].get(
+                "deleted",
+                [],
+            ),
+            "artifacts_removed": result[
+                "artifacts_removed"
+            ],
+        }
+    )
+
+
 @app.get("/firewalls")
 def firewalls():
     return render_template("firewalls.html")

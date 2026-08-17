@@ -209,6 +209,75 @@ class PaloAltoManager:
             "commit": commit_output,
         }
 
+    @staticmethod
+    def _cleanup_commands(configuration):
+        commands = [
+            line.strip()
+            for line in configuration.splitlines()
+            if line.strip()
+        ]
+
+        if not commands:
+            raise ValueError("Cleanup Palo Alto vazio.")
+
+        invalid = [
+            command
+            for command in commands
+            if not command.startswith("delete ")
+        ]
+
+        if invalid:
+            raise ValueError(
+                "Cleanup Palo Alto possui comando fora do formato delete."
+            )
+
+        return commands
+
+    def destroy_configuration(
+        self,
+        configuration,
+    ):
+        """
+        Remove configuração incremental de uma branch
+        e executa commit no PAN-OS.
+
+        Aceita exclusivamente comandos 'delete'.
+        """
+
+        commands = self._cleanup_commands(configuration)
+
+        with ConnectHandler(
+            **self._connection_parameters()
+        ) as connection:
+            connection.config_mode()
+
+            output = connection.send_config_set(
+                commands,
+                enter_config_mode=False,
+                exit_config_mode=False,
+                read_timeout=180,
+            )
+
+            self._assert_cli_success(output)
+
+            commit_output = connection.send_command_timing(
+                "commit",
+                read_timeout=300,
+                last_read=10,
+                strip_prompt=False,
+                strip_command=False,
+            )
+
+            self._assert_cli_success(commit_output)
+
+            if connection.check_config_mode():
+                connection.exit_config_mode()
+
+        return {
+            "configuration": output,
+            "commit": commit_output,
+        }
+
     def discover_ipsec_capabilities(
         self,
         *,
